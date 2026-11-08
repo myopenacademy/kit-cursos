@@ -40,6 +40,39 @@ Un objeto va entre llaves; una lista, entre corchetes. Pulsa <kbd>Ctrl</kbd> + <
 
 📁 **Código:** [`codigo/01-ficheros-json/ejemplos/2.1-un-cliente/`](codigo/01-ficheros-json/ejemplos/2.1-un-cliente/)
 
+### 2.2. Contar clientes
+
+Un script que cuenta los clientes de una ciudad (lo usarías para un informe rápido):
+
+```bash
+#!/bin/bash
+# Cuenta los clientes de una ciudad en clientes.json (un cliente por línea)
+ciudad="$1"
+total=$(grep -c "\"ciudad\": \"$ciudad\"" clientes.json)
+echo "Clientes de $ciudad: $total"
+```
+
+📁 **Código:** [`codigo/01-ficheros-json/ejemplos/2.2-contar-clientes/`](codigo/01-ficheros-json/ejemplos/2.2-contar-clientes/)
+
+**Salida:**
+
+```text
+Clientes de Madrid: 2
+```
+
+### 2.3. Ver un fichero en la terminal
+
+**En tu terminal** (`sesion.txt`):
+
+```text
+$ ls
+cliente.json
+$ cat cliente.json
+{"nombre": "Ana", "puntos": 120}
+```
+
+📁 **Código:** [`codigo/01-ficheros-json/ejemplos/2.3-ver-un-fichero/`](codigo/01-ficheros-json/ejemplos/2.3-ver-un-fichero/)
+
 ## 3. Errores típicos
 
 ### 3.1. La coma de más

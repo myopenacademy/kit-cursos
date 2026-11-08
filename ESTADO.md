@@ -21,7 +21,13 @@ Resueltas con el autor las tres decisiones del apartado 4 de `PLAN.md`, y ajusta
 
 ## Siguiente paso
 
-Tarea 4 de `PLAN.md`, en el orden en que se escribe el curso: primero el núcleo de `verificar_codigo.py` con bash y las sesiones de terminal y la detección de bash 3.2 (sus fases 2 y 3). Pendiente del autor: cómo se garantiza «sin red» sin Docker (en esta máquina `unshare --net` no funciona: Ubuntu limita los espacios de nombres de usuario sin privilegios). La tarea 5 (`herramientas/README.md`) se va haciendo con cada herramienta.
+Tarea 4 de `PLAN.md`, paso 2: JSON, YAML, XML, CSV y Markdown (la fase 4 del curso inicial).
+
+**Tarea 4, paso 1 hecho:** `nucleo/verificar_codigo.py` (el núcleo de Java, sin Java), `lenguajes/bash.py` (scripts y lo que no existe en bash 3.2) y `servicios/terminal.py` con la imagen `servicios/terminal/Dockerfile`. 165 pruebas. Decisiones (del autor salvo donde se dice):
+- **Docker para la verificación completa** (sin red con `--network none` y las mismas versiones en cualquier máquina); **sin Docker, parcial y avisando** (`unshare --net` no funciona sin permisos: Ubuntu limita los espacios de nombres de usuario; no se toca la seguridad del sistema).
+- Imagen: Ubuntu 26.04.1 por su huella; **Git 2.56.0** compilado del código oficial (SHA-256) con sus traducciones, `sysconfdir=/etc` y `NO_RUST=1` (desde Git 3.0 habrá que instalar Rust); español y hora de Madrid. Comprobado: `git status` responde en español con la rama `main`.
+- **bash 3.2.57 compilado en la misma imagen** (firma de Chet Ramey verificada), no la imagen oficial `bash:3.2.57`, porque esa es de Alpine con BusyBox y daría diferencias falsas en `ls`, `sort`, `grep` (decisión de esta sesión, anotada en `herramientas/README.md`). Así una diferencia es solo del bash: un `printf '%(%Y)T'` falla en la 3.2 y la búsqueda de texto no lo ve.
+- **No se comprueba** que `sed`, `date`, `ls` se comporten igual en macOS (BSD frente a GNU): lo cubren los avisos de cada módulo (documentado). La tarea 5 (`herramientas/README.md`) se va haciendo con cada herramienta.
 
 **Tarea 3 hecha:** además, `nucleo/generar_chuleta_global.py` (con la copia de Java, idéntica a la original salvo una línea de ejemplo dentro de un bloque ` ```` ` que el original reescribía mal, y la frase de la cabecera) y `nucleo/comprobar_mermaid.py` (probado con los 23 diagramas del curso inicial y los 31 de la fase 03 de Java). 130 pruebas. **Versiones de Mermaid** (decisión del autor, 8 de noviembre de 2026): la biblioteca **12.2.0**, la de la academia (manda la academia), y la **10.9.8**, por GitHub; fijadas las dos (mermaid-cli solo pide un rango y ya existe la 12.3.0). Se suben junto con la de la academia (`herramientas/README.md`).
 
@@ -42,6 +48,7 @@ Se trabaja a la vez que `../curso-inicial/`. **Lee su `ESTADO.md` (solo leer) al
 |---|---|---|
 | `formato_academia.py` | Comprobar y cerrar su fase 1 | **Hecho** (8 de noviembre de 2026): `herramientas/formato_academia.py` |
 | `generar_indice.py` | Generar `00-indice.md` (sus módulos ya lo enlazan) | **Hecho** (8 de noviembre de 2026): `herramientas/nucleo/generar_indice.py` |
+| `verificar_codigo.py` con bash y las sesiones de terminal | Verificar los ejemplos y ejercicios de bash de sus fases 2 y 3 | **Hecho** (8 de noviembre de 2026): `herramientas/nucleo/verificar_codigo.py` |
 | `generar_chuleta_global.py` y `comprobar_mermaid.py` | Generar `99-chuleta-global.md` y comprobar sus diagramas | **Hecho** (8 de noviembre de 2026): `herramientas/nucleo/` |
 | Verificar con salidas en español (`LC_ALL`), rama `main`, Git con autor y fechas fijos, servidor HTTP local y compatibilidad con bash 3.2 | Sus ejercicios y retos de las fases 2 a 8 | Anotado en la tarea 4 de `PLAN.md`; pendiente |
 | Las convenciones de verificación del curso de Java en `FORMATO.md` (7.1) | Saber cómo se escriben las salidas y sesiones verificables | **Hecho** (8 de noviembre de 2026, dentro de la versión 1) |
@@ -64,6 +71,7 @@ Si algo bloquea, dilo al autor: él pasa la información de una sesión a otra.
 | 2026-11-08 | Tarea 3, primera parte: `nucleo/generar_indice.py` y `nucleo/argumentos.py`. |
 | 2026-11-08 | Tarea 3 terminada: `nucleo/generar_chuleta_global.py` y `nucleo/comprobar_mermaid.py`. |
 | 2026-11-08 | `FORMATO.md` 7.1: ficheros de verificación y salidas en el texto (las convenciones del curso de Java). |
+| 2026-11-08 | Tarea 4, paso 1: `verificar_codigo.py` con bash y las sesiones de terminal, y la imagen de la terminal del kit. |
 
 ## Avisos de los cursos
 

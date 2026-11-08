@@ -10,7 +10,7 @@ El formato y las herramientas para crear cursos para **MyOpenAcademy**, una acad
 | [`plantillas/`](plantillas/) | Los ficheros que se copian al crear un curso, con huecos `[RELLENAR: …]`. |
 | [`herramientas/`](herramientas/) | Las comprobaciones: [`formato_academia.py`](herramientas/README.md#formato_academiapy) (¿cumple el curso el formato?) y, en preparación, las que verifican el código. |
 
-Para crear un curso basta con `FORMATO.md`, las plantillas y `formato_academia.py`, que solo necesita Python 3.11 o posterior, sin instalar nada más. Las demás herramientas son opcionales y cada una dice qué necesita.
+Para crear un curso basta con `FORMATO.md`, las plantillas y `formato_academia.py`, que solo necesita Python 3.11 o posterior, **sin Docker ni nada más**. Las demás herramientas son opcionales y cada una dice qué necesita: solo la **verificación completa del código** (`verificar_codigo.py`) pide Docker, y sin él verifica igualmente, de forma parcial y avisando.
 
 ## Las plantillas
 

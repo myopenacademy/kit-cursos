@@ -8,6 +8,7 @@ Las herramientas para comprobar los cursos de MyOpenAcademy. Se ejecutan **desde
 |---|---|
 | `formato_academia.py` | Python 3.11 o posterior, sin librerías adicionales. Git, solo para comparar con la última versión publicada (si no está, no compara). |
 | `nucleo/generar_indice.py`, `nucleo/generar_chuleta_global.py` | Python 3.11 o posterior, sin librerías adicionales. |
+| `nucleo/verificar_codigo.py` | Python 3.11 o posterior. **Docker** para la verificación completa ([la terminal del kit](#la-terminal-del-kit)); sin él, verifica en la bash del equipo, de forma parcial y avisando. |
 | `nucleo/comprobar_mermaid.py` | **Node.js** (con `npx`) y **Google Chrome o Chromium** (si no está en un sitio habitual, su ruta en la variable `CHROME_PATH`). La primera vez, `npx` descarga mermaid-cli y la biblioteca Mermaid de las dos versiones en su caché, sin tocar el repositorio. Comprobado el 8 de noviembre de 2026 con Node 24.22.1 y Chrome en Linux. |
 
 ## Resumen
@@ -18,10 +19,11 @@ Las herramientas para comprobar los cursos de MyOpenAcademy. Se ejecutan **desde
 | [`nucleo/generar_indice.py`](#nucleogenerar_indicepy) | Genera `00-indice.md` desde `curso.json` | Al terminar cada módulo y al cambiar el temario |
 | [`nucleo/generar_chuleta_global.py`](#nucleogenerar_chuleta_globalpy) | Genera `99-chuleta-global.md` con la chuleta de cada módulo | Al terminar cada módulo |
 | [`nucleo/comprobar_mermaid.py`](#nucleocomprobar_mermaidpy) | Comprueba que los diagramas Mermaid se dibujan con dos versiones de Mermaid | Al terminar cada módulo con diagramas y al cerrar cada fase |
+| [`nucleo/verificar_codigo.py`](#nucleoverificar_codigopy) | Comprueba que el código de los módulos coincide con `codigo/` y funciona: hoy, scripts de bash y sesiones de terminal | Al terminar cada módulo con código y al cerrar cada fase |
 | [`nucleo/argumentos.py`](#nucleoargumentospy) | Revisión común de los argumentos de las herramientas del núcleo | La usan las herramientas; no se ejecuta a mano |
 | [`pruebas/`](#las-pruebas) | Pruebas de las herramientas, con un curso de ejemplo bueno | Al cambiar una herramienta |
 
-Los comprobadores del código de cada formato (JSON, YAML, XML, CSV, bash, Git…) están en preparación: `PLAN.md` del kit, tarea 4. No hay un `comprobar_enlaces.py` aparte: los enlaces y las anclas los comprueba `formato_academia.py`.
+Los comprobadores de JSON, YAML, XML, CSV, Markdown, Git y `curl` están en preparación (`PLAN.md` del kit, tarea 4), en el orden en que los necesita el curso inicial. No hay un `comprobar_enlaces.py` aparte: los enlaces y las anclas los comprueba `formato_academia.py`.
 
 ## `formato_academia.py`
 
@@ -115,6 +117,51 @@ python3 ../kit-cursos/herramientas/nucleo/comprobar_mermaid.py fase-01-…/04-�
 
 Con `--imagenes`, guarda además cada diagrama como PNG para revisarlo a ojo. Termina con 0 si todos se dibujan, con 1 y la lista de los que fallan (fichero, línea donde empieza el bloque, versión y el error de Mermaid) o si falta Node o Chrome, y con 2 si los argumentos están mal. Ignora `codigo/`, `.verificacion/`, `herramientas/` y `node_modules/` dentro de lo que revisa.
 
+## `nucleo/verificar_codigo.py`
+
+El núcleo de `verificar_codigo.py` del curso de Java, sin nada de Java y con las mismas convenciones ([`FORMATO.md`, apartado 7.1](../FORMATO.md#71-ficheros-de-verificación-y-salidas-en-el-texto)). Cada lenguaje o formato tiene su comprobador en `lenguajes/`; hoy, **bash** (`lenguajes/bash.py`) y las **sesiones de terminal**.
+
+```bash
+python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py                       # todo el curso
+python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py fase-02-tu-ordenador  # una fase (o un módulo)
+python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --sin-docker          # en la bash del equipo
+```
+
+- **Cada bloque seguido de «📁 Código»** tiene que ser idéntico a un fichero de su carpeta (sin contar los espacios del final de las líneas ni las líneas en blanco del principio y del final). Si no, dice cuál es el más parecido y la primera línea distinta.
+- **Un script de bash** (`.sh`) se ejecuta con `bash fichero.sh` en una copia de su carpeta, con `args.txt` y `entrada.txt`, y tiene que terminar con 0; su salida, la de «**Salida:**». Con `termina-con-error.txt`, tiene que terminar con otro código, y su salida de error, la de «**Salida de error:**».
+- **Una sesión** («**En tu terminal** (`sesion.txt`):», su bloque ` ```text ` y su «📁 Código»): se teclea cada orden de `sesion.txt` en una bash con terminal de 100 columnas, con el indicador `$ `, en una carpeta personal con los demás ficheros de la carpeta; la pantalla final tiene que ser la del bloque. Como en Java, `@ctrl-c 3` tras una orden que no termina sola pulsa Ctrl+C a los 3 segundos.
+- **`salida-variable.txt`**: lo que encaja con cada expresión regular se sustituye por `…` en las dos salidas antes de compararlas.
+- **bash 3.2, la de macOS**: cada `.sh` no puede usar lo que no existe en ella (arrays asociativos, `mapfile`, `${var,,}`, `|&`, `&>>`, `[[ -v ]]`, `{1..10..2}`…); esa búsqueda funciona siempre. Con Docker, además, cada script se **ejecuta con bash 3.2.57** y su salida y su código de salida tienen que ser los de bash 5: así salen también las diferencias que la búsqueda no ve (un `printf '%(%Y)T'`, de bash 4.2, falla en la 3.2).
+- **Lo que no comprueba de macOS**: que `sed`, `date`, `ls`, `grep`… se comporten igual. En macOS son las versiones de **BSD** y en la terminal del kit, las de **GNU** (Linux), con opciones y salidas distintas (`sed -i ''`, `date -v`…). Eso lo cubren los avisos del texto de cada módulo, no el kit.
+- **También**: error por cada fichero enlazado que Git ignora (no llegaría a un clon del curso), y aviso por cada carpeta de `codigo/` que ningún módulo enlaza y por cada script que ningún bloque muestra.
+
+Termina con 0 si todo coincide y funciona (aunque haya avisos), con 1 si hay algún error y con 2 si los argumentos están mal.
+
+### La terminal del kit
+
+Donde se ejecutan los scripts y las sesiones (`servicios/terminal.py`).
+
+**Con Docker, la verificación completa.** Un contenedor de la imagen `servicios/terminal/Dockerfile` (se llama `kit-terminal:<huella del Dockerfile>` y se construye la primera vez, en unos minutos y con internet), **sin red** (`--network none`), con el nombre de máquina `ordenador`, la persona `alumno` y la configuración de Git de todo el sistema (nombre «Ana García», `ana@example.com` y la rama `main`; una sesión que enseña `git config --global` la cambia, como en cualquier equipo). Los ficheros de la carpeta se copian con una fecha fija (15 de enero de 2026, 10:00), para que `ls -l` no cambie. Fija todo lo que cambia la salida de una orden, así que es **la misma en cualquier máquina** (a 8 de noviembre de 2026):
+
+| Pieza | Versión | De dónde y por qué |
+|---|---|---|
+| Ubuntu | 26.04.1 LTS | `ubuntu:26.04` fijada por su huella (`sha256:6a06111c…`) |
+| Git | **2.56.0** | La que enseña el curso inicial (Ubuntu 26.04 trae la 2.53.0). Compilada del código oficial de kernel.org, comprobando su SHA-256 publicado, **con sus traducciones** (gettext): sin ellas, Git responde en inglés. Con `sysconfdir=/etc`, como el Git de Ubuntu. Compilada con **`NO_RUST=1`**: en Git 2.56 la parte en Rust es opcional (lo dice su `Makefile`) y no cambia los mensajes. **Desde Git 3.0, Rust será obligatorio y la imagen tendrá que instalarlo** (`cargo`) para compilarlo. |
+| bash | 5.3.9 | La de Ubuntu 26.04 |
+| bash 3.2 | **3.2.57** | La de macOS, como `bash-3.2`. Compilada del código oficial de GNU: su firma (`.sig`) se verificó el 8 de noviembre de 2026 con la clave de Chet Ramey, que mantiene bash (`7C01 35FB 088A AF6C 66C6 50B9 BB58 69F0 64EA 74AB`), y el Dockerfile comprueba su SHA-256. |
+| Idioma y hora | `es_ES.UTF-8`, Europe/Madrid | Las salidas del curso están en español |
+
+**Por qué bash 3.2 se compila en la imagen y no se usa la imagen oficial `bash:3.2.57`** (que existe en Docker Hub): la oficial es de Alpine, con las herramientas de BusyBox en lugar de las de GNU, así que `ls`, `sort` o `grep` darían salidas distintas y cada script daría diferencias falsas. Con las dos bash en la misma imagen y las mismas herramientas, una diferencia es solo del bash.
+
+Si cambia una versión (por ejemplo, el curso pasa a enseñar otra de Git), se cambia en el `Dockerfile` (con su SHA-256) y en esta tabla: la huella del `Dockerfile` cambia y la imagen se reconstruye sola.
+
+**Sin Docker (o con `--sin-docker`), la verificación parcial.** La bash del equipo, en una carpeta temporal que hace de carpeta personal, con el español, la hora de Madrid y la misma configuración de Git. Pero:
+- **La red no se puede cortar** sin permisos de administrador (`unshare --net` necesita espacios de nombres de usuario, que Ubuntu limita): solo se apuntan los proxies a una dirección muerta, que para `curl`, `git` y los gestores de paquetes, pero no a un programa que abra la conexión por su cuenta.
+- Las versiones son las del equipo, así que una salida puede cambiar.
+- No hay bash 3.2: solo la búsqueda de lo que no existe en ella.
+
+Lo dice al final de cada verificación. **Para cerrar una fase, verifica con Docker.**
+
 ## `nucleo/argumentos.py`
 
 La revisión común de los argumentos, sacada de `argumentos.py` del curso de Java: `--help` muestra la ayuda de la herramienta, y una opción desconocida o una ruta que no existe terminan con código 2 sin hacer nada (así una ruta mal escrita no da un «✅» falso). Como las herramientas viven en el kit, las rutas se buscan desde la carpeta actual (la raíz del curso), no desde la carpeta del script.
@@ -124,6 +171,7 @@ La revisión común de los argumentos, sacada de `argumentos.py` del curso de Ja
 En `pruebas/`:
 
 - `cursos/bueno/`: un curso de ejemplo pequeño que cumple `FORMATO.md` (una fase con un módulo escrito y otro pendiente, retos, imagen, Mermaid y proyecto por etapas). Pasa sin errores.
+- `test_verificar_codigo.py`: las de `verificar_codigo.py`, `lenguajes/bash.py` y la terminal del kit (con Docker, las versiones de la imagen, Git en español con la rama `main`, el mismo commit en dos ejecuciones y sin red; se saltan si no hay Docker).
 - `test_generar_chuleta_global.py` y `test_comprobar_mermaid.py`: las de esas herramientas (las de Mermaid se saltan si no hay Node o Chrome).
 - `test_generar_indice.py`: las de `generar_indice.py` (el índice del curso de ejemplo está al día, nivel y tiempo de la cabecera, pendientes sin enlace, `--comprobar`, y que el índice generado cumple `FORMATO.md`).
 - `test_formato_academia.py`: cada prueba copia ese curso a una carpeta temporal, lo estropea de una forma concreta y comprueba que sale justo ese error o aviso. Así, si un cambio en el comprobador deja de detectar algo, una prueba falla.
