@@ -3,7 +3,7 @@
 
 Sale de herramientas/verificar_codigo.py del curso de Java: es su núcleo, sin nada de Java, con las mismas
 convenciones (FORMATO.md, apartado 7.1). Cada lenguaje o formato tiene su comprobador en herramientas/lenguajes/.
-Hoy: bash y las sesiones de terminal. JSON, YAML, XML, CSV, Markdown, Git y curl, cuando los pida el curso.
+Hoy: bash, las sesiones de terminal, y JSON, YAML, XML, CSV y Markdown. Git y curl, cuando los pida el curso.
 
 Para cada bloque de código de un módulo seguido de una línea «📁 **Código:**» con el enlace a su carpeta:
   1. El bloque debe ser idéntico a uno de los ficheros de esa carpeta (sin contar los espacios al final de las
@@ -20,6 +20,11 @@ Para cada bloque de código de un módulo seguido de una línea «📁 **Código
 Para cada bloque «**En tu terminal** (`sesion.txt`):» con su bloque ```text y su enlace «📁 **Código:**»: se
 teclean las órdenes de ese sesion.txt de la carpeta en una bash con terminal (indicador «$ »), en una carpeta
 personal con los demás ficheros de la carpeta, y la pantalla debe ser la del bloque.
+Los ficheros de datos de cada carpeta enlazada (.json, .yaml/.yml, .xml, .csv y .md) tienen que ser válidos
+(lenguajes/formato_*.py: JSON y YAML que se leen, XML bien formado, CSV con su separador.txt y las mismas
+columnas en cada fila, Markdown con enlaces, anclas y tablas bien escritos y los bloques cerrados). Si la carpeta
+tiene debe-fallar.txt, todos sus ficheros de datos tienen que FALLAR (están mal a propósito). Si una carpeta tiene
+un .json y un .yaml con el mismo nombre (una conversión), tienen que cargar los mismos datos.
 Antes de comparar, lo que encaja con cada expresión regular del salida-variable.txt de la carpeta se sustituye
 por «…», en la salida real y en la del texto.
 Además: error por cada fichero enlazado que Git ignora (.gitignore: no llegaría a un clon del curso), y aviso por
@@ -55,6 +60,9 @@ from argumentos import revisar                                                  
 from formato_academia import CARPETAS_IGNORADAS, FICHEROS_DE_TRABAJO, Informe, Markdown   # noqa: E402
 import terminal                                                                    # noqa: E402
 import bash as lenguaje_bash                                                       # noqa: E402
+import formato_csv, formato_json, formato_markdown, formato_xml, formato_yaml       # noqa: E402,E401
+
+FORMATOS = [formato_json, formato_yaml, formato_xml, formato_csv, formato_markdown]
 
 ENLACE_CODIGO = re.compile(r"^📁 \*\*Código:\*\* \[[^\]]*\]\(([^)\s]+)\)")
 SESION = re.compile(r"^\*\*En tu terminal\*\* \(`([^`]+)`\):\s*$")
@@ -104,7 +112,7 @@ class Verificador:
         self.raiz, self.informe, self.con_docker = raiz, informe, con_docker
         self.enlazadas = set()          # carpetas enlazadas (resueltas)
         self.mostrados = set()          # ficheros que un bloque muestra
-        self.cuentas = {"bloques": 0, "scripts": 0, "sesiones": 0}
+        self.cuentas = {"bloques": 0, "scripts": 0, "sesiones": 0, "datos": 0}
         self.compatibilidad_revisada = set()
 
     def rel(self, ruta):
@@ -287,7 +295,44 @@ class Verificador:
                 if script.resolve() not in self.mostrados:
                     self.informe.aviso(self.rel(script), 0, "script que ningún bloque del módulo muestra")
                     self.compatibilidad_3_2(script)
+        self.revisar_datos()
         self.revisar_ignorados()
+
+    def revisar_datos(self):
+        """Los ficheros de datos de las carpetas enlazadas: válidos, o que fallen si la carpeta tiene debe-fallar.txt."""
+        vistos, sin_pyyaml = set(), None
+        for carpeta in sorted(self.enlazadas):
+            debe_fallar = (carpeta / "debe-fallar.txt").is_file()
+            de_datos = [(f, fmt) for f in sorted(carpeta.rglob("*")) if f.is_file() and not es_de_verificacion(f.name)
+                        for fmt in FORMATOS if fmt.es_mio(f)]
+            if debe_fallar and not de_datos:
+                self.informe.error(self.rel(carpeta / "debe-fallar.txt"), 0, "debe-fallar.txt en una carpeta sin ficheros de datos")
+            cargados = {}
+            for f, fmt in de_datos:
+                if f.resolve() in vistos:
+                    continue
+                vistos.add(f.resolve())
+                try:
+                    problemas = fmt.errores(f, f.parent)
+                except formato_yaml.SinPyYAML as e:
+                    sin_pyyaml = sin_pyyaml or (self.rel(f), str(e))
+                    continue
+                self.cuentas["datos"] += 1
+                if debe_fallar:
+                    if not problemas:
+                        self.informe.error(self.rel(f), 0, "su carpeta tiene debe-fallar.txt (está mal a propósito), pero es válido")
+                    continue
+                for linea, mensaje in problemas:
+                    self.informe.error(self.rel(f), linea, mensaje)
+                if not problemas and fmt in (formato_json, formato_yaml):
+                    cargados.setdefault(f.with_suffix(""), []).append((f, fmt.cargar(f)))
+            for _, versiones in cargados.items():
+                if len(versiones) > 1 and any(d != versiones[0][1] for _, d in versiones[1:]):
+                    nombres = " y ".join(f.name for f, _ in versiones)
+                    self.informe.error(self.rel(versiones[0][0].parent), 0, f"{nombres} no tienen los mismos datos "
+                                                                           "(una conversión debe cargar lo mismo)")
+        if sin_pyyaml:
+            self.informe.aviso(sin_pyyaml[0], 0, f"no se han podido comprobar los YAML: {sin_pyyaml[1]}")
 
     def revisar_ignorados(self):
         ficheros = [f for c in self.enlazadas for f in c.rglob("*") if f.is_file()]
@@ -337,7 +382,7 @@ def main():
     verificador.revisar_codigo(carpetas if not any(Path(r).is_file() for r in rutas) else [])
     c = verificador.cuentas
     resumen = (f"{len(mds)} ficheros revisados: {c['bloques']} bloques con su fichero, {c['scripts']} scripts "
-               f"ejecutados y {c['sesiones']} sesiones de terminal.")
+               f"ejecutados, {c['sesiones']} sesiones de terminal y {c['datos']} ficheros de datos.")
     if con_docker:
         resumen += " En la terminal del kit (Docker, sin red): verificación completa."
     else:

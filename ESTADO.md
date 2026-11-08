@@ -21,7 +21,9 @@ Resueltas con el autor las tres decisiones del apartado 4 de `PLAN.md`, y ajusta
 
 ## Siguiente paso
 
-Tarea 4 de `PLAN.md`, paso 2: JSON, YAML, XML, CSV y Markdown (la fase 4 del curso inicial).
+Tarea 4 de `PLAN.md`, paso 3: Git (la fase 5 del curso inicial). La imagen ya tiene Git 2.56.0 en español con identidad y rama fijas; falta decidir cómo se fijan las fechas de los commits en las sesiones (`GIT_AUTHOR_DATE`/`GIT_COMMITTER_DATE` en la sesión, o `salida-variable.txt`).
+
+**Tarea 4, paso 2 hecho:** `lenguajes/formato_json.py`, `formato_yaml.py` (PyYAML), `formato_xml.py`, `formato_csv.py` y `formato_markdown.py`, conectados a `verificar_codigo.py`: cada fichero de datos de una carpeta enlazada, válido (o que falle, con `debe-fallar.txt`), y un `.json` y un `.yaml` con el mismo nombre, con los mismos datos. 178 pruebas. Pendiente para el reto de la fase 4 (CSV de pedidos a JSON y YAML): comparar también un CSV con su JSON (los tipos difieren: en CSV todo es texto); se hará cuando el curso escriba ese reto.
 
 **Tarea 4, paso 1 hecho:** `nucleo/verificar_codigo.py` (el núcleo de Java, sin Java), `lenguajes/bash.py` (scripts y lo que no existe en bash 3.2) y `servicios/terminal.py` con la imagen `servicios/terminal/Dockerfile`. 165 pruebas. Decisiones (del autor salvo donde se dice):
 - **Docker para la verificación completa** (sin red con `--network none` y las mismas versiones en cualquier máquina); **sin Docker, parcial y avisando** (`unshare --net` no funciona sin permisos: Ubuntu limita los espacios de nombres de usuario; no se toca la seguridad del sistema).
@@ -49,6 +51,7 @@ Se trabaja a la vez que `../curso-inicial/`. **Lee su `ESTADO.md` (solo leer) al
 | `formato_academia.py` | Comprobar y cerrar su fase 1 | **Hecho** (8 de noviembre de 2026): `herramientas/formato_academia.py` |
 | `generar_indice.py` | Generar `00-indice.md` (sus módulos ya lo enlazan) | **Hecho** (8 de noviembre de 2026): `herramientas/nucleo/generar_indice.py` |
 | `verificar_codigo.py` con bash y las sesiones de terminal | Verificar los ejemplos y ejercicios de bash de sus fases 2 y 3 | **Hecho** (8 de noviembre de 2026): `herramientas/nucleo/verificar_codigo.py` |
+| Comprobadores de JSON, YAML, XML, CSV y Markdown | Su fase 4 | **Hecho** (8 de noviembre de 2026): `verificar_codigo.py` |
 | `generar_chuleta_global.py` y `comprobar_mermaid.py` | Generar `99-chuleta-global.md` y comprobar sus diagramas | **Hecho** (8 de noviembre de 2026): `herramientas/nucleo/` |
 | Verificar con salidas en español (`LC_ALL`), rama `main`, Git con autor y fechas fijos, servidor HTTP local y compatibilidad con bash 3.2 | Sus ejercicios y retos de las fases 2 a 8 | Anotado en la tarea 4 de `PLAN.md`; pendiente |
 | Las convenciones de verificación del curso de Java en `FORMATO.md` (7.1) | Saber cómo se escriben las salidas y sesiones verificables | **Hecho** (8 de noviembre de 2026, dentro de la versión 1) |
@@ -72,6 +75,7 @@ Si algo bloquea, dilo al autor: él pasa la información de una sesión a otra.
 | 2026-11-08 | Tarea 3 terminada: `nucleo/generar_chuleta_global.py` y `nucleo/comprobar_mermaid.py`. |
 | 2026-11-08 | `FORMATO.md` 7.1: ficheros de verificación y salidas en el texto (las convenciones del curso de Java). |
 | 2026-11-08 | Tarea 4, paso 1: `verificar_codigo.py` con bash y las sesiones de terminal, y la imagen de la terminal del kit. |
+| 2026-11-08 | Tarea 4, paso 2: JSON, YAML, XML, CSV y Markdown. |
 
 ## Avisos de los cursos
 

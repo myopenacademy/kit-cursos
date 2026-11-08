@@ -8,7 +8,7 @@ Las herramientas para comprobar los cursos de MyOpenAcademy. Se ejecutan **desde
 |---|---|
 | `formato_academia.py` | Python 3.11 o posterior, sin librerías adicionales. Git, solo para comparar con la última versión publicada (si no está, no compara). |
 | `nucleo/generar_indice.py`, `nucleo/generar_chuleta_global.py` | Python 3.11 o posterior, sin librerías adicionales. |
-| `nucleo/verificar_codigo.py` | Python 3.11 o posterior. **Docker** para la verificación completa ([la terminal del kit](#la-terminal-del-kit)); sin él, verifica en la bash del equipo, de forma parcial y avisando. |
+| `nucleo/verificar_codigo.py` | Python 3.11 o posterior; para los YAML, **PyYAML** (en Ubuntu, `python3-yaml`; con pip, `pyyaml`), la única librería de fuera de Python que usa el kit, y solo para eso (si falta, avisa de que no ha podido comprobar los YAML). **Docker** para la verificación completa ([la terminal del kit](#la-terminal-del-kit)); sin él, verifica en la bash del equipo, de forma parcial y avisando. |
 | `nucleo/comprobar_mermaid.py` | **Node.js** (con `npx`) y **Google Chrome o Chromium** (si no está en un sitio habitual, su ruta en la variable `CHROME_PATH`). La primera vez, `npx` descarga mermaid-cli y la biblioteca Mermaid de las dos versiones en su caché, sin tocar el repositorio. Comprobado el 8 de noviembre de 2026 con Node 24.22.1 y Chrome en Linux. |
 
 ## Resumen
@@ -19,11 +19,11 @@ Las herramientas para comprobar los cursos de MyOpenAcademy. Se ejecutan **desde
 | [`nucleo/generar_indice.py`](#nucleogenerar_indicepy) | Genera `00-indice.md` desde `curso.json` | Al terminar cada módulo y al cambiar el temario |
 | [`nucleo/generar_chuleta_global.py`](#nucleogenerar_chuleta_globalpy) | Genera `99-chuleta-global.md` con la chuleta de cada módulo | Al terminar cada módulo |
 | [`nucleo/comprobar_mermaid.py`](#nucleocomprobar_mermaidpy) | Comprueba que los diagramas Mermaid se dibujan con dos versiones de Mermaid | Al terminar cada módulo con diagramas y al cerrar cada fase |
-| [`nucleo/verificar_codigo.py`](#nucleoverificar_codigopy) | Comprueba que el código de los módulos coincide con `codigo/` y funciona: hoy, scripts de bash y sesiones de terminal | Al terminar cada módulo con código y al cerrar cada fase |
+| [`nucleo/verificar_codigo.py`](#nucleoverificar_codigopy) | Comprueba que el código de los módulos coincide con `codigo/` y funciona: hoy, scripts de bash, sesiones de terminal y ficheros JSON, YAML, XML, CSV y Markdown | Al terminar cada módulo con código y al cerrar cada fase |
 | [`nucleo/argumentos.py`](#nucleoargumentospy) | Revisión común de los argumentos de las herramientas del núcleo | La usan las herramientas; no se ejecuta a mano |
 | [`pruebas/`](#las-pruebas) | Pruebas de las herramientas, con un curso de ejemplo bueno | Al cambiar una herramienta |
 
-Los comprobadores de JSON, YAML, XML, CSV, Markdown, Git y `curl` están en preparación (`PLAN.md` del kit, tarea 4), en el orden en que los necesita el curso inicial. No hay un `comprobar_enlaces.py` aparte: los enlaces y las anclas los comprueba `formato_academia.py`.
+Los comprobadores de Git y `curl` están en preparación (`PLAN.md` del kit, tarea 4), en el orden en que los necesita el curso inicial. No hay un `comprobar_enlaces.py` aparte: los enlaces y las anclas los comprueba `formato_academia.py`.
 
 ## `formato_academia.py`
 
@@ -119,7 +119,7 @@ Con `--imagenes`, guarda además cada diagrama como PNG para revisarlo a ojo. Te
 
 ## `nucleo/verificar_codigo.py`
 
-El núcleo de `verificar_codigo.py` del curso de Java, sin nada de Java y con las mismas convenciones ([`FORMATO.md`, apartado 7.1](../FORMATO.md#71-ficheros-de-verificación-y-salidas-en-el-texto)). Cada lenguaje o formato tiene su comprobador en `lenguajes/`; hoy, **bash** (`lenguajes/bash.py`) y las **sesiones de terminal**.
+El núcleo de `verificar_codigo.py` del curso de Java, sin nada de Java y con las mismas convenciones ([`FORMATO.md`, apartado 7.1](../FORMATO.md#71-ficheros-de-verificación-y-salidas-en-el-texto)). Cada lenguaje o formato tiene su comprobador en `lenguajes/`; hoy, **bash** (`lenguajes/bash.py`), las **sesiones de terminal** y los ficheros de datos (`lenguajes/formato_*.py`).
 
 ```bash
 python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py                       # todo el curso
@@ -130,6 +130,14 @@ python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --sin-docker      
 - **Cada bloque seguido de «📁 Código»** tiene que ser idéntico a un fichero de su carpeta (sin contar los espacios del final de las líneas ni las líneas en blanco del principio y del final). Si no, dice cuál es el más parecido y la primera línea distinta.
 - **Un script de bash** (`.sh`) se ejecuta con `bash fichero.sh` en una copia de su carpeta, con `args.txt` y `entrada.txt`, y tiene que terminar con 0; su salida, la de «**Salida:**». Con `termina-con-error.txt`, tiene que terminar con otro código, y su salida de error, la de «**Salida de error:**».
 - **Una sesión** («**En tu terminal** (`sesion.txt`):», su bloque ` ```text ` y su «📁 Código»): se teclea cada orden de `sesion.txt` en una bash con terminal de 100 columnas, con el indicador `$ `, en una carpeta personal con los demás ficheros de la carpeta; la pantalla final tiene que ser la del bloque. Como en Java, `@ctrl-c 3` tras una orden que no termina sola pulsa Ctrl+C a los 3 segundos.
+- **Los ficheros de datos** de cada carpeta enlazada se comprueban con Python (no necesitan Docker), cada error con su línea:
+  - **JSON** (`formato_json.py`): que se lee.
+  - **YAML** (`formato_yaml.py`, con PyYAML): que se leen todos sus documentos.
+  - **XML** (`formato_xml.py`): que está bien formado (no lo valida contra un esquema).
+  - **CSV** (`formato_csv.py`): que se lee con el separador de `separador.txt` (`;`, `|` o `tabulador`; si no hay, la coma), sin comillas sin cerrar, y con las mismas columnas en cada fila que en la cabecera.
+  - **Markdown** (`formato_markdown.py`, los `.md` de `codigo/`, como el README de un proyecto): enlaces relativos y anclas que existen, tablas con su fila separadora y las mismas columnas en cada fila, y bloques de código cerrados. Los enlaces a internet no se comprueban (sin red).
+  - **`debe-fallar.txt`**: si la carpeta lo tiene, **todos** sus ficheros de datos tienen que fallar (están mal a propósito); uno válido es un error.
+  - **Conversiones**: un `.json` y un `.yaml` con el mismo nombre en la misma carpeta tienen que cargar los mismos datos.
 - **`salida-variable.txt`**: lo que encaja con cada expresión regular se sustituye por `…` en las dos salidas antes de compararlas.
 - **bash 3.2, la de macOS**: cada `.sh` no puede usar lo que no existe en ella (arrays asociativos, `mapfile`, `${var,,}`, `|&`, `&>>`, `[[ -v ]]`, `{1..10..2}`…); esa búsqueda funciona siempre. Con Docker, además, cada script se **ejecuta con bash 3.2.57** y su salida y su código de salida tienen que ser los de bash 5: así salen también las diferencias que la búsqueda no ve (un `printf '%(%Y)T'`, de bash 4.2, falla en la 3.2).
 - **Lo que no comprueba de macOS**: que `sed`, `date`, `ls`, `grep`… se comporten igual. En macOS son las versiones de **BSD** y en la terminal del kit, las de **GNU** (Linux), con opciones y salidas distintas (`sed -i ''`, `date -v`…). Eso lo cubren los avisos del texto de cada módulo, no el kit.
@@ -171,7 +179,7 @@ La revisión común de los argumentos, sacada de `argumentos.py` del curso de Ja
 En `pruebas/`:
 
 - `cursos/bueno/`: un curso de ejemplo pequeño que cumple `FORMATO.md` (una fase con un módulo escrito y otro pendiente, retos, imagen, Mermaid y proyecto por etapas). Pasa sin errores.
-- `test_verificar_codigo.py`: las de `verificar_codigo.py`, `lenguajes/bash.py` y la terminal del kit (con Docker, las versiones de la imagen, Git en español con la rama `main`, el mismo commit en dos ejecuciones y sin red; se saltan si no hay Docker).
+- `test_verificar_codigo.py`: las de `verificar_codigo.py`, `lenguajes/bash.py`, los formatos de datos y la terminal del kit (con Docker, las versiones de la imagen, Git en español con la rama `main`, el mismo commit en dos ejecuciones y sin red; se saltan si no hay Docker).
 - `test_generar_chuleta_global.py` y `test_comprobar_mermaid.py`: las de esas herramientas (las de Mermaid se saltan si no hay Node o Chrome).
 - `test_generar_indice.py`: las de `generar_indice.py` (el índice del curso de ejemplo está al día, nivel y tiempo de la cabecera, pendientes sin enlace, `--comprobar`, y que el índice generado cumple `FORMATO.md`).
 - `test_formato_academia.py`: cada prueba copia ese curso a una carpeta temporal, lo estropea de una forma concreta y comprueba que sale justo ese error o aviso. Así, si un cambio en el comprobador deja de detectar algo, una prueba falla.

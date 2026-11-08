@@ -100,7 +100,7 @@ class SinDocker(Base):
 
     def test_el_curso_bueno_pasa_y_avisa_de_que_es_parcial(self):
         self.assertEqual(self.ejecutar(), 0, self.salida)
-        self.assertIn("1 scripts ejecutados y 1 sesiones", self.salida)
+        self.assertIn("1 scripts ejecutados, 1 sesiones", self.salida)
         self.assertIn("Sin Docker: verificación parcial", self.salida)
 
     def test_bloque_distinto_de_su_fichero(self):
@@ -160,6 +160,79 @@ class SinDocker(Base):
 
     def test_argumentos_mal(self):
         self.assertEqual(self.ejecutar("no-existe.md"), 2)
+
+
+class Datos(Base):
+    """JSON, YAML, XML, CSV y Markdown: se comprueban con Python, con o sin Docker."""
+    sin_docker = True
+
+    def carpeta(self, nombre, ficheros, mostrar=None):
+        """Crea la carpeta en codigo/ con esos ficheros y la enlaza desde el módulo con el bloque de uno de ellos."""
+        carpeta = self.raiz / EJEMPLOS / nombre
+        carpeta.mkdir()
+        for f, texto in ficheros.items():
+            (carpeta / f).write_text(texto, encoding="utf-8")
+        mostrar = mostrar or next(f for f in ficheros if not f.endswith(".txt"))
+        vallas = "````" if mostrar.endswith(".md") else "```"
+        self.cambiar(MODULO, "## 3. Errores típicos",
+                     f"### 2.9. Prueba\n\n{vallas}text\n{ficheros[mostrar].rstrip()}\n{vallas}\n\n"
+                     f"📁 **Código:** [`codigo/01-ficheros-json/ejemplos/{nombre}/`](codigo/01-ficheros-json/ejemplos/{nombre}/)\n\n"
+                     "## 3. Errores típicos")
+
+    def test_json_no_valido_con_su_linea(self):
+        self.carpeta("2.9-json", {"pedido.json": '{\n  "id": 1,\n}\n'})
+        self.assertError("pedido.json:2:", "JSON no válido")
+
+    def test_debe_fallar_y_falla(self):
+        self.carpeta("2.9-json", {"pedido.json": '{"id": 1,}\n', "debe-fallar.txt": "Sobra la coma del final.\n"})
+        self.assertEqual(self.ejecutar(), 0, self.salida)
+
+    def test_debe_fallar_pero_es_valido(self):
+        self.carpeta("2.9-json", {"pedido.json": '{"id": 1}\n', "debe-fallar.txt": "Sobra la coma.\n"})
+        self.assertError("pedido.json", "debe-fallar.txt", "pero es válido")
+
+    def test_yaml_mal_sangrado(self):
+        self.carpeta("2.9-yaml", {"tienda.yaml": "tienda:\n  nombre: La Taza\n   ciudad: Madrid\n"})
+        self.assertError("tienda.yaml:3:", "YAML no válido")
+
+    def test_xml_mal_formado(self):
+        self.carpeta("2.9-xml", {"pedido.xml": "<pedido>\n  <id>1</id>\n  <total>25</totl>\n</pedido>\n"})
+        self.assertError("pedido.xml:3:", "XML mal formado")
+
+    def test_csv_con_columnas_de_mas(self):
+        self.carpeta("2.9-csv", {"ventas.csv": "fecha,importe\n2026-01-01,10\n2026-01-02,12,50\n"})
+        self.assertError("ventas.csv:3:", "la fila tiene 3 columnas y la cabecera 2")
+
+    def test_csv_con_su_separador(self):
+        self.carpeta("2.9-csv", {"ventas.csv": "fecha;importe\n2026-01-01;10,50\n", "separador.txt": ";\n"})
+        self.assertEqual(self.ejecutar(), 0, self.salida)
+
+    def test_csv_sin_su_separador(self):
+        self.carpeta("2.9-csv", {"ventas.csv": "fecha;importe\n2026-01-01;10,50\n"})
+        self.assertError("ventas.csv:2:", "la fila tiene 2 columnas y la cabecera 1")
+
+    def test_csv_con_comillas_sin_cerrar(self):
+        self.carpeta("2.9-csv", {"clientes.csv": 'nombre,ciudad\n"Ana,Madrid\n'})
+        self.assertError("clientes.csv", "CSV mal escrito")
+
+    def test_markdown_con_enlace_roto_tabla_rota_y_bloque_sin_cerrar(self):
+        self.carpeta("2.9-md", {"README.md": "# Mi proyecto\n\n[Datos](datos.json) y [arriba](#mi-proyecto)\n\n"
+                                              "| A | B |\n|---|---|\n| 1 | 2 | 3 |\n"})
+        self.assertError("README.md:3:", "no existe datos.json")
+        self.assertError("README.md:7:", "la fila de la tabla tiene 3 columnas y la cabecera 2")
+
+    def test_markdown_bueno(self):
+        self.carpeta("2.9-md", {"README.md": "# Mi proyecto\n\nVer [arriba](#mi-proyecto).\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\n"
+                                              "```bash\nls | wc -l\n```\n"})
+        self.assertEqual(self.ejecutar(), 0, self.salida)
+
+    def test_conversion_con_los_mismos_datos(self):
+        self.carpeta("2.9-conv", {"pedido.json": '{"id": 1, "total": 25.5}\n', "pedido.yaml": "id: 1\ntotal: 25.5\n"})
+        self.assertEqual(self.ejecutar(), 0, self.salida)
+
+    def test_conversion_con_otros_datos(self):
+        self.carpeta("2.9-conv", {"pedido.json": '{"id": 1, "total": 25.5}\n', "pedido.yaml": "id: 1\ntotal: 25\n"})
+        self.assertError("2.9-conv", "no tienen los mismos datos")
 
 
 @unittest.skipUnless(HAY_DOCKER, "hace falta Docker")
