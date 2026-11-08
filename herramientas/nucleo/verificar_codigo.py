@@ -43,6 +43,7 @@ Uso, desde la raíz del curso (con el kit en la carpeta hermana ../kit-cursos/):
     python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py fase-02-tu-ordenador    # una carpeta
     python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py fase-02-…/02-….md       # un módulo
     python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --sin-docker            # sin Docker
+    python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --versiones             # qué lleva la imagen
     python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --help
 Termina con 0 si todo coincide y funciona (aunque haya avisos), con 1 si hay algún error y con 2 si los
 argumentos están mal.
@@ -364,7 +365,13 @@ def ficheros_md(raiz, rutas):
 
 
 def main():
-    usadas, _, rutas = revisar(__doc__, opciones=("--sin-docker",))
+    usadas, _, rutas = revisar(__doc__, opciones=("--sin-docker", "--versiones"))
+    if "--versiones" in usadas:
+        if not terminal.hay_docker():
+            print("❌ Sin Docker no hay imagen de la terminal del kit.", file=sys.stderr)
+            sys.exit(1)
+        print(terminal.versiones(), end="")
+        return
     raiz = Path(".")
     con_docker = False if "--sin-docker" in usadas else terminal.hay_docker()
     informe = Informe()

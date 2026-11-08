@@ -6,7 +6,7 @@
 # identificadores salen siempre iguales y «git log» parece un historial real. Las órdenes que pueden crear
 # commits reciben la fecha del reloj (GIT_AUTHOR_DATE y GIT_COMMITTER_DATE, salvo que ya estén puestas) y, si
 # terminan bien, lo adelantan un minuto. Todo lo demás pasa al git de verdad sin cambios.
-real="${KIT_GIT_REAL:-/usr/local/bin/git}"
+real="${KIT_GIT_REAL:-/usr/lib/kit/git}"
 reloj="${KIT_RELOJ:-/tmp/.kit-reloj-git}"
 
 orden=""

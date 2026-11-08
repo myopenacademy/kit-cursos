@@ -9,9 +9,11 @@
 #   - bash 3.2.57, la de macOS, compilada del código oficial de GNU (firma de Chet Ramey verificada el
 #     8 de noviembre de 2026; aquí, su SHA-256), como /usr/local/bin/bash-3.2: los scripts se ejecutan
 #     también con ella, con las mismas herramientas GNU, para que una diferencia sea solo del bash.
-#   - El idioma español (es_ES.UTF-8) generado y la zona horaria de Madrid.
-#   - El reloj de Git (git-reloj, en /usr/local/sbin/git, delante del de verdad): los commits de una sesión,
-#     con fechas fijas que avanzan un minuto cada uno desde el 15 de enero de 2026 a las 10:00.
+#   - El idioma español (es_ES.UTF-8) generado, con language-pack-es-base (las traducciones de bash, coreutils,
+#     grep, sed, tar…: sin él, «bash: gti: command not found» sale en inglés) y la zona horaria de Madrid.
+#   - El reloj de Git (git-reloj, en /usr/bin/git, donde está el git de un Ubuntu, que así lo ve «command -v
+#     git»; el de verdad, en /usr/lib/kit/git, fuera del PATH): los commits de una sesión, con fechas
+#     fijas que avanzan un minuto cada uno desde el 15 de enero de 2026 a las 10:00.
 #
 # Si se cambia algo, se cambia también la tabla de versiones de herramientas/README.md.
 FROM ubuntu:26.04@sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c AS compilar
@@ -26,12 +28,14 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
+# Git como el paquete de Ubuntu (prefix=/usr, gitexecdir=/usr/lib/git-core): instalado en /git y copiado a /usr
+ENV GIT_OPCIONES="prefix=/usr gitexecdir=/usr/lib/git-core NO_TCLTK=1 NO_PERL=1 NO_PYTHON=1 NO_RUST=1"
 RUN curl -fsSL "https://www.kernel.org/pub/software/scm/git/git-${GIT_VERSION}.tar.xz" -o git.tar.xz \
     && echo "${GIT_SHA256}  git.tar.xz" | sha256sum -c - \
     && tar -xf git.tar.xz \
-    && make -C "git-${GIT_VERSION}" -j"$(nproc)" prefix=/usr/local sysconfdir=/etc NO_TCLTK=1 NO_PERL=1 NO_PYTHON=1 NO_RUST=1 all \
-    && make -C "git-${GIT_VERSION}" prefix=/usr/local sysconfdir=/etc NO_TCLTK=1 NO_PERL=1 NO_PYTHON=1 NO_RUST=1 install \
-    && test -f /usr/local/share/locale/es/LC_MESSAGES/git.mo
+    && make -C "git-${GIT_VERSION}" -j"$(nproc)" $GIT_OPCIONES all \
+    && make -C "git-${GIT_VERSION}" $GIT_OPCIONES DESTDIR=/git install \
+    && test -f /git/usr/share/locale/es/LC_MESSAGES/git.mo
 
 # bash 3.2 es de 2014: con el C de hoy hace falta pedirle a gcc el C de entonces y que no corte por avisos
 RUN curl -fsSL "https://ftp.gnu.org/gnu/bash/bash-3.2.57.tar.gz" -o bash.tar.gz \
@@ -45,20 +49,32 @@ RUN curl -fsSL "https://ftp.gnu.org/gnu/bash/bash-3.2.57.tar.gz" -o bash.tar.gz 
 FROM ubuntu:26.04@sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        locales tzdata ca-certificates libcurl4t64 libexpat1 zlib1g file less tree curl jq python3 \
+        locales language-pack-es-base=1:26.04+20260818 tzdata ca-certificates libcurl4t64 libexpat1 zlib1g \
+        file less tree curl jq python3 \
     && sed -i 's/^# *es_ES.UTF-8 UTF-8/es_ES.UTF-8 UTF-8/' /etc/locale.gen && locale-gen \
     && ln -sf /usr/share/zoneinfo/Europe/Madrid /etc/localtime && echo Europe/Madrid > /etc/timezone \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=compilar /usr/local /usr/local
+COPY --from=compilar /git/usr/ /usr/
 COPY --from=compilar /opt/bash-3.2/bin/bash /usr/local/bin/bash-3.2
-COPY --chmod=755 git-reloj /usr/local/sbin/git
+RUN mkdir -p /usr/lib/kit && mv /usr/bin/git /usr/lib/kit/git
+COPY --chmod=755 git-reloj /usr/bin/git
 
 # La persona de las sesiones, con su carpeta personal; la configuración de Git de todo el sistema le da un
 # nombre y la rama main (una sesión que enseña «git config --global» la cambia en su ~/.gitconfig, como en
 # cualquier equipo)
 RUN useradd --create-home --shell /bin/bash alumno \
     && printf '[user]\n\tname = Ana García\n\temail = ana@example.com\n[init]\n\tdefaultBranch = main\n' > /etc/gitconfig
+
+# La lista de lo instalado, con sus versiones, guardada al construir la imagen: si un día cambia una salida,
+# se compara con la de otra construcción (verificar_codigo.py --versiones la enseña). Los paquetes de Ubuntu
+# que no se fijan aquí (file, tree, curl, jq…) son los del día en que se construye.
+RUN mkdir -p /usr/share/kit-terminal && { \
+      echo "# Imagen de la terminal del kit, construida el $(date -u +%Y-%m-%dT%H:%MZ)"; \
+      echo "git $(/usr/lib/kit/git --version | cut -d' ' -f3) (compilado)"; \
+      echo "bash-3.2 $(/usr/local/bin/bash-3.2 -c 'echo $BASH_VERSION') (compilado)"; \
+      dpkg-query -W -f='${Package} ${Version}\n'; \
+    } > /usr/share/kit-terminal/versiones.txt
 
 ENV LANG=es_ES.UTF-8 LC_ALL=es_ES.UTF-8 LANGUAGE=es_ES:es TZ=Europe/Madrid
 USER alumno

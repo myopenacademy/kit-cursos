@@ -289,6 +289,16 @@ class ConDocker(SinDocker):
                                 "git log --format='%ad' --date=format:'%d/%m %H:%M'"])
         self.assertIn("01/03 09:30", pantalla)
 
+    def test_bash_y_las_herramientas_en_espanol(self):
+        pantalla = self.sesion(["gti", "ls no-existe"])
+        self.assertIn("bash: gti: orden no encontrada", pantalla)
+        self.assertIn("ls: no se puede acceder a 'no-existe': No existe el archivo o directorio", pantalla)
+
+    def test_git_esta_donde_en_un_ubuntu(self):
+        pantalla = self.sesion(["command -v git", "type git"])
+        self.assertIn("$ command -v git\n/usr/bin/git", pantalla)
+        self.assertIn("git is /usr/bin/git", pantalla)
+
     def test_las_versiones_de_la_imagen(self):
         pantalla = self.sesion(["git --version", 'echo "$BASH_VERSION"', "bash-3.2 -c 'echo $BASH_VERSION'"])
         self.assertIn("git version 2.56.0", pantalla)

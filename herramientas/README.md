@@ -128,11 +128,18 @@ Donde se ejecutan los scripts y las sesiones (`servicios/terminal.py`).
 | Pieza | Versión | De dónde y por qué |
 |---|---|---|
 | Ubuntu | 26.04.1 LTS | `ubuntu:26.04` fijada por su huella (`sha256:6a06111c…`) |
-| Git | **2.56.0** | La que enseña el curso inicial (Ubuntu 26.04 trae la 2.53.0). Compilada del código oficial de kernel.org, comprobando su SHA-256 publicado, **con sus traducciones** (gettext): sin ellas, Git responde en inglés. Con `sysconfdir=/etc`, como el Git de Ubuntu (si no, no lee `/etc/gitconfig`). Con **`NO_RUST=1`**: en Git 2.56 la parte en Rust es opcional (lo dice su `Makefile`) y no cambia los mensajes. **Desde Git 3.0, Rust será obligatorio y la imagen tendrá que instalarlo** (`cargo`) para compilarlo. |
+| Git | **2.56.0** | La que enseña el curso inicial (Ubuntu 26.04 trae la 2.53.0). Compilada del código oficial de kernel.org, comprobando su SHA-256 publicado, **con sus traducciones** (gettext): sin ellas, Git responde en inglés. Instalada **como el paquete de Ubuntu** (`prefix=/usr`, `gitexecdir=/usr/lib/git-core`): la configuración del sistema en `/etc/gitconfig`, `git --exec-path` en `/usr/lib/git-core` y nada en `/usr/local`. Con **`NO_RUST=1`**: en Git 2.56 la parte en Rust es opcional (lo dice su `Makefile`) y no cambia los mensajes. **Desde Git 3.0, Rust será obligatorio y la imagen tendrá que instalarlo** (`cargo`) para compilarlo. |
 | bash | 5.3.9 | La de Ubuntu 26.04 |
 | bash 3.2 | **3.2.57** | La de macOS, como `bash-3.2`. Compilada del código oficial de GNU: su firma (`.sig`) se verificó el 8 de noviembre de 2026 con la clave de Chet Ramey, que mantiene bash (`7C01 35FB 088A AF6C 66C6 50B9 BB58 69F0 64EA 74AB`), y el Dockerfile comprueba su SHA-256. |
 | Idioma y hora | `es_ES.UTF-8`, Europe/Madrid | Las salidas del curso están en español |
-| Reloj de Git | Desde el 15 de enero de 2026, 10:00 | `servicios/terminal/git-reloj`, delante del `git` de verdad (también sin Docker) |
+| Traducciones del sistema | `language-pack-es-base` 1:26.04+20260818 | Las de bash, coreutils, grep, sed, tar…: sin ellas, «bash: gti: orden no encontrada» o los errores de `ls` salen en inglés, como no salen en un Ubuntu en español (pedido por el curso inicial, 9 de noviembre de 2026) |
+| Reloj de Git | Desde el 15 de enero de 2026, 10:00 | `servicios/terminal/git-reloj`, en `/usr/bin/git` (también sin Docker, delante del `PATH`) |
+
+**La lista de lo instalado.** Lo que no está en la tabla (`file`, `tree`, `curl`, `jq`, `python3` y sus dependencias) viene de Ubuntu el día en que se construye la imagen, sin fijar (decisión del autor, 9 de noviembre de 2026: se fijará si un día da un problema real). Por eso la imagen guarda, al construirse, la lista de todo lo instalado con sus versiones y la fecha (`/usr/share/kit-terminal/versiones.txt`). Si un día cambia una salida, se compara la de las dos máquinas:
+
+```bash
+python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --versiones > versiones-aqui.txt
+```
 
 Si cambia una versión (por ejemplo, el curso pasa a enseñar otra de Git), se cambia en el `Dockerfile` (con su SHA-256) y en esta tabla: la huella del `Dockerfile` cambia y la imagen se reconstruye sola.
 
@@ -140,7 +147,7 @@ Si cambia una versión (por ejemplo, el curso pasa a enseñar otra de Git), se c
 
 #### El reloj de Git
 
-Para que los identificadores de los commits salgan siempre iguales y `git log` parezca un historial real (decisión del autor, 8 de noviembre de 2026), los commits de cada sesión o script tienen **fechas fijas que avanzan**: el primero, el 15 de enero de 2026 a las 10:00 (la fecha de los ficheros copiados); cada uno, un minuto después del anterior. Lo hace `git-reloj`, un script pequeño que la terminal pone delante del `git` de verdad: a las órdenes que pueden crear commits (`commit`, `merge`, `rebase`, `cherry-pick`, `revert`, `stash`, `tag`…) les da la fecha del reloj y, si terminan bien, lo adelantan un minuto (un `git commit` que no tiene nada que confirmar no lo adelanta). Si la sesión pone sus propias fechas (`GIT_AUTHOR_DATE`…), se respetan. Lo único que lo delata es `which git`, que dice `/usr/local/sbin/git`.
+Para que los identificadores de los commits salgan siempre iguales y `git log` parezca un historial real (decisión del autor, 8 de noviembre de 2026), los commits de cada sesión o script tienen **fechas fijas que avanzan**: el primero, el 15 de enero de 2026 a las 10:00 (la fecha de los ficheros copiados); cada uno, un minuto después del anterior. Lo hace `git-reloj`, un script pequeño que hace de `git`: a las órdenes que pueden crear commits (`commit`, `merge`, `rebase`, `cherry-pick`, `revert`, `stash`, `tag`…) les da la fecha del reloj y, si terminan bien, lo adelantan un minuto (un `git commit` que no tiene nada que confirmar no lo adelanta). Si la sesión pone sus propias fechas (`GIT_AUTHOR_DATE`…), se respetan. En la imagen está en **`/usr/bin/git`**, donde está el `git` de un Ubuntu, así que `command -v git`, `type git` y `which git` dicen lo mismo que en el equipo del alumno; el `git` de verdad está fuera del `PATH`, en `/usr/lib/kit/git`. (Se descartó fijar las fechas con variables de entorno o con la configuración: tendrían que cambiar tras cada commit, con *hooks* de Git que una sesión que los enseñe dejaría a la vista.) Sin Docker, el reloj va en una carpeta temporal delante del `PATH`, y `command -v git` la dice.
 
 **Sin paginador.** En la terminal, `GIT_PAGER` y `PAGER` son `cat`: con una salida que no cabe en pantalla, `git log` o `man` se quedarían esperando una tecla (en el equipo del alumno, `less` la pide). Con una que cabe, se ve igual.
 

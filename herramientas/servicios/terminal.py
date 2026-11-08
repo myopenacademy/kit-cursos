@@ -14,7 +14,7 @@ cortar sin permisos de administrador: solo se apuntan los proxies a una direcci�
 los gestores de paquetes, pero no a un programa que abra la conexión por su cuenta. Las versiones son las del
 equipo, así que una salida puede cambiar. Tampoco hay bash 3.2. Quien la usa debe avisar de todo esto.
 
-EL RELOJ DE GIT (terminal/git-reloj, en los dos casos delante del git de verdad): los commits tienen fechas
+EL RELOJ DE GIT (terminal/git-reloj; en la imagen, en /usr/bin/git, y sin Docker, delante del PATH): los commits tienen fechas
 fijas que avanzan un minuto cada uno desde el 15 de enero de 2026 a las 10:00, así que sus identificadores salen
 siempre iguales y «git log» parece un historial real.
 
@@ -86,6 +86,12 @@ def imagen():
               file=sys.stderr, flush=True)
         _docker("build", "-q", "-t", nombre, str(DOCKERFILE.parent))
     return nombre
+
+
+def versiones():
+    """La lista de lo instalado en la imagen, con sus versiones (la guarda el Dockerfile al construirla)."""
+    r = _docker("run", "--rm", "--network", "none", imagen(), "cat", "/usr/share/kit-terminal/versiones.txt")
+    return r.stdout.decode("utf-8", "replace")
 
 
 def pantalla(texto):
