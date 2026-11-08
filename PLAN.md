@@ -6,7 +6,9 @@
 
 Que se pueda **escribir un curso para MyOpenAcademy, verificarlo y saber que se puede instalar**. Primero, **lo justo para el curso inicial**; se amplía cuando lo pida el siguiente curso.
 
-## 2. Estructura prevista
+## 2. Estructura
+
+Cómo es hoy (9 de noviembre de 2026):
 
 ```
 kit-cursos/
@@ -20,10 +22,12 @@ kit-cursos/
 │   └── retos.md
 └── herramientas/
     ├── README.md
-    ├── formato_academia.py   ← comprueba que un curso cumple FORMATO.md (la pieza central)
-    ├── nucleo/               ← lo genérico: enlaces, Mermaid, índice y chuleta desde curso.json, argumentos…
-    ├── servicios/            ← vacía hasta que la pida el curso de Java (bases de datos, contenedores, servidor Linux…)
-    └── lenguajes/            ← un ejecutor por lenguaje o formato, con prefijo formato_ los de formatos (formato_json.py…)
+    ├── formato_academia.py   ← comprueba que un curso cumple FORMATO.md (la pieza central, sin dependencias)
+    ├── nucleo/               ← lo común: verificar_codigo, declarar_ejercicios, generar_indice, generar_chuleta_global,
+    │                           comprobar_mermaid, reemplazar y argumentos
+    ├── lenguajes/            ← un comprobador por lenguaje o formato: bash.py y formato_json/yaml/xml/csv/markdown.py
+    ├── servicios/            ← terminal.py y la imagen de la terminal del kit (terminal/); lo del curso de Java, cuando lo pida
+    └── pruebas/              ← las pruebas y los cursos de ejemplo (bueno y ejemplo-destino), que usa también la academia
 ```
 
 ## 3. Tareas para el curso inicial (versión mínima)
@@ -45,7 +49,7 @@ En este orden:
    - `curl`: contra un **servidor HTTP local pequeño del kit**, nunca contra internet, con sus partes variables.
    - **Cómo** (decisiones del autor, 8 de noviembre de 2026): un `nucleo/verificar_codigo.py` sin nada de Java, con las **convenciones del curso de Java tal cual** (`FORMATO.md`, apartado 7.1) y un comprobador por formato en `lenguajes/`. **En el orden en que se escribe el curso**: (1) ~~el núcleo con bash y las sesiones de terminal, con la detección de bash 3.2 (fases 2 y 3)~~ (hecho el 8 de noviembre de 2026); (2) ~~JSON, YAML, XML, CSV y Markdown (fase 4)~~ (hecho el 8 de noviembre de 2026); (3) ~~Git (fase 5)~~ (hecho el 8 de noviembre de 2026: sesiones de terminal con la imagen y el reloj de Git); (4) `curl` con el servidor local (fase 6).
    - Condiciones comunes: **sin internet** y **salidas en español** (el kit fija `LC_ALL`, por ejemplo `es_ES.UTF-8`; la máquina necesita ese *locale* y las traducciones de Git).
-5. **`herramientas/README.md`** con cada herramienta, sus requisitos y ejemplos.
+5. ~~**`herramientas/README.md`** con cada herramienta, sus requisitos y ejemplos~~ (hecho y revisado entero el 9 de noviembre de 2026).
 
 **Después** (cuando lo pida el curso de Java): separar `verificar_codigo.py` (unas 1.500 líneas) en núcleo y ejecutores (Java, SQL, Node, páginas, Compose, Linux, plataformas…), `generar_modulo.py`, y la prueba de fiabilidad contra el curso de Java original. Y dos opciones de `formato_academia.py`, en vez de un `comprobar_enlaces.py` aparte (decisión del autor, 8 de noviembre de 2026):
 

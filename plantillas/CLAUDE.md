@@ -13,7 +13,7 @@
 
 ## Reglas de este curso
 
-- Escribe en **español de España**, tuteando.
+- Escribe en **español de España**, tuteando. Di **«fichero»**, no «archivo», salvo en lo que sale tal cual en pantalla («Explorador de archivos», el menú «Archivo»); la primera vez, avisa de que son sinónimos.
 - **La calidad y la exactitud van por delante de la velocidad.** No recortes: cada módulo tiene la extensión que el tema necesite.
 - Se escribe para un **principiante absoluto** en lo que trata el curso; solo se da por sabido lo que diga «Conviene saber antes».
 - **Cumple `../kit-cursos/FORMATO.md`** (versión 1): estructura, nombres, plantilla de módulo (`../kit-cursos/plantillas/modulo.md`), retos de fase, títulos en texto plano. No lo copies ni lo cambies desde aquí: si algo no encaja, anótalo en `ESTADO.md` («Avisos para el kit») y díselo al autor.
@@ -28,8 +28,8 @@
 
 ## Forma de trabajo
 
-- **Por fases.** Al terminar cada módulo: `python3 ../kit-cursos/herramientas/formato_academia.py`, las comprobaciones del código de la fase, `ESTADO.md` al día y **un commit por módulo** (Conventional Commits: `docs(fase-01): añade el módulo …`).
+- **Por fases.** Al terminar cada módulo: las herramientas del kit en el orden de «Por dónde empezar» de `../kit-cursos/herramientas/README.md` (declarar sus ejercicios, índice, chuleta global, `formato_academia.py`, su código y sus diagramas), `ESTADO.md` al día y **un commit por módulo** (Conventional Commits: `docs(fase-01): añade el módulo …`). Para cambiar varios documentos a la vez, `../kit-cursos/herramientas/nucleo/reemplazar.py` (todos o ninguno).
 - **Después de cada módulo, actualiza toda la documentación** que le afecte: índice, chuleta global, enlaces, `ESTADO.md`, plan, portada, roadmaps, módulos anteriores y proyecto.
-- **Al cerrar cada fase:** comprobación entera tras el último cambio, enlaces de todo el curso, Mermaid, y apuntarlo en `ESTADO.md`. **Para** para que el autor la revise.
+- **Al cerrar cada fase:** comprobación entera tras el último cambio (el código, **con Docker**), enlaces de todo el curso, Mermaid, y apuntarlo en `ESTADO.md`. **Para** para que el autor la revise.
 - **No cambies el plan por tu cuenta:** propón el cambio y espera la aprobación del autor.
 - Commit o publicación solo cuando el autor lo pida o el plan lo diga.
