@@ -296,10 +296,33 @@ Enunciado…
   `📁 **Código:** [`codigo/04-polimorfismo/ejemplos/2.1-upcasting/`](codigo/04-polimorfismo/ejemplos/2.1-upcasting/)`
 - El bloque del módulo y el fichero de `codigo/` deben ser **idénticos**.
 - **Nombres reservados** junto a la solución de cada ejercicio, para la corrección automática futura: `partida/` (código de partida que se da al alumno) y `pruebas/` (pruebas que comprueban su solución). Hoy no los usa nadie, pero no se pueden usar para otra cosa.
-- **Ficheros de verificación** en la carpeta de un ejemplo o solución: le dicen al kit cómo comprobarlo. La academia los descarga con el resto de la carpeta, así que su texto debe entenderse sin el kit.
-  - `debe-fallar.txt`: el ejemplo está mal **a propósito** (un JSON con una coma de más, un YAML mal sangrado…). El kit comprueba que falla, en vez de darlo por malo. Dentro, una línea que diga qué error tiene. Los fragmentos que se quedan en el texto no se verifican.
-  - `separador.txt`: el separador de los CSV de la carpeta, en una sola línea (`;`, `|` o la palabra `tabulador`). Si no está, el separador es la coma.
 - La academia ofrece cada carpeta enlazada como descarga en ZIP.
+
+### 7.1. Ficheros de verificación y salidas en el texto
+
+Le dicen al kit cómo comprobar un ejemplo o una solución. Son los mismos del curso de Java original.
+
+- **Los usa el kit para verificar**; la academia los trata como cualquier otro fichero de la carpeta.
+- **Van también en el ZIP que descarga el alumno**, así que su texto debe entenderse sin el kit, y el `README.md` del curso explica en una línea qué son.
+- Solo se verifican los programas **completos** (los que tienen carpeta); los fragmentos que se quedan en el texto, no.
+
+| Fichero, en la carpeta del ejemplo o la solución | Para qué |
+|---|---|
+| `entrada.txt` | Lo que se teclea: se pasa como entrada estándar al programa o al script. |
+| `args.txt` | Los argumentos, en una línea, con comillas como en la terminal. |
+| `termina-con-error.txt` | El programa o el script termina **a propósito** con un error (un código distinto de 0). Dentro, una línea que dice por qué. |
+| `debe-fallar.txt` | El fichero de datos está mal **a propósito** (un JSON con una coma de más, un YAML mal sangrado…): el kit comprueba que falla, en vez de darlo por malo. Dentro, una línea que dice qué error tiene. |
+| `separador.txt` | El separador de los CSV de la carpeta, en una sola línea (`;`, `\|` o la palabra `tabulador`). Si no está, la coma. |
+| `salida-variable.txt` | Lo que cambia en cada ejecución (fechas, identificadores de commit, tiempos): una expresión regular de Python por línea (las vacías y las que empiezan por `#` no cuentan). Antes de comparar, lo que encaja se sustituye por `…` en la salida real y en la del texto, y el texto avisa de que la del alumno será distinta en esas partes. |
+| `sesion.txt` (o `sesion-<nombre>.txt`) | Las órdenes de una sesión de terminal, una por línea, como se teclean; las líneas vacías y las que empiezan por `#` no se teclean. |
+
+Lo que se compara se escribe en el módulo **justo después del programa y de su enlace «📁 Código»**, con estas líneas exactas, cada una seguida de un bloque ` ```text `:
+
+| En el texto | Qué es |
+|---|---|
+| `**Salida:**` | La salida estándar real del programa o del script. |
+| `**Salida de error:**` | Su salida de error, en los que llevan `termina-con-error.txt`. |
+| ``**En tu terminal** (`sesion.txt`):`` | La pantalla de la sesión: cada orden de `sesion.txt` tecleada tras el indicador `$ ` en una carpeta con los ficheros de la del ejemplo, y lo que contesta. |
 
 ## 8. El proyecto para el portfolio del alumno
 
@@ -411,5 +434,5 @@ Para que los cursos no dependan unos de otros, algunas cosas son de la academia:
 - Se cambia **solo desde el proyecto del kit** (`Cursos/kit-cursos/`), nunca desde un curso ni desde la academia por su cuenta.
 - Cada cambio sube la versión del formato (el campo `formato`), se anota qué cursos hay que poner al día y la academia sigue sabiendo leer las versiones anteriores.
 - **Las versiones cuentan desde la primera publicación.** Hasta que se publique el primer curso, los ajustes se hacen dentro de la versión 1 y se anotan aquí:
-  - 8 de noviembre de 2026: un módulo con `"disponible": false` puede llevar su `fichero` previsto, y una fase sus `retos` previstos con `"retos_disponibles": false` (apartado 3.2); ficheros de verificación `debe-fallar.txt` y `separador.txt` (apartado 7); títulos del curso, las fases, los módulos, los ejercicios y los retos en texto plano (apartado 3.2); una fase que solo contiene el proyecto final no necesita retos (apartado 6); qué subapartados se numeran (apartado 5.1); «Conviene saber antes», solo enlaces, con ancla para precisar la sección (apartado 5.2); el HTML que admite de verdad la academia, y `<details open>` no (apartado 10.5). **A poner al día:** el curso de Java, al adaptarlo, tiene 88 títulos de ejercicio con formato (comillas invertidas o cursiva).
+  - 8 de noviembre de 2026: un módulo con `"disponible": false` puede llevar su `fichero` previsto, y una fase sus `retos` previstos con `"retos_disponibles": false` (apartado 3.2); ficheros de verificación `debe-fallar.txt` y `separador.txt`, y después todos los del curso de Java con las salidas en el texto (apartado 7.1); títulos del curso, las fases, los módulos, los ejercicios y los retos en texto plano (apartado 3.2); una fase que solo contiene el proyecto final no necesita retos (apartado 6); qué subapartados se numeran (apartado 5.1); «Conviene saber antes», solo enlaces, con ancla para precisar la sección (apartado 5.2); el HTML que admite de verdad la academia, y `<details open>` no (apartado 10.5). **A poner al día:** el curso de Java, al adaptarlo, tiene 88 títulos de ejercicio con formato (comillas invertidas o cursiva).
 - Si un curso necesita algo nuevo, primero se amplía la academia y este formato, y después lo usa el curso.

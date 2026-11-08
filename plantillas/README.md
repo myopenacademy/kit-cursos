@@ -15,7 +15,7 @@
 - Empieza por el **[índice](00-indice.md)**. Cada módulo tiene teoría, ejemplos, errores típicos, buenas prácticas, ejercicios resueltos en cuatro niveles, una chuleta y preguntas de repaso.
 - Puedes seguirlo **en orden** o entrar **por libre** a cualquier módulo: cada uno dice al principio qué conviene saber antes.
 - Intenta cada ejercicio antes de abrir la solución. Los **retos** del final de cada fase son opcionales.
-- El código de los ejemplos y soluciones está en la carpeta `codigo/` de cada fase.
+- El código de los ejemplos y soluciones está en la carpeta `codigo/` de cada fase. Algunas carpetas llevan ficheros como `entrada.txt`, `sesion.txt`, `salida-variable.txt` o `debe-fallar.txt`: sirven para comprobar automáticamente que el código del curso funciona, y puedes ignorarlos.
 - Para repasar, la **[chuleta global](99-chuleta-global.md)**.
 
 ## Versiones
