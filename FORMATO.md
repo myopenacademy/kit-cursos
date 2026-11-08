@@ -177,7 +177,9 @@ Todos los módulos siguen **exactamente** esta estructura, para que el lector se
 ```
 
 - El **título** es `# NN.NN Título`, con el mismo título que `curso.json`. El número es solo para orientarse.
-- Las secciones van **en este orden y con estos nombres exactos**. Dentro de cada una, los subapartados se numeran (`### 1.1.`, `### 1.2.`…).
+- Las secciones van **en este orden y con estos nombres exactos**.
+- **Se numeran** los subapartados de Teoría, Ejemplos de código, Errores típicos y Buenas prácticas, con el número de su sección: `### 1.1.`, `### 2.3.`…
+- **No se numeran** los de Qué aprenderás, Ejercicios prácticos resueltos (se agrupan por niveles: `### 🟢 Básico`…, apartado 5.4), Chuleta (es de consulta rápida, no se lee en orden) y Preguntas de repaso.
 
 ### 5.2. Cabecera
 
@@ -186,7 +188,7 @@ Las líneas de la cita del principio son los **datos del módulo** que lee la ac
 | Línea | Obligatoria | Qué lleva |
 |---|---|---|
 | `**Versiones:**` | No | Las versiones de las herramientas que usa el módulo, si aplican. |
-| `**Conviene saber antes:**` | Sí | Enlaces a los módulos que se recomienda haber estudiado, de este curso o de otro (apartado 10.2), separados por ` · `. Si no hace falta nada, `Nada`. Son recomendaciones: nada se bloquea. |
+| `**Conviene saber antes:**` | Sí | Enlaces a los módulos que se recomienda haber estudiado, de este curso o de otro (apartado 10.2), separados por ` · `, sin más texto. Para precisar una sección, se enlaza a ella con su ancla: `[00.01 Qué es programar, 1.7](01-que-es-programar.md#17-el-bytecode)`. Si no hace falta nada, `Nada`. Son recomendaciones: nada se bloquea. |
 | `**Tiempo estimado:**` | Sí | Horas de estudio, incluidos los ejercicios: `5 horas`, `1 hora`, `1,5 horas`. |
 | `**Nivel:**` | Sí | `Básico`, `Intermedio` o `Avanzado`, seguido de ` · ` y `Núcleo` (imprescindible) o `Ampliación` (para profundizar más adelante). |
 
@@ -342,10 +344,13 @@ Todo curso **debe** tener un proyecto con el que el alumno termine teniendo algo
 
 ### 10.5. HTML
 
-Solo el HTML que necesita este formato: `<details>` y `<summary>`. El resto se escribe en Markdown (tablas, tachado con `~~texto~~`, imágenes).
+**Primero Markdown; HTML solo cuando Markdown no llega**: los `<details>` y `<summary>` que pide este formato, y lo que no se puede escribir en Markdown, como código dentro de un `<summary>` (`<summary>Ver <code>Employee</code></summary>`, porque ahí el Markdown no se interpreta), teclas (`<kbd>Ctrl</kbd>`) o un salto de línea dentro de una celda de tabla (`<br>`). Las tablas, la negrita, el tachado (`~~texto~~`), los enlaces y las imágenes se escriben en Markdown.
 
-- El HTML de formato sin efecto (`<span>`, `<div>`, `<u>`…) la academia lo quita al instalar y deja su texto: es un aviso.
-- Scripts, marcos, manejadores de eventos (`onclick`…), imágenes escritas en HTML y atributos desconocidos **hacen fallar la instalación**: es un error.
+La academia trata el HTML así:
+
+- **Se admite tal cual**, sin atributos: `details`, `summary`, `code`, `kbd`, `br`, `sup`, `sub`, `em`, `strong`, `del`, `p`, `blockquote`, `hr`, `pre`, los encabezados (`h1` a `h6`), las listas (`ul`, `ol`, `li`) y las tablas (`table`, `thead`, `tbody`, `tr`, `th`, `td`). Los únicos atributos admitidos son `align` en `th` y `td`, `start` en `ol` y `class="language-…"` en `code`. **`<details open>` no se admite**: las soluciones y las pistas empiezan siempre plegadas.
+- **Formato sin efecto** (`span`, `div`, `u`, `b`, `i`, `s`, `mark`, `small`, `center`, `section`…) y enlaces escritos en HTML (`<a>`): la academia quita la etiqueta al instalar y deja su texto. Es un **aviso**.
+- **Cualquier otra etiqueta** (scripts, marcos, estilos, formularios, imágenes escritas en HTML…) y **cualquier otro atributo** (manejadores de eventos como `onclick`, `style`, `id`, `open`…) **hacen fallar la instalación**: es un **error**.
 
 ## 11. Versiones del curso
 
@@ -406,5 +411,5 @@ Para que los cursos no dependan unos de otros, algunas cosas son de la academia:
 - Se cambia **solo desde el proyecto del kit** (`Cursos/kit-cursos/`), nunca desde un curso ni desde la academia por su cuenta.
 - Cada cambio sube la versión del formato (el campo `formato`), se anota qué cursos hay que poner al día y la academia sigue sabiendo leer las versiones anteriores.
 - **Las versiones cuentan desde la primera publicación.** Hasta que se publique el primer curso, los ajustes se hacen dentro de la versión 1 y se anotan aquí:
-  - 8 de noviembre de 2026: un módulo con `"disponible": false` puede llevar su `fichero` previsto, y una fase sus `retos` previstos con `"retos_disponibles": false` (apartado 3.2); ficheros de verificación `debe-fallar.txt` y `separador.txt` (apartado 7); títulos del curso, las fases, los módulos, los ejercicios y los retos en texto plano (apartado 3.2); una fase que solo contiene el proyecto final no necesita retos (apartado 6). **A poner al día:** el curso de Java, al adaptarlo, tiene 88 títulos de ejercicio con formato (comillas invertidas o cursiva).
+  - 8 de noviembre de 2026: un módulo con `"disponible": false` puede llevar su `fichero` previsto, y una fase sus `retos` previstos con `"retos_disponibles": false` (apartado 3.2); ficheros de verificación `debe-fallar.txt` y `separador.txt` (apartado 7); títulos del curso, las fases, los módulos, los ejercicios y los retos en texto plano (apartado 3.2); una fase que solo contiene el proyecto final no necesita retos (apartado 6); qué subapartados se numeran (apartado 5.1); «Conviene saber antes», solo enlaces, con ancla para precisar la sección (apartado 5.2); el HTML que admite de verdad la academia, y `<details open>` no (apartado 10.5). **A poner al día:** el curso de Java, al adaptarlo, tiene 88 títulos de ejercicio con formato (comillas invertidas o cursiva).
 - Si un curso necesita algo nuevo, primero se amplía la academia y este formato, y después lo usa el curso.
