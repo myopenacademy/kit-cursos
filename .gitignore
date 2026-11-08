@@ -1,0 +1,16 @@
+# Ficheros locales de cada máquina
+.env
+.env.*
+!.env.example
+.verificacion/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Editores y sistema
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
