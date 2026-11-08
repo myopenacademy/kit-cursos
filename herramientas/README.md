@@ -7,15 +7,18 @@ Las herramientas para comprobar los cursos de MyOpenAcademy. Se ejecutan **desde
 | Herramienta | Necesita |
 |---|---|
 | `formato_academia.py` | Python 3.11 o posterior, sin librerías adicionales. Git, solo para comparar con la última versión publicada (si no está, no compara). |
+| `nucleo/generar_indice.py` | Python 3.11 o posterior, sin librerías adicionales. |
 
 ## Resumen
 
 | Herramienta | Qué hace | Cuándo se usa |
 |---|---|---|
 | [`formato_academia.py`](#formato_academiapy) | Comprueba que el curso cumple `FORMATO.md` y se puede instalar en la academia | Al terminar cada módulo, al cerrar cada fase y antes de publicar una versión |
+| [`nucleo/generar_indice.py`](#nucleogenerar_indicepy) | Genera `00-indice.md` desde `curso.json` | Al terminar cada módulo y al cambiar el temario |
+| [`nucleo/argumentos.py`](#nucleoargumentospy) | Revisión común de los argumentos de las herramientas del núcleo | La usan las herramientas; no se ejecuta a mano |
 | [`pruebas/`](#las-pruebas) | Pruebas de las herramientas, con un curso de ejemplo bueno | Al cambiar una herramienta |
 
-Las demás (enlaces, Mermaid, índice, chuleta global y los comprobadores del código de cada formato) están en preparación: `PLAN.md` del kit, tareas 3 y 4.
+Las demás (enlaces, Mermaid, chuleta global y los comprobadores del código de cada formato) están en preparación: `PLAN.md` del kit, tareas 3 y 4.
 
 ## `formato_academia.py`
 
@@ -60,11 +63,32 @@ Termina con **0** si no hay errores (aunque haya avisos), con **1** si hay algun
 - **Mermaid**: sin negrita ni cursiva en las etiquetas (tampoco `<b>` o `<i>`), solo las entidades `&quot;`, `&lt;`, `&gt;` y `&amp;`, y sin directivas, *frontmatter*, `click`, `url()` ni `@import`. Que el diagrama se dibuje lo comprobará `comprobar_mermaid.py`.
 - **Versiones publicadas**: si el curso tiene etiquetas `vX.Y.Z` en Git, compara los identificadores de la última con los de ahora; cada uno que haya desaparecido necesita su equivalencia (`FORMATO.md`, apartado 11.2).
 
+## `nucleo/generar_indice.py`
+
+Genera `00-indice.md` a partir de `curso.json`. Sale de `generar_indice.py` del curso de Java, que tenía la lista de fases y módulos dentro del script; aquí la lista es `curso.json`.
+
+```bash
+python3 ../kit-cursos/herramientas/nucleo/generar_indice.py              # escribe 00-indice.md
+python3 ../kit-cursos/herramientas/nucleo/generar_indice.py --comprobar  # solo dice si está al día (1 si no)
+python3 ../kit-cursos/herramientas/nucleo/generar_indice.py ../curso-x   # otro curso
+```
+
+- Un encabezado `## Fase NN — Título` por fase, con los títulos de `curso.json`, y una tabla con sus módulos y sus retos.
+- El **nivel** y el **tiempo** de cada módulo salen de su cabecera (`FORMATO.md`, apartado 5.2), así que solo los tienen los módulos disponibles. Los que tienen `"disponible": false` salen como «Pendiente», sin enlace y con «—»; lo mismo los retos pendientes y las etapas que no existen. El índice se completa solo a medida que se escriben los módulos.
+- Si hay `partes`, el contenido se agrupa por partes. El proyecto por etapas tiene su propia sección; el de tipo `"modulo"` se marca con 🎯 en su fase.
+- La carpeta de una fase solo se enlaza si ya existe.
+- Diferencias con el de Java: no genera `RUTA-MINIMA.md` ni los textos propios de aquel curso (bloques, hitos, versiones); se añadirán cuando los pida el curso de Java.
+
+## `nucleo/argumentos.py`
+
+La revisión común de los argumentos, sacada de `argumentos.py` del curso de Java: `--help` muestra la ayuda de la herramienta, y una opción desconocida o una ruta que no existe terminan con código 2 sin hacer nada (así una ruta mal escrita no da un «✅» falso). Como las herramientas viven en el kit, las rutas se buscan desde la carpeta actual (la raíz del curso), no desde la carpeta del script.
+
 ## Las pruebas
 
 En `pruebas/`:
 
 - `cursos/bueno/`: un curso de ejemplo pequeño que cumple `FORMATO.md` (una fase con un módulo escrito y otro pendiente, retos, imagen, Mermaid y proyecto por etapas). Pasa sin errores.
+- `test_generar_indice.py`: las de `generar_indice.py` (el índice del curso de ejemplo está al día, nivel y tiempo de la cabecera, pendientes sin enlace, `--comprobar`, y que el índice generado cumple `FORMATO.md`).
 - `test_formato_academia.py`: cada prueba copia ese curso a una carpeta temporal, lo estropea de una forma concreta y comprueba que sale justo ese error o aviso. Así, si un cambio en el comprobador deja de detectar algo, una prueba falla.
 - `curso_json_de_java.py`: genera un `curso.json` provisional para una **copia** del curso de Java original (que no lo tiene), para probar `formato_academia.py` con 199 módulos reales y como punto de partida de `curso-java/`. Su ayuda (`--help`) explica cómo sacar la copia solo con Git de lectura.
 

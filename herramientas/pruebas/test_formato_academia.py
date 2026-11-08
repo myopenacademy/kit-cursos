@@ -17,7 +17,9 @@ from pathlib import Path
 PRUEBAS = Path(__file__).resolve().parent
 HERRAMIENTAS = PRUEBAS.parent
 sys.path.insert(0, str(HERRAMIENTAS))
+sys.path.insert(0, str(HERRAMIENTAS / "nucleo"))
 import formato_academia  # noqa: E402
+import generar_indice  # noqa: E402
 
 BUENO = PRUEBAS / "cursos" / "bueno"
 MODULO = "fase-01-primeros-pasos/01-ficheros-json.md"
@@ -54,6 +56,10 @@ class Base(unittest.TestCase):
 
     def modulo(self, datos):
         return datos["fases"][0]["modulos"][0]
+
+    def regenerar_indice(self):
+        texto, _, _ = generar_indice.generar(self.raiz)
+        (self.raiz / "00-indice.md").write_text(texto, encoding="utf-8")
 
     # -- comprobar ----------------------------------------------------------------------------------
 
@@ -220,8 +226,8 @@ class Retos(Base):
 
     def test_retos_no_disponibles_es_aviso(self):
         (self.raiz / RETOS).unlink()
-        self.cambiar("00-indice.md", "- [Retos de la fase](fase-01-primeros-pasos/retos.md)\n", "")
         d = self.json(); d["fases"][0]["retos_disponibles"] = False; self.guardar_json(d)
+        self.regenerar_indice()
         self.assertSinErrores()
         self.assertAviso("los retos todavía no están escritos")
 
@@ -242,8 +248,7 @@ class Retos(Base):
         d["proyecto"] = {"tipo": "modulo", "modulo": "ejemplo.mi-repositorio"}
         self.guardar_json(d)
         shutil.rmtree(self.raiz / "proyecto")
-        self.cambiar("00-indice.md", "## Proyecto\n\n- [El primer catálogo](proyecto/01-primer-catalogo.md)\n",
-                     "## Fase 02 — Proyecto final\n")
+        self.regenerar_indice()
         self.assertSinErrores()
         self.assertFalse(self.hay(self.avisos, "proyecto-final", "retos"), self.avisos)
 

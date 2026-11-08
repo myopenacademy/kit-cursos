@@ -1238,8 +1238,11 @@ def comprobar(raiz):
     modulos = [m for f in curso.fases for m in f.get("_modulos", [])]
     disponibles = sum(1 for m in modulos if m.get("_disponible"))
     ejercicios = sum(len(m.get("ejercicios", [])) for m in modulos if isinstance(m.get("ejercicios"), list))
-    resumen = (f"Curso «{curso.datos.get('id')}» {curso.datos.get('version')}: {len(curso.fases)} fases, "
-               f"{len(modulos)} módulos ({disponibles} disponibles), {ejercicios} ejercicios; {publicados}.")
+    def plural(n, uno, varios):
+        return f"{n} {uno if n == 1 else varios}"
+    resumen = (f"Curso «{curso.datos.get('id')}» {curso.datos.get('version')}: {plural(len(curso.fases), 'fase', 'fases')}, "
+               f"{plural(len(modulos), 'módulo', 'módulos')} ({disponibles} disponible{'' if disponibles == 1 else 's'}), "
+               f"{plural(ejercicios, 'ejercicio', 'ejercicios')}; {publicados}.")
     return informe, resumen
 
 

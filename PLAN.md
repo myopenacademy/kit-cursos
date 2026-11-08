@@ -33,10 +33,11 @@ En este orden:
 1. ~~**README del kit** y **plantillas**~~ (hecho el 8 de noviembre de 2026) (apartado 2), con `curso.json` de ejemplo y el módulo tipo de `FORMATO.md`.
 2. ~~**`formato_academia.py`**~~ (hecho el 8 de noviembre de 2026; ver `ESTADO.md`): todo lo del apartado 13 de `FORMATO.md` (`curso.json`, módulos, retos, glosario, proyecto, enlaces del mismo curso y entre cursos, imágenes, Mermaid, HTML, ficheros obligatorios), con errores y avisos, y el campo `transicion`. Incluye que los títulos del curso, las fases, los módulos, los ejercicios y los retos sean texto plano (sin `` ` ``, `**`, `*`, `_`, enlaces ni HTML), en `curso.json` y en los encabezados. Con pruebas sobre cursos de ejemplo pequeños, buenos y malos.
 3. **Del núcleo de las herramientas de Java**, lo que necesita el curso inicial:
-   - `comprobar_enlaces.py`, ampliado a los enlaces entre cursos (dirección de GitHub → carpeta hermana).
+   - ~~`comprobar_enlaces.py`~~: no se hace aparte (decisión del autor, 8 de noviembre de 2026). `formato_academia.py` ya comprueba los enlaces y las anclas, también entre cursos; lo que cubría se añadirá como opciones de `formato_academia.py` (ver «Después»).
    - `comprobar_mermaid.py` (necesita Node y Chrome; su ruta, en variables de entorno).
-   - `generar_indice.py` y `generar_chuleta_global.py`, que pasan a leer `curso.json` en vez de una lista dentro del script.
-   - `argumentos.py`.
+   - ~~`generar_indice.py`~~ (hecho el 8 de noviembre de 2026) y `generar_chuleta_global.py`, que pasan a leer `curso.json` en vez de una lista dentro del script.
+   - ~~`argumentos.py`~~ (hecho el 8 de noviembre de 2026).
+   - Van en `herramientas/nucleo/` y se ejecutan desde la raíz del curso (la raíz es la carpeta actual o la que se indique, no la carpeta del script).
 4. **Comprobadores de los formatos del curso inicial** para sus ejemplos, ejercicios y retos, según su lista (`../curso-inicial/ESTADO.md`, «Lista para el kit», aprobada el 8 de noviembre de 2026):
    - JSON, YAML y XML (válidos, o que fallan con `debe-fallar.txt`; en las conversiones, que el JSON y el YAML cargan los mismos datos), CSV (con `separador.txt`, mismas columnas y número de filas esperado) y Markdown (enlaces, anclas, tablas bien formadas, bloques de código cerrados).
    - bash: el script en una carpeta temporal; se comparan su salida y los ficheros y carpetas que deja. Compatibilidad con **bash 3.2** (el de macOS): ejecutarlos con un bash 3.2 o, al menos, detectar lo que no existe en él (arrays asociativos, `mapfile`, `${var,,}`, `|&`, `&>>`…). Decisión del autor (8 de noviembre de 2026): **siempre** se detectan esas construcciones (no necesita nada instalado) y, **si hay Docker**, además se ejecutan los scripts en la imagen oficial `bash:3.2` de Docker Hub (comprobar antes que existe).
@@ -45,7 +46,10 @@ En este orden:
    - Condiciones comunes: **sin internet** y **salidas en español** (el kit fija `LC_ALL`, por ejemplo `es_ES.UTF-8`; la máquina necesita ese *locale* y las traducciones de Git).
 5. **`herramientas/README.md`** con cada herramienta, sus requisitos y ejemplos.
 
-**Después** (cuando lo pida el curso de Java): separar `verificar_codigo.py` (unas 1.500 líneas) en núcleo y ejecutores (Java, SQL, Node, páginas, Compose, Linux, plataformas…), `generar_modulo.py`, y la prueba de fiabilidad contra el curso de Java original. Y una comprobación de **todos los cursos a la vez**, para detectar enlaces rotos cuando un curso renombra un fichero.
+**Después** (cuando lo pida el curso de Java): separar `verificar_codigo.py` (unas 1.500 líneas) en núcleo y ejecutores (Java, SQL, Node, páginas, Compose, Linux, plataformas…), `generar_modulo.py`, y la prueba de fiabilidad contra el curso de Java original. Y dos opciones de `formato_academia.py`, en vez de un `comprobar_enlaces.py` aparte (decisión del autor, 8 de noviembre de 2026):
+
+- **`--fichero <ruta>`**: comprobar un solo fichero mientras se escribe, más rápido.
+- **Todos los cursos a la vez** (por ejemplo, `--todos ../`, que recorre las carpetas hermanas con `curso.json`): detectar los enlaces que se rompen en otros cursos cuando uno renombra un fichero. Hace falta cuando haya más de un curso.
 
 ## 4. Decisiones del autor
 
