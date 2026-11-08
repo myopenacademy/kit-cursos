@@ -1,0 +1,36 @@
+#!/bin/sh
+# El reloj de Git del kit de cursos de MyOpenAcademy (no es parte de Git).
+#
+# La terminal del kit lo pone delante del git de verdad para que los commits de una sesión tengan fechas fijas
+# que avanzan: el primero, el 15 de enero de 2026 a las 10:00; cada uno, un minuto después del anterior. Así sus
+# identificadores salen siempre iguales y «git log» parece un historial real. Las órdenes que pueden crear
+# commits reciben la fecha del reloj (GIT_AUTHOR_DATE y GIT_COMMITTER_DATE, salvo que ya estén puestas) y, si
+# terminan bien, lo adelantan un minuto. Todo lo demás pasa al git de verdad sin cambios.
+real="${KIT_GIT_REAL:-/usr/local/bin/git}"
+reloj="${KIT_RELOJ:-/tmp/.kit-reloj-git}"
+
+orden=""
+saltar=""
+for argumento in "$@"; do
+    if [ -n "$saltar" ]; then saltar=""; continue; fi
+    case "$argumento" in
+        -C|-c|--git-dir|--work-tree|--namespace|--exec-path|--config-env) saltar=1 ;;
+        -*) ;;
+        *) orden="$argumento"; break ;;
+    esac
+done
+
+case "$orden" in
+    commit|merge|rebase|cherry-pick|revert|am|pull|stash|tag|notes|commit-tree)
+        minutos=$(cat "$reloj" 2>/dev/null || echo 0)
+        fecha=$(TZ=Europe/Madrid date -d "2026-01-15 10:00:00 $minutos minutes" '+%Y-%m-%dT%H:%M:%S%z')
+        GIT_AUTHOR_DATE="${GIT_AUTHOR_DATE:-$fecha}" GIT_COMMITTER_DATE="${GIT_COMMITTER_DATE:-$fecha}" \
+            "$real" "$@"
+        codigo=$?
+        [ "$codigo" -eq 0 ] && echo $((minutos + 1)) > "$reloj"
+        exit "$codigo"
+        ;;
+    *)
+        exec "$real" "$@"
+        ;;
+esac

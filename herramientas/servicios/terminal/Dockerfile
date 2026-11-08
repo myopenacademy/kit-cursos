@@ -10,6 +10,8 @@
 #     8 de noviembre de 2026; aquí, su SHA-256), como /usr/local/bin/bash-3.2: los scripts se ejecutan
 #     también con ella, con las mismas herramientas GNU, para que una diferencia sea solo del bash.
 #   - El idioma español (es_ES.UTF-8) generado y la zona horaria de Madrid.
+#   - El reloj de Git (git-reloj, en /usr/local/sbin/git, delante del de verdad): los commits de una sesión,
+#     con fechas fijas que avanzan un minuto cada uno desde el 15 de enero de 2026 a las 10:00.
 #
 # Si se cambia algo, se cambia también la tabla de versiones de herramientas/README.md.
 FROM ubuntu:26.04@sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c AS compilar
@@ -50,6 +52,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
 
 COPY --from=compilar /usr/local /usr/local
 COPY --from=compilar /opt/bash-3.2/bin/bash /usr/local/bin/bash-3.2
+COPY --chmod=755 git-reloj /usr/local/sbin/git
 
 # La persona de las sesiones, con su carpeta personal; la configuración de Git de todo el sistema le da un
 # nombre y la rama main (una sesión que enseña «git config --global» la cambia en su ~/.gitconfig, como en

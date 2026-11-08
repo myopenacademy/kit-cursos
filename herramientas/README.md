@@ -158,8 +158,15 @@ Donde se ejecutan los scripts y las sesiones (`servicios/terminal.py`).
 | bash | 5.3.9 | La de Ubuntu 26.04 |
 | bash 3.2 | **3.2.57** | La de macOS, como `bash-3.2`. Compilada del código oficial de GNU: su firma (`.sig`) se verificó el 8 de noviembre de 2026 con la clave de Chet Ramey, que mantiene bash (`7C01 35FB 088A AF6C 66C6 50B9 BB58 69F0 64EA 74AB`), y el Dockerfile comprueba su SHA-256. |
 | Idioma y hora | `es_ES.UTF-8`, Europe/Madrid | Las salidas del curso están en español |
+| Reloj de Git | Desde el 15 de enero de 2026, 10:00 | `servicios/terminal/git-reloj`, delante del `git` de verdad (también sin Docker) |
 
 **Por qué bash 3.2 se compila en la imagen y no se usa la imagen oficial `bash:3.2.57`** (que existe en Docker Hub): la oficial es de Alpine, con las herramientas de BusyBox en lugar de las de GNU, así que `ls`, `sort` o `grep` darían salidas distintas y cada script daría diferencias falsas. Con las dos bash en la misma imagen y las mismas herramientas, una diferencia es solo del bash.
+
+**El reloj de Git.** Para que los identificadores de los commits salgan siempre iguales y `git log` parezca un historial real (decisión del autor, 8 de noviembre de 2026), los commits de cada sesión o script tienen **fechas fijas que avanzan**: el primero, el 15 de enero de 2026 a las 10:00 (la fecha de los ficheros copiados); cada uno, un minuto después del anterior. Lo hace `git-reloj`, un script pequeño que la terminal pone delante del `git` de verdad: a las órdenes que pueden crear commits (`commit`, `merge`, `rebase`, `cherry-pick`, `revert`, `stash`, `tag`…) les da la fecha del reloj y, si terminan bien, lo adelantan un minuto (un `git commit` que no tiene nada que confirmar no lo adelanta). Si la sesión pone sus propias fechas (`GIT_AUTHOR_DATE`…), se respetan. Lo único que lo delata es `which git`, que dice `/usr/local/sbin/git`.
+
+**Sin paginador.** En la terminal, `GIT_PAGER` y `PAGER` son `cat`: con una salida que no cabe en pantalla, `git log` o `man` se quedarían esperando una tecla (en el equipo del alumno, `less` la pide). Con una que cabe, se ve igual.
+
+**Lo que Git no traduce**, aunque el sistema esté en español (es así en cualquier Git, también en el de Ubuntu): las fechas (`Date:   Thu Jan 15 10:00:00 2026 +0100`) y el resumen de cambios (`1 file changed, 1 insertion(+)`). El curso las muestra tal cual.
 
 Si cambia una versión (por ejemplo, el curso pasa a enseñar otra de Git), se cambia en el `Dockerfile` (con su SHA-256) y en esta tabla: la huella del `Dockerfile` cambia y la imagen se reconstruye sola.
 

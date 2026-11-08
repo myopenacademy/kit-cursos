@@ -6,6 +6,7 @@ se construye la imagen de la terminal del kit (unos minutos, con internet).
 Desde la raíz del kit:
     python3 -m unittest discover -s herramientas/pruebas -v
 """
+import re
 import shutil
 import subprocess
 import sys
@@ -91,7 +92,7 @@ class Base(unittest.TestCase):
 
     def assertError(self, *trozos):
         self.assertEqual(self.ejecutar(), 1, self.salida)
-        self.assertTrue(any(all(t in l for t in trozos) for l in self.salida.split("\nfase-")), self.salida)
+        self.assertTrue(any(all(t in l for t in trozos) for l in re.split(r"\n(?=\S)", self.salida)), self.salida)
 
 
 class SinDocker(Base):
@@ -160,6 +161,14 @@ class SinDocker(Base):
 
     def test_argumentos_mal(self):
         self.assertEqual(self.ejecutar("no-existe.md"), 2)
+
+    def test_reloj_de_git_tambien_sin_docker(self):
+        with terminal.Local(self.raiz / f"{EJEMPLOS}/2.3-ver-un-fichero") as t:
+            pantalla = t.sesion([(o, None) for o in ["git init -q", "git add cliente.json", 'git commit -q -m "Uno"',
+                                                     "echo x > b.txt", "git add b.txt", 'git commit -q -m "Dos"',
+                                                     "git -c core.pager=cat log --format='%s %ad' --date=format:%H:%M"]])
+        self.assertIn("Dos 10:01", pantalla)
+        self.assertIn("Uno 10:00", pantalla)
 
 
 class Datos(Base):
@@ -263,13 +272,22 @@ class ConDocker(SinDocker):
         self.assertIn("En la rama main", pantalla)
         self.assertIn("No hay commits todavía", pantalla)
 
-    def test_git_reproducible(self):
-        ordenes = ["git init -q", "git add cliente.json",
-                   'GIT_AUTHOR_DATE=2026-11-08T10:00:00 GIT_COMMITTER_DATE=2026-11-08T10:00:00 git commit -q -m "Primero"',
-                   "git log --format='%h %an'"]
-        primera, segunda = self.sesion(ordenes), self.sesion(ordenes)
+    HISTORIAL = ["git init -q", "git add cliente.json", 'git commit -q -m "Primero"', "git status --short",
+                 'git commit -q -m "Vacío"', "echo '{}' > otro.json", "git add otro.json", 'git commit -q -m "Segundo"',
+                 "git -c core.pager=cat log --format='%h %ad %an %s' --date=format:'%d/%m/%Y %H:%M'"]
+
+    def test_git_reproducible_con_fechas_que_avanzan(self):
+        primera, segunda = self.sesion(self.HISTORIAL), self.sesion(self.HISTORIAL)
         self.assertEqual(primera, segunda)
-        self.assertIn("Ana García", primera)
+        self.assertRegex(primera, r"[0-9a-f]{7} 15/01/2026 10:01 Ana García Segundo")
+        # el commit que falla («nada para hacer commit») no adelanta el reloj
+        self.assertRegex(primera, r"[0-9a-f]{7} 15/01/2026 10:00 Ana García Primero")
+
+    def test_git_respeta_las_fechas_que_pone_la_sesion(self):
+        pantalla = self.sesion(["git init -q", "git add cliente.json",
+                                'GIT_AUTHOR_DATE=2026-03-01T09:30:00 git commit -q -m "Uno"',
+                                "git log --format='%ad' --date=format:'%d/%m %H:%M'"])
+        self.assertIn("01/03 09:30", pantalla)
 
     def test_las_versiones_de_la_imagen(self):
         pantalla = self.sesion(["git --version", 'echo "$BASH_VERSION"', "bash-3.2 -c 'echo $BASH_VERSION'"])

@@ -14,9 +14,15 @@ cortar sin permisos de administrador: solo se apuntan los proxies a una direcci�
 los gestores de paquetes, pero no a un programa que abra la conexión por su cuenta. Las versiones son las del
 equipo, así que una salida puede cambiar. Tampoco hay bash 3.2. Quien la usa debe avisar de todo esto.
 
+EL RELOJ DE GIT (terminal/git-reloj, en los dos casos delante del git de verdad): los commits tienen fechas
+fijas que avanzan un minuto cada uno desde el 15 de enero de 2026 a las 10:00, así que sus identificadores salen
+siempre iguales y «git log» parece un historial real.
+
 LAS SESIONES: cada orden se teclea en una bash interactiva con terminal (una pseudoterminal de 100 columnas), con
 el indicador «$ », cuando la anterior ha terminado (cuando vuelve el indicador), y el resultado es la PANTALLA
-FINAL, interpretada como lo haría una terminal (retornos de carro, borrados, colores fuera). Sale de las sesiones
+FINAL, interpretada como lo haría una terminal (retornos de carro, borrados, colores fuera). Sin paginador
+(GIT_PAGER y PAGER son «cat»): con una salida que no cabe en la pantalla, «git log» o «man» se quedarían esperando
+una tecla; con una que cabe, se ve igual. Sale de las sesiones
 «En tu terminal» del curso de Java (servidor_linux.py y bases_de_datos.py).
 """
 import fcntl
@@ -27,6 +33,7 @@ import select
 import shutil
 import struct
 import subprocess
+import sys
 import tempfile
 import termios
 import time
@@ -75,7 +82,8 @@ def imagen():
     huella = hashlib.sha256(DOCKERFILE.read_bytes()).hexdigest()[:12]
     nombre = f"kit-terminal:{huella}"
     if _docker("image", "inspect", nombre, comprobar=False).returncode != 0:
-        print(f"Construyendo la imagen {nombre} (la primera vez tarda unos minutos y necesita internet)…", flush=True)
+        print(f"Construyendo la imagen {nombre} (la primera vez tarda unos minutos y necesita internet)…",
+              file=sys.stderr, flush=True)
         _docker("build", "-q", "-t", nombre, str(DOCKERFILE.parent))
     return nombre
 
@@ -247,7 +255,8 @@ class Contenedor:
 
     def sesion(self, ordenes):
         return _teclear(["docker", "exec", "-it", "-w", CASA, "-e", "TERM=xterm-256color", "-e", "PS1=$ ",
-                         "-e", "PS2=> ", self.nombre, "bash", "--noprofile", "--norc", "-i"], ordenes)
+                         "-e", "PS2=> ", "-e", "GIT_PAGER=cat", "-e", "PAGER=cat", self.nombre,
+                         "bash", "--noprofile", "--norc", "-i"], ordenes)
 
 
 class Local:
@@ -263,10 +272,15 @@ class Local:
             (shutil.copytree if f.is_dir() else shutil.copy2)(f, self.casa / f.name)
         configuracion = Path(tempfile.mkdtemp(prefix="kit-git-")) / "gitconfig"
         configuracion.write_text(CONFIG_GIT, encoding="utf-8")
+        # El reloj de Git, delante del git del equipo (como en la imagen)
+        binarios = configuracion.parent / "bin"
+        binarios.mkdir()
+        shutil.copy2(DOCKERFILE.parent / "git-reloj", binarios / "git")
         self.entorno = {
-            "PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(self.casa), "USER": USUARIO,
+            "PATH": f"{binarios}:{os.environ.get('PATH', '/usr/bin:/bin')}", "HOME": str(self.casa), "USER": USUARIO,
+            "KIT_GIT_REAL": shutil.which("git") or "git", "KIT_RELOJ": str(configuracion.parent / "reloj"),
             "LANG": "es_ES.UTF-8", "LC_ALL": "es_ES.UTF-8", "LANGUAGE": "es_ES:es", "TZ": "Europe/Madrid",
-            "TERM": "xterm-256color", "PS1": "$ ", "PS2": "> ", "COLUMNS": str(ANCHO),
+            "TERM": "xterm-256color", "PS1": "$ ", "PS2": "> ", "COLUMNS": str(ANCHO), "GIT_PAGER": "cat", "PAGER": "cat",
             "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_SYSTEM": str(configuracion),
             **{v: PROXY_MUERTO for v in ("http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "all_proxy")},
             "no_proxy": "", "NO_PROXY": "",
