@@ -31,7 +31,7 @@ curso-xxx/
 ├── 99-chuleta-global.md      ← todas las chuletas; se genera
 ├── ROADMAP.md                ← ruta de aprendizaje del curso (conviene)
 ├── RUTA-MINIMA.md            ← ruta mínima, si el curso la tiene (opcional)
-├── glosario.md               ← solo en el curso inicial (apartado 9)
+├── glosario.md               ← términos del curso (opcional; el común, en el curso inicial: apartado 9)
 ├── fase-01-nombre/
 │   ├── 01-nombre.md          ← un fichero por módulo
 │   ├── 02-nombre.md
@@ -333,8 +333,9 @@ Todo curso **debe** tener un proyecto con el que el alumno termine teniendo algo
 
 ## 9. El glosario
 
-- Hay **un glosario común**, `glosario.md`, en la raíz del **curso inicial**. Los términos se definen una vez y los demás cursos enlazan a la definición en vez de volver a explicarla.
-- Un encabezado `## Letra` por letra y un `### Término` por término, en orden alfabético.
+- **El glosario común** es el `glosario.md` de la raíz del **curso inicial**: los términos que comparten todos los cursos se definen allí una vez, y los demás cursos enlazan a esa definición en vez de volver a explicarla.
+- **Cualquier curso puede tener además su propio `glosario.md`**, en su raíz, con los términos que son solo suyos (el de Java, los de Java). No repite los del glosario común: enlaza a ellos.
+- En los dos, un encabezado `## Letra` por letra y un `### Término` por término, en orden alfabético (la ñ, entre la n y la o), y cada término una sola vez.
 - Para enlazar a un término desde otro curso se usa un enlace entre cursos (apartado 10.2): `https://github.com/myopenacademy/curso-inicial/blob/main/glosario.md#api`.
 
 ## 10. Enlaces, imágenes y diagramas
@@ -427,12 +428,13 @@ Para que los cursos no dependan unos de otros, algunas cosas son de la academia:
 
 - **Roadmaps entre cursos** (por ejemplo, «Backend con Java: inicial → Java → SQL → Git a fondo»): ficheros de datos en el repositorio de la academia, que nombran cursos, partes, fases o módulos por su identificador. Los roadmaps de dentro de un curso siguen en el curso (`ROADMAP.md`).
 - **La lista de cursos instalados** y su versión.
-- **El curso de ejemplo** que usan las pruebas de la academia y que sirve de modelo para crear un curso nuevo.
+
+**Los cursos de ejemplo**, en cambio, viven en **el kit**, que es quien los comprueba (`herramientas/pruebas/cursos/`): `bueno`, un curso pequeño que cumple este formato y sirve de modelo para crear uno nuevo, y `ejemplo-destino`, al que enlaza `bueno` como a otro curso (con su propio glosario y un proyecto de tipo `"modulo"`). La academia guarda una copia sacada de un commit fijo del kit para sus pruebas y su demo, y la renueva cuando hace falta.
 
 ## 15. Cambiar este formato
 
 - Se cambia **solo desde el proyecto del kit** (`Cursos/kit-cursos/`), nunca desde un curso ni desde la academia por su cuenta.
 - Cada cambio sube la versión del formato (el campo `formato`), se anota qué cursos hay que poner al día y la academia sigue sabiendo leer las versiones anteriores.
 - **Las versiones cuentan desde la primera publicación.** Hasta que se publique el primer curso, los ajustes se hacen dentro de la versión 1 y se anotan aquí:
-  - 8 de noviembre de 2026: un módulo con `"disponible": false` puede llevar su `fichero` previsto, y una fase sus `retos` previstos con `"retos_disponibles": false` (apartado 3.2); ficheros de verificación `debe-fallar.txt` y `separador.txt`, y después todos los del curso de Java con las salidas en el texto (apartado 7.1); títulos del curso, las fases, los módulos, los ejercicios y los retos en texto plano (apartado 3.2); una fase que solo contiene el proyecto final no necesita retos (apartado 6); qué subapartados se numeran (apartado 5.1); «Conviene saber antes», solo enlaces, con ancla para precisar la sección (apartado 5.2); el HTML que admite de verdad la academia, y `<details open>` no (apartado 10.5). **A poner al día:** el curso de Java, al adaptarlo, tiene 88 títulos de ejercicio con formato (comillas invertidas o cursiva).
+  - 8 de noviembre de 2026: un módulo con `"disponible": false` puede llevar su `fichero` previsto, y una fase sus `retos` previstos con `"retos_disponibles": false` (apartado 3.2); ficheros de verificación `debe-fallar.txt` y `separador.txt`, y después todos los del curso de Java con las salidas en el texto (apartado 7.1); títulos del curso, las fases, los módulos, los ejercicios y los retos en texto plano (apartado 3.2); una fase que solo contiene el proyecto final no necesita retos (apartado 6); qué subapartados se numeran (apartado 5.1); «Conviene saber antes», solo enlaces, con ancla para precisar la sección (apartado 5.2); el HTML que admite de verdad la academia, y `<details open>` no (apartado 10.5); 9 de noviembre de 2026: los cursos de ejemplo viven en el kit y la academia guarda una copia (apartado 14), y cualquier curso puede tener su propio glosario además del común del curso inicial (apartado 9). **A poner al día:** el curso de Java, al adaptarlo, tiene 88 títulos de ejercicio con formato (comillas invertidas o cursiva).
 - Si un curso necesita algo nuevo, primero se amplía la academia y este formato, y después lo usa el curso.
