@@ -8,7 +8,7 @@ El formato y las herramientas para crear cursos para **MyOpenAcademy**, una acad
 |---|---|
 | [`FORMATO.md`](FORMATO.md) | **El contrato**: cómo tiene que ser un curso para que la academia lo pueda instalar. Es lo primero que hay que leer. |
 | [`plantillas/`](plantillas/) | Los ficheros que se copian al crear un curso, con huecos `[RELLENAR: …]`. |
-| `herramientas/` | Las comprobaciones: `formato_academia.py` (¿cumple el curso el formato?) y las que verifican el código y los enlaces. **En construcción.** |
+| [`herramientas/`](herramientas/) | Las comprobaciones: [`formato_academia.py`](herramientas/README.md#formato_academiapy) (¿cumple el curso el formato?) y, en preparación, las que verifican el código. |
 
 Para crear un curso basta con `FORMATO.md`, las plantillas y `formato_academia.py`, que solo necesita Python 3.11 o posterior, sin instalar nada más. Las demás herramientas son opcionales y cada una dice qué necesita.
 
@@ -55,7 +55,7 @@ Cursos/
    python3 ../kit-cursos/herramientas/formato_academia.py
    ```
 
-   (En construcción.) Cada error dice el fichero, la línea y qué falta.
+   Cada error dice el fichero, la línea y qué falta ([`herramientas/README.md`](herramientas/README.md)).
 
 5. **El resto, fase a fase**, comprobando cada módulo al terminarlo y la fase entera al cerrarla.
 6. **Publica**: anota la versión en `curso.json` y en `CHANGELOG.md`, etiquétala en Git (`v1.0.0`) e instálala en la academia.

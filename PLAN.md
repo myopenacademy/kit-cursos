@@ -30,8 +30,8 @@ kit-cursos/
 
 En este orden:
 
-1. **README del kit** y **plantillas** (apartado 2), con `curso.json` de ejemplo y el módulo tipo de `FORMATO.md`.
-2. **`formato_academia.py`**: todo lo del apartado 13 de `FORMATO.md` (`curso.json`, módulos, retos, glosario, proyecto, enlaces del mismo curso y entre cursos, imágenes, Mermaid, HTML, ficheros obligatorios), con errores y avisos, y el campo `transicion`. Incluye que los títulos del curso, las fases, los módulos, los ejercicios y los retos sean texto plano (sin `` ` ``, `**`, `*`, `_`, enlaces ni HTML), en `curso.json` y en los encabezados. Con pruebas sobre cursos de ejemplo pequeños, buenos y malos.
+1. ~~**README del kit** y **plantillas**~~ (hecho el 8 de noviembre de 2026) (apartado 2), con `curso.json` de ejemplo y el módulo tipo de `FORMATO.md`.
+2. ~~**`formato_academia.py`**~~ (hecho el 8 de noviembre de 2026; ver `ESTADO.md`): todo lo del apartado 13 de `FORMATO.md` (`curso.json`, módulos, retos, glosario, proyecto, enlaces del mismo curso y entre cursos, imágenes, Mermaid, HTML, ficheros obligatorios), con errores y avisos, y el campo `transicion`. Incluye que los títulos del curso, las fases, los módulos, los ejercicios y los retos sean texto plano (sin `` ` ``, `**`, `*`, `_`, enlaces ni HTML), en `curso.json` y en los encabezados. Con pruebas sobre cursos de ejemplo pequeños, buenos y malos.
 3. **Del núcleo de las herramientas de Java**, lo que necesita el curso inicial:
    - `comprobar_enlaces.py`, ampliado a los enlaces entre cursos (dirección de GitHub → carpeta hermana).
    - `comprobar_mermaid.py` (necesita Node y Chrome; su ruta, en variables de entorno).

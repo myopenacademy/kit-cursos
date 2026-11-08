@@ -1,0 +1,615 @@
+"""Pruebas de formato_academia.py.
+
+Cada prueba copia el curso de ejemplo bueno (cursos/bueno/) a una carpeta temporal, lo estropea de una
+forma concreta y comprueba que formato_academia.py da justo ese error o ese aviso.
+
+Desde la raíz del kit:
+    python3 -m unittest discover -s herramientas/pruebas -v
+"""
+import json
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+PRUEBAS = Path(__file__).resolve().parent
+HERRAMIENTAS = PRUEBAS.parent
+sys.path.insert(0, str(HERRAMIENTAS))
+import formato_academia  # noqa: E402
+
+BUENO = PRUEBAS / "cursos" / "bueno"
+MODULO = "fase-01-primeros-pasos/01-ficheros-json.md"
+RETOS = "fase-01-primeros-pasos/retos.md"
+
+
+class Base(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="formato-academia-"))
+        self.raiz = self.tmp / "curso-ejemplo"
+        shutil.copytree(BUENO, self.raiz)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    # -- cambiar el curso ---------------------------------------------------------------------------
+
+    def json(self):
+        return json.loads((self.raiz / "curso.json").read_text(encoding="utf-8"))
+
+    def guardar_json(self, datos):
+        (self.raiz / "curso.json").write_text(json.dumps(datos, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def cambiar(self, rel, antes, despues):
+        ruta = self.raiz / rel
+        texto = ruta.read_text(encoding="utf-8")
+        self.assertIn(antes, texto, f"la prueba está mal: no encuentro «{antes}» en {rel}")
+        ruta.write_text(texto.replace(antes, despues, 1), encoding="utf-8")
+
+    def escribir(self, rel, texto):
+        ruta = self.raiz / rel
+        ruta.parent.mkdir(parents=True, exist_ok=True)
+        ruta.write_text(texto, encoding="utf-8")
+
+    def modulo(self, datos):
+        return datos["fases"][0]["modulos"][0]
+
+    # -- comprobar ----------------------------------------------------------------------------------
+
+    def comprobar(self):
+        informe, _ = formato_academia.comprobar(self.raiz)
+        self.errores = [f"{f}:{l}: {m}" for f, l, m in informe.errores]
+        self.avisos = [f"{f}:{l}: {m}" for f, l, m in informe.avisos]
+
+    def hay(self, lista, *trozos):
+        return any(all(t in linea for t in trozos) for linea in lista)
+
+    def assertError(self, *trozos):
+        self.comprobar()
+        self.assertTrue(self.hay(self.errores, *trozos), f"falta el error {trozos}; errores: {self.errores}")
+
+    def assertAviso(self, *trozos):
+        self.comprobar()
+        self.assertTrue(self.hay(self.avisos, *trozos), f"falta el aviso {trozos}; avisos: {self.avisos}")
+
+    def assertSinErrores(self):
+        self.comprobar()
+        self.assertEqual(self.errores, [])
+
+
+class CursoBueno(Base):
+    def test_el_curso_bueno_no_tiene_errores(self):
+        self.assertSinErrores()
+
+    def test_solo_los_avisos_esperados(self):
+        self.comprobar()
+        self.assertEqual(len(self.avisos), 4, self.avisos)
+        self.assertTrue(all("no he podido revisar" in a or "módulo pendiente" in a for a in self.avisos), self.avisos)
+
+
+class CursoJson(Base):
+    def test_sin_curso_json(self):
+        (self.raiz / "curso.json").unlink()
+        self.assertError("curso.json", "no existe")
+
+    def test_json_mal_escrito_dice_la_linea(self):
+        self.cambiar("curso.json", '"tipo": "curso",', '"tipo": "curso"')
+        self.assertError("curso.json:4:", "no es un JSON válido")
+
+    def test_version_del_formato_desconocida(self):
+        d = self.json(); d["formato"] = 2; self.guardar_json(d)
+        self.assertError("solo conoce", "actualiza el kit")
+
+    def test_tipo_distinto_de_curso(self):
+        d = self.json(); d["tipo"] = "pack"; self.guardar_json(d)
+        self.assertError("«tipo» debe ser")
+
+    def test_id_del_curso_mal_formado(self):
+        d = self.json(); d["id"] = "Mi Curso"; self.guardar_json(d)
+        self.assertError("el «id» del curso")
+
+    def test_falta_un_campo_obligatorio(self):
+        d = self.json(); del d["descripcion"]; self.guardar_json(d)
+        self.assertError("falta el campo «descripcion»")
+
+    def test_version_que_no_es_semver(self):
+        d = self.json(); d["version"] = "1.0"; self.guardar_json(d)
+        self.assertError("MAYOR.MENOR.PARCHE")
+
+    def test_campo_desconocido_es_aviso(self):
+        d = self.json(); d["fases"][0]["retos_disponible"] = False; self.guardar_json(d)
+        self.assertAviso("campo desconocido «retos_disponible»")
+
+    def test_identificador_sin_el_prefijo_del_curso(self):
+        d = self.json(); self.modulo(d)["id"] = "otro.ficheros-json"; self.guardar_json(d)
+        self.assertError("«otro.ficheros-json» debe ser «ejemplo.»")
+
+    def test_identificador_repetido(self):
+        d = self.json(); d["fases"][0]["modulos"][1]["id"] = "ejemplo.ficheros-json"; self.guardar_json(d)
+        self.assertError("«ejemplo.ficheros-json» ya lo usa")
+
+    def test_transicion_desconocida(self):
+        d = self.json(); d["transicion"] = ["sin-chuleta"]; self.guardar_json(d)
+        self.assertError("«transicion»: «sin-chuleta» no existe")
+
+    def test_parte_con_una_fase_que_no_existe(self):
+        d = self.json(); d["partes"][0]["fases"] = ["ejemplo.fase.otra"]; self.guardar_json(d)
+        self.assertError("la fase «ejemplo.fase.otra» no existe")
+
+
+class Titulos(Base):
+    def test_titulo_de_modulo_con_formato_en_curso_json(self):
+        d = self.json(); self.modulo(d)["titulo"] = "Ficheros `JSON`"; self.guardar_json(d)
+        self.assertError("curso.json", "formato Markdown", "comillas invertidas")
+
+    def test_titulo_de_ejercicio_con_cursiva(self):
+        self.cambiar(MODULO, "#### Ejercicio 2 · La coma de más", "#### Ejercicio 2 · La *coma* de más")
+        d = self.json(); self.modulo(d)["ejercicios"][1]["titulo"] = "La *coma* de más"; self.guardar_json(d)
+        self.assertError(MODULO, "el título del ejercicio 2 lleva formato Markdown")
+
+    def test_titulo_del_curso_con_negrita(self):
+        d = self.json(); d["titulo"] = "Curso **de ejemplo**"; self.guardar_json(d)
+        self.assertError("el título del curso lleva formato Markdown")
+
+    def test_guion_bajo_dentro_de_una_palabra_no_es_formato(self):
+        self.assertIsNone(formato_academia.formato_en_titulo("Configura JAVA_HOME"))
+        self.assertIsNotNone(formato_academia.formato_en_titulo("El método __init__"))
+        self.assertIsNotNone(formato_academia.formato_en_titulo("Un _poco_ de cursiva"))
+
+    def test_titulo_del_modulo_distinto_de_curso_json(self):
+        self.cambiar(MODULO, "# 01.01 Ficheros JSON", "# 01.01 Ficheros de JSON")
+        self.assertError(MODULO + ":1:", "no es el de curso.json")
+
+
+class FicherosYCarpetas(Base):
+    def test_modulo_que_no_esta_en_curso_json(self):
+        self.escribir("fase-01-primeros-pasos/03-suelto.md", "# 01.03 Suelto\n")
+        self.assertError("fase-01-primeros-pasos/03-suelto.md", "módulo que no está en curso.json")
+
+    def test_carpeta_de_fase_no_declarada(self):
+        self.escribir("fase-02-otra/01-algo.md", "# 02.01 Algo\n")
+        self.assertError("fase-02-otra/", "carpeta de fase que no está en curso.json")
+
+    def test_modulo_disponible_que_no_existe(self):
+        (self.raiz / MODULO).unlink()
+        self.assertError("no existe «fase-01-primeros-pasos/01-ficheros-json.md»", "\"disponible\": false")
+
+    def test_fichero_fuera_de_su_fase(self):
+        d = self.json(); d["fases"][0]["modulos"][1]["fichero"] = "fase-09-otra/02-ficheros-yaml.md"; self.guardar_json(d)
+        self.assertError("debe estar en la carpeta de su fase")
+
+    def test_modulo_no_disponible_sin_fichero_es_aviso(self):
+        d = self.json(); del d["fases"][0]["modulos"][1]["fichero"]; self.guardar_json(d)
+        self.assertAviso("conviene poner ya su «fichero» previsto")
+
+    def test_modulo_no_disponible_que_ya_existe_es_aviso(self):
+        self.escribir("fase-01-primeros-pasos/02-ficheros-yaml.md", "# 01.02 Ficheros YAML\n")
+        self.assertAviso("ya existe, pero sigue con \"disponible\": false")
+
+    def test_falta_un_fichero_obligatorio(self):
+        (self.raiz / "LICENSE").unlink()
+        self.assertError("LICENSE", "es obligatorio")
+
+    def test_falta_el_indice_es_aviso(self):
+        (self.raiz / "00-indice.md").unlink()
+        self.assertAviso("00-indice.md", "se genera desde curso.json")
+
+    def test_indice_con_otras_fases(self):
+        self.cambiar("00-indice.md", "## Fase 01 — Primeros pasos", "## Fase 01 — Primeros pasitos")
+        self.assertError("00-indice.md", "no coinciden con curso.json")
+
+    def test_hueco_de_plantilla_sin_rellenar(self):
+        self.cambiar(MODULO, "- Usa nombres de clave claros.", "- [RELLENAR: buenas prácticas]")
+        self.assertAviso(MODULO, "hueco de la plantilla")
+
+    def test_ficheros_de_trabajo_no_se_revisan(self):
+        self.escribir("ESTADO.md", "# Estado\n\n- `git switch` <rama> y [roto](no-existe.md) [RELLENAR: x]\n")
+        self.assertSinErrores()
+        self.assertFalse(self.hay(self.avisos, "ESTADO.md"))
+
+
+class Retos(Base):
+    def test_retos_con_otra_ruta(self):
+        d = self.json(); d["fases"][0]["retos"] = "fase-01-primeros-pasos/mis-retos.md"; self.guardar_json(d)
+        self.assertError("«retos» debe ser «fase-01-primeros-pasos/retos.md»")
+
+    def test_retos_disponibles_que_no_existen(self):
+        (self.raiz / RETOS).unlink()
+        self.assertError("no existe «fase-01-primeros-pasos/retos.md»", "retos_disponibles")
+
+    def test_retos_no_disponibles_es_aviso(self):
+        (self.raiz / RETOS).unlink()
+        self.cambiar("00-indice.md", "- [Retos de la fase](fase-01-primeros-pasos/retos.md)\n", "")
+        d = self.json(); d["fases"][0]["retos_disponibles"] = False; self.guardar_json(d)
+        self.assertSinErrores()
+        self.assertAviso("los retos todavía no están escritos")
+
+    def test_retos_disponibles_sin_retos(self):
+        d = self.json(); del d["fases"][0]["retos"]; d["fases"][0]["retos_disponibles"] = False; self.guardar_json(d)
+        self.assertError("«retos_disponibles» sin «retos»")
+
+    def test_fase_sin_retos_es_aviso(self):
+        d = self.json(); del d["fases"][0]["retos"]; self.guardar_json(d)
+        self.assertAviso("la fase no tiene retos")
+
+    def test_fase_que_solo_tiene_el_proyecto_final_no_avisa(self):
+        d = self.json()
+        d["fases"].append({"id": "ejemplo.fase.proyecto-final", "carpeta": "fase-02-proyecto-final", "titulo": "Proyecto final",
+                           "modulos": [{"id": "ejemplo.mi-repositorio", "fichero": "fase-02-proyecto-final/01-mi-repositorio.md",
+                                        "titulo": "Mi repositorio", "disponible": False, "ejercicios": []}]})
+        d["partes"][0]["fases"].append("ejemplo.fase.proyecto-final")
+        d["proyecto"] = {"tipo": "modulo", "modulo": "ejemplo.mi-repositorio"}
+        self.guardar_json(d)
+        shutil.rmtree(self.raiz / "proyecto")
+        self.cambiar("00-indice.md", "## Proyecto\n\n- [El primer catálogo](proyecto/01-primer-catalogo.md)\n",
+                     "## Fase 02 — Proyecto final\n")
+        self.assertSinErrores()
+        self.assertFalse(self.hay(self.avisos, "proyecto-final", "retos"), self.avisos)
+
+    def test_reto_sin_solucion(self):
+        self.cambiar(RETOS, "<summary>Ver solución</summary>", "<summary>Solución</summary>")
+        self.assertError(RETOS, "falta la solución de el reto 1")
+
+    def test_titulo_de_retos_con_otra_fase(self):
+        self.cambiar(RETOS, "# Retos de la fase 01 — Primeros pasos", "# Retos de la fase 01 — Otra cosa")
+        self.assertError(RETOS, "no es el título de la fase")
+
+    def test_encabezado_que_no_es_un_reto(self):
+        self.cambiar(RETOS, "## Reto 1 · Un catálogo de productos", "## Un catálogo de productos")
+        self.assertError(RETOS, "no es un reto")
+
+
+class Proyecto(Base):
+    def test_sin_proyecto(self):
+        d = self.json(); del d["proyecto"]; self.guardar_json(d)
+        self.assertError("todo curso debe tener un proyecto")
+
+    def test_proyecto_de_tipo_modulo_con_un_modulo_que_no_existe(self):
+        d = self.json(); d["proyecto"] = {"tipo": "modulo", "modulo": "ejemplo.no-existe"}; self.guardar_json(d)
+        self.assertError("el módulo «ejemplo.no-existe» no existe")
+
+    def test_etapa_que_no_existe(self):
+        (self.raiz / "proyecto/01-primer-catalogo.md").unlink()
+        self.assertError("no existe «proyecto/01-primer-catalogo.md»")
+
+    def test_etapa_no_declarada(self):
+        self.escribir("proyecto/02-segunda.md", "# Etapa 2\n")
+        self.assertError("proyecto/02-segunda.md", "etapa del proyecto que no está en curso.json")
+
+
+class Versiones(Base):
+    def git(self, *args):
+        subprocess.run(["git", "-C", str(self.raiz), *args], check=True, capture_output=True,
+                       env={"GIT_AUTHOR_NAME": "Prueba", "GIT_AUTHOR_EMAIL": "p@ejemplo.org", "GIT_COMMITTER_NAME": "Prueba",
+                            "GIT_COMMITTER_EMAIL": "p@ejemplo.org", "HOME": str(self.tmp), "PATH": "/usr/bin:/bin"})
+
+    def publicar(self):
+        self.git("init", "-q", "-b", "main")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "v1")
+        self.git("tag", "v1.0.0")
+
+    def test_identificador_publicado_que_desaparece(self):
+        self.publicar()
+        d = self.json(); self.modulo(d)["ejercicios"][1]["id"] = "ejemplo.ficheros-json.coma"; self.guardar_json(d)
+        self.assertError("«ejemplo.ficheros-json.la-coma-de-mas» estaba en la versión v1.0.0", "equivalencia")
+
+    def test_con_su_equivalencia_no_hay_error(self):
+        self.publicar()
+        d = self.json()
+        self.modulo(d)["ejercicios"][1]["id"] = "ejemplo.ficheros-json.coma"
+        d["version"] = "2.0.0"
+        d["equivalencias"] = [{"desde": "2.0.0", "antes": "ejemplo.ficheros-json.la-coma-de-mas",
+                               "ahora": ["ejemplo.ficheros-json.coma"]}]
+        self.guardar_json(d)
+        self.assertSinErrores()
+
+    def test_equivalencia_de_un_id_que_sigue_existiendo(self):
+        d = self.json()
+        d["equivalencias"] = [{"desde": "1.0.0", "antes": "ejemplo.ficheros-json", "ahora": []}]
+        self.guardar_json(d)
+        self.assertError("sigue existiendo")
+
+    def test_retirada_sin_motivo(self):
+        d = self.json()
+        d["equivalencias"] = [{"desde": "1.0.0", "antes": "ejemplo.applets", "ahora": []}]
+        self.guardar_json(d)
+        self.assertError("debe llevar «motivo»")
+
+
+class Modulo(Base):
+    def test_falta_el_nivel_en_la_cabecera(self):
+        self.cambiar(MODULO, "> **Nivel:** Básico · Núcleo\n", "")
+        self.assertError(MODULO, "falta «> **Nivel:**»")
+
+    def test_tiempo_mal_escrito(self):
+        self.cambiar(MODULO, "> **Tiempo estimado:** 2 horas", "> **Tiempo estimado:** 2h")
+        self.assertError(MODULO + ":5:", "Tiempo estimado")
+
+    def test_requisitos_previos_ahora_es_conviene_saber_antes(self):
+        self.cambiar(MODULO, "**Conviene saber antes:**", "**Requisitos previos:**")
+        self.assertError(MODULO + ":4:", "ahora se llama «Conviene saber antes»")
+
+    def test_conviene_saber_antes_sin_enlaces(self):
+        self.cambiar(MODULO, "> **Conviene saber antes:** [Markdown]", "> **Conviene saber antes:** saber algo de [Markdown]")
+        self.assertError(MODULO, "«Nada» o enlaces a módulos")
+
+    def test_falta_una_seccion(self):
+        self.cambiar(MODULO, "## 6. Chuleta", "## Resumen")
+        self.assertError(MODULO, "falta la sección «## 6. Chuleta»")
+
+    def test_seccion_fuera_de_orden(self):
+        texto = (self.raiz / MODULO).read_text(encoding="utf-8")
+        texto = texto.replace("## 3. Errores típicos", "## TMP").replace("## 4. Buenas prácticas", "## 3. Errores típicos")
+        self.escribir(MODULO, texto.replace("## TMP", "## 4. Buenas prácticas"))
+        self.assertError(MODULO, "fuera de su sitio")
+
+    def test_sin_preguntas_de_repaso(self):
+        texto = (self.raiz / MODULO).read_text(encoding="utf-8")
+        self.escribir(MODULO, texto[:texto.index("## 7. Preguntas de repaso")] + "---\n📚 [Índice](../00-indice.md)\n")
+        self.assertError(MODULO, "falta la sección «## 7. Preguntas de repaso»")
+
+    def test_sin_preguntas_en_transicion_es_aviso(self):
+        texto = (self.raiz / MODULO).read_text(encoding="utf-8")
+        self.escribir(MODULO, texto[:texto.index("## 7. Preguntas de repaso")] + "---\n📚 [Índice](../00-indice.md)\n")
+        d = self.json(); d["transicion"] = ["preguntas-de-repaso"]; self.guardar_json(d)
+        self.assertSinErrores()
+        self.assertAviso("faltan las preguntas de repaso")
+
+    def test_pregunta_sin_respuesta(self):
+        self.cambiar(MODULO, "<summary>Ver respuesta</summary>", "<summary>Respuesta</summary>")
+        self.assertError(MODULO, "la pregunta 1 no tiene respuesta")
+
+    def test_subapartado_de_teoria_sin_numerar_es_aviso(self):
+        self.cambiar(MODULO, "### 1.2. Objetos y listas", "### Objetos y listas")
+        self.cambiar(MODULO, "(#12-objetos-y-listas)", "(#objetos-y-listas)")
+        self.assertAviso(MODULO, "se numeran: «### 1.1. …»")
+
+    def test_subapartado_de_la_chuleta_sin_numerar_no_avisa(self):
+        self.comprobar()
+        self.assertFalse(self.hay(self.avisos, "6. Chuleta"), self.avisos)
+
+    def test_details_sin_cerrar(self):
+        self.cambiar(MODULO, "Mira el final.\n\n</details>", "Mira el final.\n")
+        self.assertError(MODULO, "<details> sin cerrar")
+
+    def test_bloque_de_codigo_sin_cerrar(self):
+        self.escribir(MODULO, (self.raiz / MODULO).read_text(encoding="utf-8") + "\n```json\n{}\n")
+        self.assertError(MODULO, "bloque de código sin cerrar")
+
+
+class Ejercicios(Base):
+    def test_ejercicio_que_no_esta_en_curso_json(self):
+        self.cambiar(MODULO, "#### Ejercicio 1 · Un pedido de la tienda", "#### Ejercicio 1 · Un pedido")
+        self.assertError(MODULO, "«Un pedido», no está en curso.json")
+        self.assertError(MODULO, "falta el ejercicio «Un pedido de la tienda»")
+
+    def test_ejercicios_en_otro_orden(self):
+        d = self.json(); self.modulo(d)["ejercicios"].reverse(); self.guardar_json(d)
+        self.assertError(MODULO, "no están en el mismo orden")
+
+    def test_ejercicio_sin_solucion(self):
+        self.cambiar(MODULO, "Sobra la coma del final", "Sobra la coma")
+        self.cambiar(MODULO, "Mira el final.\n\n</details>\n\n<details>\n<summary>Ver solución</summary>",
+                     "Mira el final.\n\n</details>\n\n<details>\n<summary>Más</summary>")
+        self.assertError(MODULO, "falta la solución de el ejercicio 2")
+
+    def test_pista_despues_de_la_solucion(self):
+        self.cambiar(MODULO, "#### Ejercicio 2 · La coma de más\n\nEncuentra el error de `{\"a\": 1,}`.\n\n<details>\n<summary>Pista 1</summary>\n\nMira el final.\n\n</details>\n",
+                     "#### Ejercicio 2 · La coma de más\n\nEncuentra el error de `{\"a\": 1,}`.\n")
+        self.cambiar(MODULO, "lo explica [3.1](#31-la-coma-de-más).\n\n</details>\n",
+                     "lo explica [3.1](#31-la-coma-de-más).\n\n</details>\n\n<details>\n<summary>Pista 1</summary>\n\nMira.\n\n</details>\n")
+        self.assertError(MODULO, "está después de la solución")
+
+    def test_ejercicio_sin_pistas_es_aviso(self):
+        self.cambiar(MODULO, "<details>\n<summary>Pista 1</summary>\n\nMira el final.\n\n</details>\n", "")
+        self.assertAviso(MODULO, "el ejercicio 2 no tiene pistas")
+
+    def test_details_anidado_en_la_solucion_no_cuenta(self):
+        self.assertSinErrores()     # el ejercicio 1 tiene un <details> dentro de la solución
+
+    def test_nivel_desconocido(self):
+        self.cambiar(MODULO, "### 🟡 Intermedio", "### Intermedio")
+        self.assertError(MODULO, "nivel de ejercicios desconocido")
+
+    def test_encabezado_de_ejercicio_mal_escrito(self):
+        self.cambiar(MODULO, "#### Ejercicio 2 · La coma de más", "#### Ejercicio 2: La coma de más")
+        self.assertError(MODULO, "no es un ejercicio")
+
+
+class Enlaces(Base):
+    def test_enlace_roto(self):
+        self.cambiar(MODULO, "](../00-indice.md)", "](../00-indise.md)")
+        self.assertError(MODULO, "no existe ../00-indise.md")
+
+    def test_ancla_rota(self):
+        self.cambiar(MODULO, "(#12-objetos-y-listas)", "(#12-objetos)")
+        self.assertError(MODULO, "no existe la sección #12-objetos")
+
+    def test_ancla_con_codigo_y_genericos(self):
+        self.assertEqual(formato_academia.ancla("2.2. Una clase genérica: `Page<T>`"), "22-una-clase-genérica-paget")
+        self.assertEqual(formato_academia.ancla("Ejercicio 6 · El error"), "ejercicio-6--el-error")
+
+    def test_enlace_a_un_modulo_pendiente_es_aviso(self):
+        self.assertAviso(MODULO, "enlace a un módulo pendiente", "02-ficheros-yaml.md")
+
+    def test_enlace_a_un_modulo_pendiente_con_ancla_avisa_del_ancla(self):
+        self.cambiar(MODULO, "[Ficheros YAML](02-ficheros-yaml.md)", "[Ficheros YAML](02-ficheros-yaml.md#11-qué-es-yaml)")
+        self.assertAviso(MODULO, "módulo pendiente", "su ancla #11-qué-es-yaml no se podrá comprobar")
+
+    def test_enlace_a_un_fichero_que_no_esta_en_curso_json_es_error(self):
+        self.cambiar(MODULO, "[Ficheros YAML](02-ficheros-yaml.md)", "[Ficheros YAML](02-ficheros-yml.md)")
+        self.assertError(MODULO, "no existe 02-ficheros-yml.md", "no es ningún módulo previsto")
+
+    def test_enlace_relativo_que_sale_del_curso(self):
+        self.cambiar(MODULO, "](../00-indice.md)", "](../../curso-inicial/README.md)")
+        self.assertError(MODULO, "sale del curso")
+
+    def preparar_hermano(self):
+        hermano = self.tmp / "curso-inicial"
+        (hermano / "fase-01-que-es-programar").mkdir(parents=True)
+        (hermano / "README.md").write_text("# Fundamentos\n\n## Qué es\n", encoding="utf-8")
+        (hermano / "curso.json").write_text(json.dumps({"id": "inicial", "fases": [{"modulos": [
+            {"fichero": "fase-01-que-es-programar/02-algoritmos.md", "disponible": False}]}]}), encoding="utf-8")
+
+    def test_enlace_a_otro_curso_bueno(self):
+        self.preparar_hermano()
+        self.cambiar(MODULO, "curso-inicial/blob/main/README.md", "curso-inicial/blob/main/README.md#qué-es")
+        self.assertSinErrores()
+        self.assertFalse(self.hay(self.avisos, "curso-inicial"), self.avisos)
+
+    def test_enlace_a_otro_curso_con_ancla_rota(self):
+        self.preparar_hermano()
+        self.cambiar(MODULO, "curso-inicial/blob/main/README.md", "curso-inicial/blob/main/README.md#no-existe")
+        self.assertError(MODULO, "no existe la sección #no-existe en README.md de ../curso-inicial/")
+
+    def test_enlace_a_un_modulo_pendiente_de_otro_curso(self):
+        self.preparar_hermano()
+        self.cambiar(MODULO, "curso-inicial/blob/main/README.md", "curso-inicial/blob/main/fase-01-que-es-programar/02-algoritmos.md")
+        self.assertAviso(MODULO, "módulo pendiente", "de ../curso-inicial/")
+
+    def test_enlace_a_otro_curso_sin_la_carpeta_hermana_es_aviso(self):
+        self.assertAviso(MODULO, "no he podido revisar", "../curso-inicial/")
+
+    def test_enlace_a_otro_curso_en_otra_rama(self):
+        self.cambiar(MODULO, "curso-inicial/blob/main/", "curso-inicial/blob/dev/")
+        self.assertError(MODULO, "debe apuntar a la rama main")
+
+
+class Imagenes(Base):
+    def test_imagen_de_otra_web(self):
+        self.cambiar(MODULO, "(img/estructura.svg)", "(https://ejemplo.org/a.png)")
+        self.assertError(MODULO, "imagen de otra web")
+
+    def test_imagen_sin_texto_alternativo(self):
+        self.cambiar(MODULO, "![Estructura de un objeto JSON]", "![]")
+        self.assertError(MODULO, "no tiene texto alternativo")
+
+    def test_imagen_gif(self):
+        self.escribir("fase-01-primeros-pasos/img/a.gif", "GIF89a")
+        self.cambiar(MODULO, "(img/estructura.svg)", "(img/a.gif)")
+        self.assertError(MODULO, "solo se admiten PNG, JPG o SVG")
+
+    def test_imagen_incrustada(self):
+        self.cambiar(MODULO, "(img/estructura.svg)", "(data:image/png;base64,AAAA)")
+        self.assertError(MODULO, "imagen incrustada")
+
+    def test_imagen_que_no_existe(self):
+        self.cambiar(MODULO, "(img/estructura.svg)", "(img/otra.svg)")
+        self.assertError(MODULO, "no existe la imagen img/otra.svg")
+
+
+class Mermaid(Base):
+    def test_negrita_en_una_etiqueta(self):
+        self.cambiar(MODULO, 'B[Clave]', 'B["**Clave**"]')
+        self.assertError(MODULO, "Mermaid con negrita o cursiva")
+
+    def test_etiqueta_html_de_negrita(self):
+        self.cambiar(MODULO, 'B[Clave]', 'B["<b>Clave</b>"]')
+        self.assertError(MODULO, "Mermaid con negrita o cursiva")
+
+    def test_entidad_no_admitida(self):
+        self.cambiar(MODULO, "&quot;cliente&quot;", "&laquo;cliente&raquo;")
+        self.assertError(MODULO, "la entidad &laquo;")
+
+    def test_interaccion(self):
+        self.cambiar(MODULO, "    B -->|tiene| C[Valor]", "    B -->|tiene| C[Valor]\n    click A \"https://ejemplo.org\"")
+        self.assertError(MODULO, "interacciones")
+
+    def test_directiva(self):
+        self.cambiar(MODULO, "flowchart LR", "%%{init: {'theme': 'dark'}}%%\nflowchart LR")
+        self.assertError(MODULO, "directivas")
+
+    def test_flecha_de_composicion_no_es_cursiva(self):
+        self.cambiar(MODULO, "flowchart LR\n    A[\"Objeto &quot;cliente&quot;\"] --> B[Clave]\n    B -->|tiene| C[Valor]",
+                     "classDiagram\n    Order \"1\" *-- \"*\" OrderLine : contiene")
+        self.assertSinErrores()
+
+
+class Html(Base):
+    def test_script(self):
+        self.cambiar(MODULO, "- Usa nombres de clave claros.", "- Usa nombres de clave claros. <script>alert(1)</script>")
+        self.assertError(MODULO, "<script> no se admite")
+
+    def test_manejador_de_eventos(self):
+        self.cambiar(MODULO, "<kbd>Ctrl</kbd>", '<kbd onclick="x()">Ctrl</kbd>')
+        self.assertError(MODULO, "<kbd> con atributos que la academia no admite (onclick)")
+
+    def test_details_open_no_lo_admite_la_academia(self):
+        self.cambiar(MODULO, "<details>\n<summary>Pista 1</summary>", "<details open>\n<summary>Pista 1</summary>")
+        self.assertError(MODULO, "<details> con atributos que la academia no admite (open)")
+
+    def test_span_es_aviso(self):
+        self.cambiar(MODULO, "- Usa nombres de clave claros.", "- Usa <span>nombres</span> de clave claros.")
+        self.assertAviso(MODULO, "<span>: la academia quita esta etiqueta")
+
+    def test_span_con_atributos_es_error(self):
+        self.cambiar(MODULO, "- Usa nombres de clave claros.", '- Usa <span style="color:red">nombres</span>.')
+        self.assertError(MODULO, "<span> con atributos (style)")
+
+    def test_img_en_html(self):
+        self.cambiar(MODULO, "- Usa nombres de clave claros.", '- <img src="img/estructura.svg" alt="x">')
+        self.assertError(MODULO, "<img> no se admite")
+
+    def test_html_admitido_no_avisa(self):
+        self.comprobar()       # el curso bueno usa <kbd> y <code> dentro de <summary>
+        self.assertFalse(self.hay(self.avisos, "<kbd>") or self.hay(self.avisos, "<code>"), self.avisos)
+
+    def test_lo_que_va_entre_comillas_invertidas_no_es_html(self):
+        self.cambiar(MODULO, "- Usa nombres de clave claros.", "- Escribe `git switch <rama>` para cambiar.")
+        self.assertSinErrores()
+
+
+class Glosario(Base):
+    def test_glosario_fuera_del_curso_inicial_es_aviso(self):
+        self.escribir("glosario.md", "# Glosario\n")
+        self.assertAviso("glosario.md", "solo está en el curso inicial")
+
+    def test_glosario_desordenado(self):
+        d = self.json(); d["id"] = "inicial"
+        texto = json.dumps(d).replace('"ejemplo.', '"inicial.')
+        (self.raiz / "curso.json").write_text(texto, encoding="utf-8")
+        self.escribir("glosario.md", "# Glosario\n\n## A\n\n### Árbol\n\n### API\n")
+        self.assertAviso("glosario.md", "«API» no está en orden alfabético")
+
+
+class LineaDeOrdenes(unittest.TestCase):
+    def ejecutar(self, *args):
+        return subprocess.run([sys.executable, str(HERRAMIENTAS / "formato_academia.py"), *args],
+                              capture_output=True, text=True)
+
+    def test_ayuda(self):
+        r = self.ejecutar("--help")
+        self.assertEqual(r.returncode, 0)
+        self.assertIn("FORMATO.md", r.stdout)
+
+    def test_opcion_desconocida(self):
+        self.assertEqual(self.ejecutar("--rapido").returncode, 2)
+
+    def test_carpeta_que_no_existe(self):
+        r = self.ejecutar("/no/existe")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("No existe la carpeta", r.stderr)
+
+    def test_curso_bueno_termina_con_0(self):
+        r = self.ejecutar(str(BUENO))
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("✅", r.stdout)
+
+    def test_curso_malo_termina_con_1_y_dice_fichero_y_linea(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            raiz = Path(tmp) / "curso-ejemplo"
+            shutil.copytree(BUENO, raiz)
+            modulo = raiz / MODULO
+            modulo.write_text(modulo.read_text(encoding="utf-8").replace("<summary>Ver respuesta</summary>", "<summary>x</summary>"),
+                              encoding="utf-8")
+            r = self.ejecutar(str(raiz))
+            self.assertEqual(r.returncode, 1)
+            self.assertIn(f"{MODULO}:", r.stdout)
+            self.assertIn("ERROR: la pregunta 1 no tiene respuesta", r.stdout)
+            self.assertIn("❌", r.stdout)
+
+
+if __name__ == "__main__":
+    unittest.main()

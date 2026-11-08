@@ -4,7 +4,16 @@
 
 ## Dónde estamos
 
-**8 de noviembre de 2026:** repositorio creado desde la sesión de la raíz, con `CLAUDE.md`, `PLAN.md`, `ESTADO.md`, `README.md`, `.gitignore` y `FORMATO.md` (versión 1, aprobada en el paso 0 y movida aquí desde la raíz). **Tarea 1 hecha:** `README.md` del kit (con el arranque de un curso paso a paso, probado en una carpeta temporal), `LICENSE` (MIT) y `plantillas/` (`curso.json`, `modulo.md`, `retos.md`, `README.md`, `LICENSE`, `CONTRIBUTING.md`, `CHANGELOG.md`, `.gitignore`, y los opcionales `CLAUDE.md`, `PLAN-CURSO.md` y `ESTADO.md`). Los huecos se marcan con `[RELLENAR: …]`. Ninguna herramienta todavía.
+**8 de noviembre de 2026:** repositorio creado desde la sesión de la raíz, con `CLAUDE.md`, `PLAN.md`, `ESTADO.md`, `README.md`, `.gitignore` y `FORMATO.md` (versión 1, aprobada en el paso 0 y movida aquí desde la raíz). **Tarea 1 hecha:** `README.md` del kit (con el arranque de un curso paso a paso, probado en una carpeta temporal), `LICENSE` (MIT) y `plantillas/` (`curso.json`, `modulo.md`, `retos.md`, `README.md`, `LICENSE`, `CONTRIBUTING.md`, `CHANGELOG.md`, `.gitignore`, y los opcionales `CLAUDE.md`, `PLAN-CURSO.md` y `ESTADO.md`). Los huecos se marcan con `[RELLENAR: …]`.
+
+**Tarea 2 hecha:** `herramientas/formato_academia.py` (un solo fichero, solo la biblioteca de Python), documentado en `herramientas/README.md`, con 106 pruebas en `herramientas/pruebas/` sobre un curso de ejemplo bueno (`cursos/bueno/`) que se estropea de una en una. Probado además con el curso inicial (sus cuatro módulos de la fase 1, en una copia, marcados como disponibles: sin falsos positivos) y con una copia del curso de Java (199 módulos, con un `curso.json` provisional que genera `herramientas/pruebas/curso_json_de_java.py`; las copias, fuera del kit). Decisiones tomadas al hacerlo:
+- Un enlace a un módulo o retos con `"disponible"`/`"retos_disponibles": false` es aviso (y avisa de que su ancla no se puede comprobar); a un fichero que no existe ni está previsto, error (pedido del autor).
+- El HTML se comprueba como el saneador de la academia (`ContentSanitizer` de Code Academy, leído el 8 de noviembre de 2026), que admite más de lo que decía `FORMATO.md` 10.5 (`code`, `kbd`, `br`, `sup`…) y no admite `<details open>`. El autor aprobó reescribir 10.5 con esa lista («primero Markdown; HTML solo cuando no llega»).
+- «Conviene saber antes»: solo enlaces separados por «·» (decisión del autor); para precisar la sección, el enlace lleva su ancla (`FORMATO.md` 5.2). Los 28 casos de Java con texto añadido se reescriben al adaptarlo.
+- Las anclas, con la regla de `comprobar_enlaces.py` de Java, pero conservando el código en línea (`Page<T>` → `paget`, como GitHub) y numerando los repetidos.
+- `CLAUDE.md`, `PLAN-CURSO.md` y `ESTADO.md` de un curso son ficheros de trabajo: no se revisan.
+- Regla de numeración de subapartados en `FORMATO.md` 5.1 (aprobada por el autor y comprobada en Java): se numeran los de Teoría, Ejemplos, Errores típicos y Buenas prácticas; no los de Qué aprenderás, Ejercicios, Chuleta y Preguntas de repaso.
+- **Lo que dirá de Java al adaptarlo** (copia de 8 de noviembre de 2026): 199 «Requisitos previos», 88 títulos de ejercicio con formato, 28 «Conviene saber antes» con texto además de enlaces (por ejemplo «(sección 1.7…)»), 38 líneas de Mermaid con `<b>`, 1.622 ejercicios sin pistas, sin preguntas de repaso, `<i>` en algún `<summary>` y unas 300 imágenes en `codigo/` en vez de `img/` (aviso).
 
 Resueltas con el autor las tres decisiones del apartado 4 de `PLAN.md`, y ajustado `FORMATO.md` dentro de la versión 1: fichero previsto de los módulos y los retos no disponibles (lo pidió el curso inicial) ficheros de verificación `debe-fallar.txt` y `separador.txt`, y títulos en texto plano (el curso de Java tendrá que quitar el formato de 88 títulos de ejercicio al adaptarlo).
 
@@ -12,7 +21,7 @@ Resueltas con el autor las tres decisiones del apartado 4 de `PLAN.md`, y ajusta
 
 ## Siguiente paso
 
-Tarea 2 de `PLAN.md`: `formato_academia.py`, con sus pruebas. Conviene que avise de los `[RELLENAR: …]` que queden en un curso. Para probarlo con un curso real, el `curso.json` del curso inicial (todo `"disponible": false`: el resultado esperado son solo avisos).
+Tarea 3 de `PLAN.md`: las herramientas del núcleo de Java que necesita el curso inicial (`comprobar_enlaces.py`, `comprobar_mermaid.py`, `generar_indice.py`, `generar_chuleta_global.py`, `argumentos.py`). `generar_indice.py` es la más urgente: el curso inicial enlaza ya a `00-indice.md`.
 
 **Datos de esta máquina para la tarea 4** (8 de noviembre de 2026): existe el *locale* `es_ES.UTF-8` y Git (2.53.0) responde en español con `LC_ALL=es_ES.UTF-8`; el bash es el 5.3.9, sin un bash 3.2 instalado (para eso, la imagen `bash:3.2` de Docker: tarea 4 de `PLAN.md`).
 
@@ -27,7 +36,7 @@ Se trabaja a la vez que `../curso-inicial/`. **Lee su `ESTADO.md` (solo leer) al
 
 | El curso inicial espera del kit | Para | Estado |
 |---|---|---|
-| `formato_academia.py` | Comprobar y cerrar su fase 1 | Pendiente |
+| `formato_academia.py` | Comprobar y cerrar su fase 1 | **Hecho** (8 de noviembre de 2026): `herramientas/formato_academia.py` |
 | Verificar con salidas en español (`LC_ALL`), rama `main`, Git con autor y fechas fijos, servidor HTTP local y compatibilidad con bash 3.2 | Sus ejercicios y retos de las fases 2 a 8 | Anotado en la tarea 4 de `PLAN.md`; pendiente |
 | No avisar de la falta de retos en una fase que solo contiene el proyecto final (su aviso 3) | Su fase 8 | **Hecho** en `FORMATO.md`, apartado 6 (8 de noviembre de 2026, dentro de la versión 1) |
 | Plantillas (`curso.json`, módulo, retos) | Puede empezar sin ellas, siguiendo `FORMATO.md` | **Hecho** (8 de noviembre de 2026): `plantillas/` |
@@ -42,7 +51,9 @@ Si algo bloquea, dilo al autor: él pasa la información de una sesión a otra.
 | 2026-11-08 | Repositorio creado; `FORMATO.md` versión 1 movido desde la raíz. |
 | 2026-11-08 | Decisiones 1 a 3 del apartado 4 de `PLAN.md`. Ajustes de `FORMATO.md` dentro de la versión 1 (apartados 3.2, 7, 13 y 15). |
 | 2026-11-08 | Aviso 3 del curso inicial en `FORMATO.md` (fase del proyecto final sin retos) y su lista de comprobaciones en la tarea 4 de `PLAN.md`. |
+| 2026-11-08 | `FORMATO.md`: regla de numeración de subapartados (5.1), «Conviene saber antes» con ancla (5.2) y el HTML que admite la academia (10.5). |
 | 2026-11-08 | Tarea 1: README del kit, `LICENSE` (MIT, «Santiago (santi-cast)», elegido por el autor) y plantillas. |
+| 2026-11-08 | Tarea 2: `formato_academia.py`, sus pruebas y su documentación; `curso_json_de_java.py`. |
 
 ## Avisos de los cursos
 
