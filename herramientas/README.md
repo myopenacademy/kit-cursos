@@ -22,6 +22,12 @@ python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py fase-NN-…/NN-…
 python3 ../kit-cursos/herramientas/nucleo/comprobar_mermaid.py fase-NN-…/NN-….md  # 5. sus diagramas, si tiene
 ```
 
+**Al terminar de escribir un módulo**, antes de todo lo anterior, sus ejercicios en `curso.json` (y el módulo, disponible):
+
+```bash
+python3 ../kit-cursos/herramientas/nucleo/declarar_ejercicios.py fase-NN-…/NN-….md
+```
+
 **Al cerrar cada fase**, lo mismo con la fase entera (`verificar_codigo.py fase-NN-…`, `comprobar_mermaid.py fase-NN-…`), y `verificar_codigo.py` **con Docker** ([la verificación completa](#la-terminal-del-kit)).
 
 **Antes de publicar una versión**, `formato_academia.py` sin errores, con la versión etiquetada en Git (`v1.0.0`): así compara los identificadores con los de la versión anterior.
@@ -32,6 +38,7 @@ python3 ../kit-cursos/herramientas/nucleo/comprobar_mermaid.py fase-NN-…/NN-�
 |---|---|---|
 | [`formato_academia.py`](#formato_academiapy) | Comprueba que el curso cumple `FORMATO.md` y se puede instalar en la academia | Python 3.11 o posterior, sin librerías adicionales. Git, solo para comparar con la última versión publicada (si no está, no compara) |
 | [`nucleo/verificar_codigo.py`](#nucleoverificar_codigopy) | Comprueba que el código de los módulos coincide con `codigo/` y funciona: scripts de bash, sesiones de terminal (también de Git) y ficheros JSON, YAML, XML, CSV y Markdown | Python 3.11 o posterior; **PyYAML** para los YAML (en Ubuntu, `python3-yaml`; con pip, `pyyaml`: la única librería de fuera de Python que usa el kit, y solo para eso); **Docker** para la verificación completa (sin él, verifica de forma parcial y avisa) |
+| [`nucleo/declarar_ejercicios.py`](#nucleodeclarar_ejerciciospy) | Declara en `curso.json` los ejercicios de un módulo o una fase, conservando sus identificadores, y los pone disponibles | Python 3.11 o posterior |
 | [`nucleo/generar_indice.py`](#nucleogenerar_indicepy) | Genera `00-indice.md` desde `curso.json` | Python 3.11 o posterior |
 | [`nucleo/generar_chuleta_global.py`](#nucleogenerar_chuleta_globalpy) | Genera `99-chuleta-global.md` con la chuleta de cada módulo | Python 3.11 o posterior |
 | [`nucleo/reemplazar.py`](#nucleoreemplazarpy) | Aplica sustituciones de texto en varios ficheros a la vez: todas o ninguna | Python 3.11 o posterior |
@@ -63,7 +70,7 @@ Comprueba, sin ejecutar nada del curso, todo lo del apartado 13 de [`FORMATO.md`
 - **`curso.json`**: campos, identificadores (forma, que no se repitan y que no desaparezca ninguno publicado sin su equivalencia), partes, proyecto y equivalencias; que cada fichero declarado existe y cada módulo de las carpetas de fase está declarado. Los módulos con `"disponible": false` y los retos con `"retos_disponibles": false` no tienen por qué existir.
 - **Títulos en texto plano** del curso, las fases, los módulos, los ejercicios y los retos.
 - **Cada módulo disponible**: título igual al de `curso.json`, cabecera (`Conviene saber antes`, `Tiempo estimado` y `Nivel`), las ocho secciones en orden, subapartados numerados donde toca, los ejercicios con los títulos y el orden de `curso.json`, sus pistas antes de la solución, la solución, las preguntas de repaso con su respuesta y la navegación del final.
-- **Retos** de cada fase, **etapas** del proyecto, **glosario** (en el curso inicial), **`00-indice.md`** (sus fases, las de `curso.json`) y **ficheros obligatorios**.
+- **Retos** de cada fase, **etapas** del proyecto, **glosario** (en el curso inicial: letras y términos en orden alfabético español, con la ñ entre la n y la o, cada término en su letra, y ningún término repetido, que es un error porque cada término se define una vez), **`00-indice.md`** (sus fases, las de `curso.json`) y **ficheros obligatorios**.
 - En todos los Markdown del curso (salvo `codigo/`, `herramientas/` y los ficheros de trabajo `CLAUDE.md`, `PLAN-CURSO.md` y `ESTADO.md`): **enlaces** y sus **anclas** (también a otros cursos), **imágenes**, **diagramas Mermaid**, **HTML**, bloques de código sin cerrar y huecos `[RELLENAR: …]` de las plantillas.
 
 ```bash
@@ -163,6 +170,22 @@ Sin Docker (o con `--sin-docker`), en la bash del equipo, en una carpeta tempora
 
 Lo dice al final de cada verificación. **Para cerrar una fase, verifica con Docker.**
 
+## `nucleo/declarar_ejercicios.py`
+
+Declara en `curso.json` los ejercicios de uno o varios módulos (o de todos los de una fase), a partir de sus encabezados «#### Ejercicio N · Título». Sale de la parte común del `publicar.py` del curso inicial.
+
+```bash
+python3 ../kit-cursos/herramientas/nucleo/declarar_ejercicios.py fase-03-herramientas/01-terminal-lo-basico.md
+python3 ../kit-cursos/herramientas/nucleo/declarar_ejercicios.py fase-03-herramientas --retos   # la fase, y sus retos
+python3 ../kit-cursos/herramientas/nucleo/declarar_ejercicios.py fase-03-herramientas --comprobar
+```
+
+- Pone los ejercicios en «ejercicios» de su módulo, en el orden del módulo, y quita su `"disponible": false`; con `--retos`, también el `"retos_disponibles": false` de la fase (si su `retos.md` existe). Al declarar una fase entera, los módulos aún sin escribir siguen pendientes.
+- **Un ejercicio se reconoce solo por su título, nunca por su posición**: si ya estaba en `curso.json` con el mismo título, conserva su identificador aunque se haya movido. A los nuevos les propone uno con la regla de `FORMATO.md` (apartado 3.3): el id del módulo, un punto y el título en minúsculas, sin tildes y con guiones.
+- **Si un título cambia, no decide**: cuando en un módulo desaparecería algún ejercicio de `curso.json`, se para sin escribir nada y pregunta. Si es el mismo ejercicio con otro título, se cambia su `titulo` en `curso.json` (conservando su `id`) y se vuelve a ejecutar; si es otro ejercicio, se vuelve a ejecutar con `--aceptar-cambios`. Un identificador no cambia nunca: el progreso de los alumnos va unido a él. Hoy ningún curso tiene todavía una versión publicada (los identificadores de Code Academy, como `java-03.06`, eran otros), así que aún no afecta a nadie; desde la primera, un identificador que desaparece necesita su equivalencia, y `formato_academia.py` lo comprueba.
+- Comprueba que ningún identificador se repite en el curso y que los títulos son texto plano.
+- Solo escribe `curso.json` si algo cambia, con sangría de 2 espacios: un `curso.json` formateado a mano se reformatea.
+
 ## `nucleo/generar_indice.py`
 
 Genera `00-indice.md` a partir de `curso.json`. Sale de `generar_indice.py` del curso de Java, que tenía la lista de fases y módulos dentro del script; aquí la lista es `curso.json`.
@@ -246,6 +269,6 @@ python3 -m unittest discover -s herramientas/pruebas -v     # desde la raíz del
 ```
 
 - `cursos/bueno/`: el curso de ejemplo. Pequeño y correcto: una fase con un módulo escrito (con un script de bash, una sesión de terminal, ficheros JSON, una imagen y un diagrama) y otro pendiente, retos, proyecto por etapas, y su índice y su chuleta generados. Pasa todas las herramientas sin errores.
-- `test_formato_academia.py`, `test_verificar_codigo.py`, `test_generar_indice.py`, `test_generar_chuleta_global.py`, `test_comprobar_mermaid.py` y `test_reemplazar.py`: las de cada herramienta. Las de `verificar_codigo.py` prueban también los comprobadores de `lenguajes/` y, con Docker, la terminal del kit (sus versiones, Git en español con la rama `main`, el reloj de Git y que no hay red).
+- `test_formato_academia.py`, `test_verificar_codigo.py`, `test_declarar_ejercicios.py`, `test_generar_indice.py`, `test_generar_chuleta_global.py`, `test_comprobar_mermaid.py` y `test_reemplazar.py`: las de cada herramienta. Las de `verificar_codigo.py` prueban también los comprobadores de `lenguajes/` y, con Docker, la terminal del kit (sus versiones, Git en español con la rama `main`, el reloj de Git y que no hay red).
 - **Se saltan solas** las que necesitan algo que la máquina no tiene: las de la terminal del kit, sin Docker; las de Mermaid, sin Node o Chrome.
 - `curso_json_de_java.py`: genera un `curso.json` provisional para una **copia** del curso de Java original (que no lo tiene), para probar `formato_academia.py` con 199 módulos reales y como punto de partida de `curso-java/`. Su ayuda (`--help`) explica cómo sacar la copia solo con Git de lectura.

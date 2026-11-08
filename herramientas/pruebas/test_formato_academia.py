@@ -578,6 +578,24 @@ class Glosario(Base):
         self.escribir("glosario.md", "# Glosario\n\n## A\n\n### Árbol\n\n### API\n")
         self.assertAviso("glosario.md", "«API» no está en orden alfabético")
 
+    def glosario_inicial(self, texto):
+        d = self.json(); d["id"] = "inicial"
+        (self.raiz / "curso.json").write_text(json.dumps(d).replace('"ejemplo.', '"inicial.'), encoding="utf-8")
+        self.escribir("glosario.md", texto)
+
+    def test_glosario_con_letras_desordenadas(self):
+        self.glosario_inicial("# Glosario\n\n## B\n\n### Bash\n\n## A\n\n### API\n")
+        self.assertAviso("glosario.md", "la letra «A» no está en orden alfabético")
+
+    def test_glosario_con_un_termino_repetido(self):
+        self.glosario_inicial("# Glosario\n\n## A\n\n### API\n\n### Árbol\n\n### api\n")
+        self.assertError("glosario.md", "el término «api» está repetido")
+
+    def test_glosario_con_la_enie_entre_la_n_y_la_o(self):
+        self.glosario_inicial("# Glosario\n\n## N\n\n### Nube\n\n## Ñ\n\n### Ñandú\n\n## O\n\n### Oso\n")
+        self.comprobar()
+        self.assertFalse(self.hay(self.avisos + self.errores, "glosario.md"), self.avisos)
+
 
 class LineaDeOrdenes(unittest.TestCase):
     def ejecutar(self, *args):

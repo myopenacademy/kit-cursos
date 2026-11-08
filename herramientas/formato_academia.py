@@ -247,6 +247,11 @@ def formato_en_titulo(titulo):
     return None
 
 
+def orden_alfabetico(texto):
+    """La clave para ordenar en español: sin tildes ni mayúsculas, pero con la ñ entre la n y la o."""
+    return sin_tildes("".join("n~" if c in "ñÑ" else c for c in texto))      # «~» va detrás de la «z»
+
+
 def sin_tildes(texto):
     return "".join(c for c in unicodedata.normalize("NFD", texto) if unicodedata.category(c) != "Mn").casefold()
 
@@ -1008,14 +1013,28 @@ class Curso:
                                           f"tiene {reales}, y curso.json {esperados}")
 
     def comprobar_glosario(self):
+        """Letras y términos en orden alfabético español (la ñ, entre la n y la o), cada término en su letra y
+        ningún término ni ninguna letra repetidos (FORMATO.md, apartado 9: los términos se definen una vez)."""
         md = self.leer("glosario.md")
-        letra, anterior = None, ""
+        letra, anterior, letra_anterior = None, "", ""
+        letras, terminos = {}, {}
         for i, n, t in md.encabezados:
             if n == 2:
-                letra, anterior = t, ""
+                clave_letra = orden_alfabetico(t)
+                if clave_letra in letras:
+                    self.informe.aviso(md.rel, i + 1, f"la letra «{t}» está repetida (ya está en la línea {letras[clave_letra]})")
+                elif clave_letra < letra_anterior:
+                    self.informe.aviso(md.rel, i + 1, f"la letra «{t}» no está en orden alfabético")
+                letras.setdefault(clave_letra, i + 1)
+                letra, anterior, letra_anterior = t, "", clave_letra
             elif n == 3:
-                clave = sin_tildes(t)
-                if letra and not clave.startswith(sin_tildes(letra)):
+                clave = orden_alfabetico(t)
+                if clave in terminos:
+                    self.informe.error(md.rel, i + 1, f"el término «{t}» está repetido (ya está en la línea {terminos[clave]}): "
+                                                      "cada término se define una vez")
+                    continue
+                terminos[clave] = i + 1
+                if letra and not clave.startswith(orden_alfabetico(letra)):
                     self.informe.aviso(md.rel, i + 1, f"el término «{t}» no empieza por la letra de su sección («{letra}»)")
                 if clave < anterior:
                     self.informe.aviso(md.rel, i + 1, f"el término «{t}» no está en orden alfabético")

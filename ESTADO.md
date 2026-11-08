@@ -46,6 +46,7 @@ Se trabaja a la vez que `../curso-inicial/`. **Lee su `ESTADO.md` (solo leer) al
 | El kit espera del curso inicial | Para | Estado |
 |---|---|---|
 | Qué ejercicios y retos de herramientas lleva (terminal, Git, Markdown, JSON, YAML, XML, CSV) y qué hay que comprobar de cada uno | Tarea 4 (comprobadores de formatos) y decisión 1 del apartado 4 de `PLAN.md` | **Hecho** (commit 7ee70c2 del curso, 8 de noviembre de 2026): su `ESTADO.md`, «Lista para el kit»; resumida en la tarea 4 de `PLAN.md` |
+| Uso real de las herramientas del kit | Saber que funcionan con un curso de verdad | **9 de noviembre de 2026:** fase 2 del curso cerrada (sus commits 925d8f5 a 5ae82f5): las 3 sesiones del 02.03 pasan `verificar_codigo.py` con Docker y la terminal nueva; `formato_academia.py`, 0 errores. Su fase 3 es la primera con scripts de bash y sesiones de verdad |
 | Su `curso.json` y la fase 1 escritos | Probar `formato_academia.py` con un curso real | `curso.json` **hecho** (commit 068fd7c del curso, 8 de noviembre de 2026): 8 fases y 31 módulos con su fichero previsto, todos con `"disponible": false`, y los retos con `"retos_disponibles": false`. Revisado a mano: encaja con `FORMATO.md`. Fase 1: pendiente |
 
 | El curso inicial espera del kit | Para | Estado |
@@ -56,6 +57,7 @@ Se trabaja a la vez que `../curso-inicial/`. **Lee su `ESTADO.md` (solo leer) al
 | Sesiones de Git reproducibles (reloj de Git) | Su fase 5 | **Hecho** (8 de noviembre de 2026) |
 | Comprobadores de JSON, YAML, XML, CSV y Markdown | Su fase 4 | **Hecho** (8 de noviembre de 2026): `verificar_codigo.py` |
 | `reemplazar.py` en las herramientas comunes (para que el curso borre su copia de `.verificacion/`) | Sustituciones en varios ficheros, todas o ninguna | **Hecho** (9 de noviembre de 2026): `herramientas/nucleo/reemplazar.py`. El curso ya la usa y borró su copia (su commit 1fa43e2) |
+| `declarar_ejercicios.py` (de su `publicar.py`) y la comprobación del glosario en `formato_academia.py` | Declarar ejercicios sin cambiar identificadores; editar el glosario a mano desde su fase 3 | **Hecho** (9 de noviembre de 2026): `herramientas/nucleo/declarar_ejercicios.py`; el glosario, con orden alfabético español y términos repetidos como error |
 | La terminal del kit, con bash y las herramientas en español y `command -v git` en `/usr/bin/git` | Las sesiones de su módulo 02.03 | **Hecho** (9 de noviembre de 2026): `language-pack-es-base` en la imagen y el reloj de Git en `/usr/bin/git` |
 | `generar_chuleta_global.py` y `comprobar_mermaid.py` | Generar `99-chuleta-global.md` y comprobar sus diagramas | **Hecho** (8 de noviembre de 2026): `herramientas/nucleo/` |
 | Verificar con salidas en español (`LC_ALL`), rama `main`, Git con autor y fechas fijos, servidor HTTP local y compatibilidad con bash 3.2 | Sus ejercicios y retos de las fases 2 a 8 | Anotado en la tarea 4 de `PLAN.md`; pendiente |
@@ -82,6 +84,7 @@ Si algo bloquea, dilo al autor: él pasa la información de una sesión a otra.
 | 2026-11-08 | Tarea 4, paso 1: `verificar_codigo.py` con bash y las sesiones de terminal, y la imagen de la terminal del kit. |
 | 2026-11-08 | Tarea 4, paso 2: JSON, YAML, XML, CSV y Markdown. |
 | 2026-11-08 | Tarea 4, paso 3: Git, con el reloj de Git. |
+| 2026-11-09 | `nucleo/declarar_ejercicios.py` (de la parte común del `publicar.py` del curso inicial): reconoce los ejercicios solo por su título y, si uno cambia, para y pregunta (decisiones del autor). `formato_academia.py`: el glosario en orden alfabético español (letras y términos, con la ñ) y sin términos repetidos. Probado con el curso inicial: su `curso.json` sale idéntico. |
 | 2026-11-09 | Terminal del kit: `language-pack-es-base` 1:26.04+20260818 (bash, coreutils, grep, sed y tar en español) y el reloj de Git en `/usr/bin/git`, con el de verdad fuera del `PATH` (pedidos por el curso inicial al escribir su 02.03). Git compilado como el paquete de Ubuntu (`prefix=/usr`, `gitexecdir=/usr/lib/git-core`; nada en `/usr/local`), a propuesta del autor. La imagen guarda la lista de lo instalado con sus versiones (`verificar_codigo.py --versiones`); los paquetes de Ubuntu que no se fijan (`file`, `tree`, `curl`…), sin fijar hasta que den un problema real (decisión del autor). |
 | 2026-11-09 | Tarea 5: `herramientas/README.md` revisado entero (por dónde empezar, qué hay en cada carpeta, lo común a todas, sin repeticiones ni datos desfasados). `nucleo/reemplazar.py`, incorporado desde el curso inicial (con `--raiz`, `--comprobar`, saltos de línea de Windows y vuelta atrás si una escritura falla), con sus pruebas. |
 
