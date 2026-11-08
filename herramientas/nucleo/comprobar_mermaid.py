@@ -5,11 +5,13 @@ Sale de herramientas/comprobar_mermaid.py del curso de Java, sin cambios en lo q
 cambia que se ejecuta desde la raíz del curso con el kit en ../kit-cursos/.
 
 Un diagrama Mermaid mal escrito no da ningún aviso al escribirlo: simplemente GitHub no lo muestra.
-Esta herramienta extrae cada bloque ```mermaid y lo dibuja con mermaid-cli en DOS versiones:
-  - mermaid-cli 12.0.0 (Mermaid 12.2), reciente;
-  - mermaid-cli 10.9.1 (Mermaid 10.9), antigua.
-Un diagrama tiene que funcionar en las dos, porque no se sabe qué versión usará quien lea el curso
-(GitHub, un editor, un visor de Markdown). También se comprueban los bloques ```mermaid que están dentro
+Esta herramienta extrae cada bloque ```mermaid y lo dibuja con mermaid-cli en DOS versiones de la
+biblioteca Mermaid, fijadas las dos (mermaid-cli solo pide un rango, así que sin fijarla npx instalaría la
+última que encaje):
+  - Mermaid 12.2.0 (con mermaid-cli 12.2.0): la que usa la academia para dibujar los diagramas;
+  - Mermaid 10.9.8 (con mermaid-cli 10.9.1): la antigua, la del curso de Java, por GitHub y los
+    visores de Markdown, donde también se leen los cursos.
+Un diagrama tiene que funcionar en las dos. También se comprueban los bloques ```mermaid que están dentro
 de otro bloque (por ejemplo, en las chuletas), para que quien los copie pueda usarlos tal cual.
 Se ignoran las carpetas .verificacion/, codigo/, herramientas/ y node_modules/.
 Las reglas de FORMATO.md sobre Mermaid (sin negrita, entidades, directivas…) las comprueba
@@ -42,7 +44,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from argumentos import revisar   # noqa: E402
 
-VERSIONES = ["12.0.0", "10.9.1"]
+# (mermaid-cli, biblioteca mermaid). La primera, la de la academia (frontend/package.json de Code Academy,
+# visto el 8 de noviembre de 2026); la segunda, la antigua del curso de Java.
+VERSIONES = [("12.2.0", "12.2.0"), ("10.9.1", "10.9.8")]
 BLOQUE = re.compile(r"^[ \t]*```mermaid[ \t]*\n(.*?)^[ \t]*```", re.S | re.M)
 IGNORADAS = {".verificacion", "codigo", "node_modules", ".git", "herramientas"}
 NAVEGADORES = [
@@ -84,7 +88,8 @@ def diagramas(md):
 
 
 def mmdc(version, entrada, salida, configuracion):
-    orden = ["npx", "--yes", "-p", f"@mermaid-js/mermaid-cli@{version}", "mmdc",
+    cli, biblioteca = version
+    orden = ["npx", "--yes", "-p", f"@mermaid-js/mermaid-cli@{cli}", "-p", f"mermaid@{biblioteca}", "mmdc",
              "-p", str(configuracion), "-i", str(entrada), "-o", str(salida), "-b", "white", "-q"]
     entorno = dict(os.environ, PUPPETEER_SKIP_DOWNLOAD="1")
     resultado = subprocess.run(orden, capture_output=True, text=True, env=entorno, timeout=600)
@@ -132,7 +137,7 @@ def main():
                 suelto.write_text(bloque, encoding="utf-8")
                 correcto, mensaje = mmdc(version, suelto, trabajo / "suelto.svg", configuracion)
                 if not correcto:
-                    errores.append(f"{md.as_posix()}:{linea}: mermaid-cli {version}:\n    {mensaje}")
+                    errores.append(f"{md.as_posix()}:{linea}: Mermaid {version[1]}:\n    {mensaje}")
         if carpeta_imagenes:
             for numero, (linea, bloque) in enumerate(bloques, 1):
                 suelto = trabajo / "suelto.mmd"

@@ -8,7 +8,7 @@ Las herramientas para comprobar los cursos de MyOpenAcademy. Se ejecutan **desde
 |---|---|
 | `formato_academia.py` | Python 3.11 o posterior, sin librerías adicionales. Git, solo para comparar con la última versión publicada (si no está, no compara). |
 | `nucleo/generar_indice.py`, `nucleo/generar_chuleta_global.py` | Python 3.11 o posterior, sin librerías adicionales. |
-| `nucleo/comprobar_mermaid.py` | **Node.js** (con `npx`) y **Google Chrome o Chromium** (si no está en un sitio habitual, su ruta en la variable `CHROME_PATH`). La primera vez, `npx` descarga mermaid-cli 12.0.0 y 10.9.1 en su caché, sin tocar el repositorio. Comprobado el 8 de noviembre de 2026 con Node 24.22.1 y Chrome en Linux. |
+| `nucleo/comprobar_mermaid.py` | **Node.js** (con `npx`) y **Google Chrome o Chromium** (si no está en un sitio habitual, su ruta en la variable `CHROME_PATH`). La primera vez, `npx` descarga mermaid-cli y la biblioteca Mermaid de las dos versiones en su caché, sin tocar el repositorio. Comprobado el 8 de noviembre de 2026 con Node 24.22.1 y Chrome en Linux. |
 
 ## Resumen
 
@@ -97,7 +97,15 @@ python3 ../kit-cursos/herramientas/nucleo/generar_chuleta_global.py --comprobar 
 
 ## `nucleo/comprobar_mermaid.py`
 
-Comprueba que cada bloque ` ```mermaid ` se dibuja sin errores con **mermaid-cli 12.0.0 y 10.9.1**, porque no se sabe qué versión usará quien lea el curso (GitHub, un editor…). También comprueba los bloques Mermaid que están dentro de otro bloque (por ejemplo, en las chuletas). Sale de `comprobar_mermaid.py` del curso de Java, con lo mismo que comprueba. Las reglas de `FORMATO.md` sobre Mermaid (sin negrita, entidades…) las mira `formato_academia.py`; esta, solo que se dibujen.
+Comprueba que cada bloque ` ```mermaid ` se dibuja sin errores con **dos versiones de la biblioteca Mermaid**, fijadas las dos (a 8 de noviembre de 2026):
+
+| Biblioteca Mermaid | Con mermaid-cli | Por qué |
+|---|---|---|
+| **12.2.0** | 12.2.0 | Es la que usa **la academia** para dibujar los diagramas (`frontend/package.json` de Code Academy). |
+| **10.9.8** | 10.9.1 | La antigua, la del curso de Java: por **GitHub** y los visores de Markdown, donde también se leen los cursos. |
+
+- **Las dos se fijan**: mermaid-cli no fija la versión de la biblioteca que lleva dentro, solo un rango (`^12.2.0`), así que sin fijarla `npx` instalaría la última que encaje (el 8 de noviembre de 2026 ya existía la 12.3.0) y se comprobaría con una versión distinta de la de la academia sin que nadie se diera cuenta. Por eso la herramienta pide a `npx` los dos paquetes con su versión exacta.
+- **La versión del kit tiene que coincidir con la de la academia.** Cuando la academia suba su `mermaid` en `frontend/package.json`, se sube a la vez la de `VERSIONES` en `comprobar_mermaid.py` (con el mermaid-cli que la admita, comprobado con `npm view @mermaid-js/mermaid-cli@<versión> dependencies.mermaid`) y esta tabla. También comprueba los bloques Mermaid que están dentro de otro bloque (por ejemplo, en las chuletas). Sale de `comprobar_mermaid.py` del curso de Java, con lo mismo que comprueba. Las reglas de `FORMATO.md` sobre Mermaid (sin negrita, entidades…) las mira `formato_academia.py`; esta, solo que se dibujen.
 
 ```bash
 python3 ../kit-cursos/herramientas/nucleo/comprobar_mermaid.py                         # todo el curso

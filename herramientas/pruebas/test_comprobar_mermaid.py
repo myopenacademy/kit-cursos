@@ -45,8 +45,8 @@ class ComprobarMermaid(unittest.TestCase):
         self.escribir("malo.md", "flowchart LR\n    A -->")
         r = self.ejecutar("malo.md", cwd=self.tmp)
         self.assertEqual(r.returncode, 1)
-        self.assertIn("malo.md:5: mermaid-cli 12.0.0", r.stdout)
-        self.assertIn("malo.md:5: mermaid-cli 10.9.1", r.stdout)
+        self.assertIn("malo.md:5: Mermaid 12.2.0", r.stdout)
+        self.assertIn("malo.md:5: Mermaid 10.9.8", r.stdout)
         self.assertIn("Parse error", r.stdout)
 
     def test_se_ignoran_codigo_y_verificacion_dentro_del_curso(self):
