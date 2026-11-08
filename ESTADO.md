@@ -21,7 +21,7 @@ Resueltas con el autor las tres decisiones del apartado 4 de `PLAN.md`, y ajusta
 
 ## Siguiente paso
 
-Tarea 4 de `PLAN.md`: los comprobadores de los formatos del curso inicial (JSON, YAML, XML, CSV, Markdown, bash y Git, con sus condiciones comunes), según su «Lista para el kit». La tarea 5 (`herramientas/README.md`) se va haciendo con cada herramienta.
+Tarea 4 de `PLAN.md`, en el orden en que se escribe el curso: primero el núcleo de `verificar_codigo.py` con bash y las sesiones de terminal y la detección de bash 3.2 (sus fases 2 y 3). Pendiente del autor: cómo se garantiza «sin red» sin Docker (en esta máquina `unshare --net` no funciona: Ubuntu limita los espacios de nombres de usuario sin privilegios). La tarea 5 (`herramientas/README.md`) se va haciendo con cada herramienta.
 
 **Tarea 3 hecha:** además, `nucleo/generar_chuleta_global.py` (con la copia de Java, idéntica a la original salvo una línea de ejemplo dentro de un bloque ` ```` ` que el original reescribía mal, y la frase de la cabecera) y `nucleo/comprobar_mermaid.py` (probado con los 23 diagramas del curso inicial y los 31 de la fase 03 de Java). 130 pruebas. **Versiones de Mermaid** (decisión del autor, 8 de noviembre de 2026): la biblioteca **12.2.0**, la de la academia (manda la academia), y la **10.9.8**, por GitHub; fijadas las dos (mermaid-cli solo pide un rango y ya existe la 12.3.0). Se suben junto con la de la academia (`herramientas/README.md`).
 
@@ -44,6 +44,7 @@ Se trabaja a la vez que `../curso-inicial/`. **Lee su `ESTADO.md` (solo leer) al
 | `generar_indice.py` | Generar `00-indice.md` (sus módulos ya lo enlazan) | **Hecho** (8 de noviembre de 2026): `herramientas/nucleo/generar_indice.py` |
 | `generar_chuleta_global.py` y `comprobar_mermaid.py` | Generar `99-chuleta-global.md` y comprobar sus diagramas | **Hecho** (8 de noviembre de 2026): `herramientas/nucleo/` |
 | Verificar con salidas en español (`LC_ALL`), rama `main`, Git con autor y fechas fijos, servidor HTTP local y compatibilidad con bash 3.2 | Sus ejercicios y retos de las fases 2 a 8 | Anotado en la tarea 4 de `PLAN.md`; pendiente |
+| Las convenciones de verificación del curso de Java en `FORMATO.md` (7.1) | Saber cómo se escriben las salidas y sesiones verificables | **Hecho** (8 de noviembre de 2026, dentro de la versión 1) |
 | No avisar de la falta de retos en una fase que solo contiene el proyecto final (su aviso 3) | Su fase 8 | **Hecho** en `FORMATO.md`, apartado 6 (8 de noviembre de 2026, dentro de la versión 1) |
 | Plantillas (`curso.json`, módulo, retos) | Puede empezar sin ellas, siguiendo `FORMATO.md` | **Hecho** (8 de noviembre de 2026): `plantillas/` |
 | Ajustes de `FORMATO.md` (sus avisos 1 y 2): fichero previsto de los módulos con `"disponible": false` y de los retos con `"retos_disponibles": false`; títulos en texto plano | Escribir su `curso.json` con los nombres cerrados | **Hecho** (8 de noviembre de 2026, dentro de la versión 1). El curso ya los aplicó (su commit 068fd7c) |
@@ -62,6 +63,7 @@ Si algo bloquea, dilo al autor: él pasa la información de una sesión a otra.
 | 2026-11-08 | Tarea 2: `formato_academia.py`, sus pruebas y su documentación; `curso_json_de_java.py`. |
 | 2026-11-08 | Tarea 3, primera parte: `nucleo/generar_indice.py` y `nucleo/argumentos.py`. |
 | 2026-11-08 | Tarea 3 terminada: `nucleo/generar_chuleta_global.py` y `nucleo/comprobar_mermaid.py`. |
+| 2026-11-08 | `FORMATO.md` 7.1: ficheros de verificación y salidas en el texto (las convenciones del curso de Java). |
 
 ## Avisos de los cursos
 
