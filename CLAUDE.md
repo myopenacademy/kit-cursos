@@ -6,7 +6,8 @@ Se suma a `../../CLAUDE.md` (reglas comunes) y `../CLAUDE.md` (reglas de todos l
 
 1. Lee `../../README.md`, `../../PLAN.md` (sobre todo los apartados 7 y 8.2) y `../../ESTADO.md`.
 2. Lee `PLAN.md`, `ESTADO.md` y `FORMATO.md` de esta carpeta.
-3. Resume al autor en pocas líneas dónde se quedó el trabajo y qué toca a continuación.
+3. Lee, solo para saber cómo va, `../curso-inicial/ESTADO.md` y revisa la sección de dependencias de tu `ESTADO.md`: dile al autor si algo te bloquea o si la otra sesión necesita algo de esta.
+4. Resume al autor en pocas líneas dónde se quedó el trabajo y qué toca a continuación.
 
 ## Qué es
 

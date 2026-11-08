@@ -12,6 +12,22 @@
 
 Tarea 1 de `PLAN.md`: el README del kit y las plantillas. Antes, revisar con el autor las decisiones pendientes del apartado 4 de `PLAN.md`.
 
+## Dependencias con el curso inicial
+
+Se trabaja a la vez que `../curso-inicial/`. **Lee su `ESTADO.md` (solo leer) al empezar cada sesión y antes de cerrar cada tarea**, y actualiza esta tabla.
+
+| El kit espera del curso inicial | Para | Estado |
+|---|---|---|
+| Qué ejercicios y retos de herramientas lleva (terminal, Git, Markdown, JSON, YAML, XML, CSV) y qué hay que comprobar de cada uno | Tarea 4 (comprobadores de formatos) y decisión 1 del apartado 4 de `PLAN.md` | Pendiente |
+| Su `curso.json` y la fase 1 escritos | Probar `formato_academia.py` con un curso real | Pendiente |
+
+| El curso inicial espera del kit | Para | Estado |
+|---|---|---|
+| `formato_academia.py` | Comprobar y cerrar su fase 1 | Pendiente |
+| Plantillas (`curso.json`, módulo, retos) | Puede empezar sin ellas, siguiendo `FORMATO.md` | Pendiente |
+
+Si algo bloquea, dilo al autor: él pasa la información de una sesión a otra.
+
 ## Hecho
 
 | Fecha | Qué |
