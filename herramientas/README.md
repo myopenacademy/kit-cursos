@@ -34,6 +34,7 @@ python3 ../kit-cursos/herramientas/nucleo/comprobar_mermaid.py fase-NN-…/NN-�
 | [`nucleo/verificar_codigo.py`](#nucleoverificar_codigopy) | Comprueba que el código de los módulos coincide con `codigo/` y funciona: scripts de bash, sesiones de terminal (también de Git) y ficheros JSON, YAML, XML, CSV y Markdown | Python 3.11 o posterior; **PyYAML** para los YAML (en Ubuntu, `python3-yaml`; con pip, `pyyaml`: la única librería de fuera de Python que usa el kit, y solo para eso); **Docker** para la verificación completa (sin él, verifica de forma parcial y avisa) |
 | [`nucleo/generar_indice.py`](#nucleogenerar_indicepy) | Genera `00-indice.md` desde `curso.json` | Python 3.11 o posterior |
 | [`nucleo/generar_chuleta_global.py`](#nucleogenerar_chuleta_globalpy) | Genera `99-chuleta-global.md` con la chuleta de cada módulo | Python 3.11 o posterior |
+| [`nucleo/reemplazar.py`](#nucleoreemplazarpy) | Aplica sustituciones de texto en varios ficheros a la vez: todas o ninguna | Python 3.11 o posterior |
 | [`nucleo/comprobar_mermaid.py`](#nucleocomprobar_mermaidpy) | Comprueba que los diagramas Mermaid se dibujan, con la versión de la academia y con la antigua | **Node.js** (con `npx`) y **Google Chrome o Chromium** (si no está en un sitio habitual, su ruta en la variable `CHROME_PATH`). Comprobado el 8 de noviembre de 2026 con Node 24.22.1 y Chrome en Linux |
 
 Las carpetas:
@@ -205,6 +206,30 @@ Dibuja cada diagrama con **dos versiones de la biblioteca Mermaid**, fijadas las
 - **Las dos se fijan**: mermaid-cli no fija la versión de la biblioteca que lleva dentro, solo un rango (`^12.2.0`), así que sin fijarla `npx` instalaría la última que encaje (el 8 de noviembre de 2026 ya existía la 12.3.0) y se comprobaría con una versión distinta de la de la academia sin que nadie se diera cuenta. Por eso la herramienta pide a `npx` los dos paquetes con su versión exacta. La primera vez, `npx` los descarga en su caché, sin tocar el repositorio.
 - **La versión del kit tiene que coincidir con la de la academia.** Cuando la academia suba su `mermaid` en `frontend/package.json`, se sube a la vez la de `VERSIONES` en `comprobar_mermaid.py` (con el mermaid-cli que la admita, comprobado con `npm view @mermaid-js/mermaid-cli@<versión> dependencies.mermaid`) y esta tabla.
 
+## `nucleo/reemplazar.py`
+
+Aplica sustituciones de texto en varios ficheros a la vez: **todas o ninguna**. Viene del curso inicial, donde resolvió un problema real: un script de sustituciones escribió unos ficheros, falló en otro, y el commit se hizo igual, con el cambio a medias. Sirve a cualquier proyecto que actualice varios documentos a la vez (el kit, la academia, los cursos).
+
+Los cambios van en un fichero JSON, en orden:
+
+```json
+[
+  {"fichero": "ESTADO.md", "antes": "texto exacto", "despues": "texto nuevo"},
+  {"fichero": "PLAN.md", "antes": "otro texto", "despues": "su sustituto"}
+]
+```
+
+```bash
+python3 ../kit-cursos/herramientas/nucleo/reemplazar.py cambios.json && git commit -am "…"   # el commit, solo si todo va bien
+python3 ../kit-cursos/herramientas/nucleo/reemplazar.py cambios.json --comprobar              # solo comprueba; no escribe nada
+python3 ../kit-cursos/herramientas/nucleo/reemplazar.py cambios.json --raiz ../curso-x        # rutas relativas a otra carpeta
+```
+
+- Cada «antes» tiene que aparecer **exactamente una vez** en su fichero, contando los cambios anteriores de la lista sobre ese mismo fichero (así un cambio puede tocar lo que dejó otro).
+- Si alguno falla (el fichero no existe, el texto no aparece o aparece más de una vez), **no escribe ningún fichero**: dice cuál ha fallado y cuántas veces aparecía su texto, y termina con 1.
+- Si todos van bien, escribe los ficheros y los vuelve a leer para comprobar que cada «despues» está en su sitio. Si una escritura falla a medias (disco lleno, permisos), deja como estaban los ya escritos.
+- Respeta los saltos de línea de cada fichero, también los de Windows (`\r\n`).
+
 ## Las pruebas
 
 Cada herramienta tiene sus pruebas en `pruebas/`. Casi todas siguen el mismo método: **copian un curso de ejemplo correcto a una carpeta temporal, lo estropean de una forma concreta y comprueban que sale justo ese error o ese aviso**. Así, si un cambio en una herramienta deja de detectar algo, una prueba falla.
@@ -214,6 +239,6 @@ python3 -m unittest discover -s herramientas/pruebas -v     # desde la raíz del
 ```
 
 - `cursos/bueno/`: el curso de ejemplo. Pequeño y correcto: una fase con un módulo escrito (con un script de bash, una sesión de terminal, ficheros JSON, una imagen y un diagrama) y otro pendiente, retos, proyecto por etapas, y su índice y su chuleta generados. Pasa todas las herramientas sin errores.
-- `test_formato_academia.py`, `test_verificar_codigo.py`, `test_generar_indice.py`, `test_generar_chuleta_global.py` y `test_comprobar_mermaid.py`: las de cada herramienta. Las de `verificar_codigo.py` prueban también los comprobadores de `lenguajes/` y, con Docker, la terminal del kit (sus versiones, Git en español con la rama `main`, el reloj de Git y que no hay red).
+- `test_formato_academia.py`, `test_verificar_codigo.py`, `test_generar_indice.py`, `test_generar_chuleta_global.py`, `test_comprobar_mermaid.py` y `test_reemplazar.py`: las de cada herramienta. Las de `verificar_codigo.py` prueban también los comprobadores de `lenguajes/` y, con Docker, la terminal del kit (sus versiones, Git en español con la rama `main`, el reloj de Git y que no hay red).
 - **Se saltan solas** las que necesitan algo que la máquina no tiene: las de la terminal del kit, sin Docker; las de Mermaid, sin Node o Chrome.
 - `curso_json_de_java.py`: genera un `curso.json` provisional para una **copia** del curso de Java original (que no lo tiene), para probar `formato_academia.py` con 199 módulos reales y como punto de partida de `curso-java/`. Su ayuda (`--help`) explica cómo sacar la copia solo con Git de lectura.

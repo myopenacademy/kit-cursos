@@ -55,6 +55,7 @@ Se trabaja a la vez que `../curso-inicial/`. **Lee su `ESTADO.md` (solo leer) al
 | `verificar_codigo.py` con bash y las sesiones de terminal | Verificar los ejemplos y ejercicios de bash de sus fases 2 y 3 | **Hecho** (8 de noviembre de 2026): `herramientas/nucleo/verificar_codigo.py` |
 | Sesiones de Git reproducibles (reloj de Git) | Su fase 5 | **Hecho** (8 de noviembre de 2026) |
 | Comprobadores de JSON, YAML, XML, CSV y Markdown | Su fase 4 | **Hecho** (8 de noviembre de 2026): `verificar_codigo.py` |
+| `reemplazar.py` en las herramientas comunes (para que el curso borre su copia de `.verificacion/`) | Sustituciones en varios ficheros, todas o ninguna | **Hecho** (9 de noviembre de 2026): `herramientas/nucleo/reemplazar.py` |
 | `generar_chuleta_global.py` y `comprobar_mermaid.py` | Generar `99-chuleta-global.md` y comprobar sus diagramas | **Hecho** (8 de noviembre de 2026): `herramientas/nucleo/` |
 | Verificar con salidas en español (`LC_ALL`), rama `main`, Git con autor y fechas fijos, servidor HTTP local y compatibilidad con bash 3.2 | Sus ejercicios y retos de las fases 2 a 8 | Anotado en la tarea 4 de `PLAN.md`; pendiente |
 | Las convenciones de verificación del curso de Java en `FORMATO.md` (7.1) | Saber cómo se escriben las salidas y sesiones verificables | **Hecho** (8 de noviembre de 2026, dentro de la versión 1) |
@@ -80,6 +81,16 @@ Si algo bloquea, dilo al autor: él pasa la información de una sesión a otra.
 | 2026-11-08 | Tarea 4, paso 1: `verificar_codigo.py` con bash y las sesiones de terminal, y la imagen de la terminal del kit. |
 | 2026-11-08 | Tarea 4, paso 2: JSON, YAML, XML, CSV y Markdown. |
 | 2026-11-08 | Tarea 4, paso 3: Git, con el reloj de Git. |
+| 2026-11-09 | Tarea 5: `herramientas/README.md` revisado entero (por dónde empezar, qué hay en cada carpeta, lo común a todas, sin repeticiones ni datos desfasados). `nucleo/reemplazar.py`, incorporado desde el curso inicial (con `--raiz`, `--comprobar`, saltos de línea de Windows y vuelta atrás si una escritura falla), con sus pruebas. |
+
+## Prueba de importación en la academia
+
+**9 de noviembre de 2026:** la academia ha importado la fase 1 del curso inicial (commit c2bfba8 de su repositorio). **`FORMATO.md` no cambia**: todo lo que no encajó es de la academia y lo arreglará su importador nuevo. Los identificadores con punto (`inicial.que-es-programar`) se aceptan tal cual, así que el apartado 3.3 se queda como está. Los cursos se instalan con una ruta relativa (`../Cursos/curso-inicial`), como dice el plan común.
+
+## Para más adelante
+
+- **Curso de ejemplo para la academia:** la academia necesitará uno pequeño para sus pruebas y su demo (`../../PLAN.md`, apartado 8.5). El curso «bueno» de las pruebas del kit (`herramientas/pruebas/cursos/bueno/`) puede servir de base; se verá si la sesión de la academia lo pide (nota del autor, 9 de noviembre de 2026).
+- **Prueba de fiabilidad con el curso de Java:** cuando se adapte ese curso, después del pack base 1.0 (decisión del autor).
 
 ## Avisos de los cursos
 
