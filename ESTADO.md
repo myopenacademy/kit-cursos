@@ -21,9 +21,11 @@ Resueltas con el autor las tres decisiones del apartado 4 de `PLAN.md`, y ajusta
 
 ## Siguiente paso
 
-Tarea 3 de `PLAN.md`, lo que queda: `generar_chuleta_global.py`, `comprobar_mermaid.py` (Node y Chrome).
+Tarea 4 de `PLAN.md`: los comprobadores de los formatos del curso inicial (JSON, YAML, XML, CSV, Markdown, bash y Git, con sus condiciones comunes), según su «Lista para el kit». La tarea 5 (`herramientas/README.md`) se va haciendo con cada herramienta.
 
-**Tarea 3 empezada:** `herramientas/nucleo/generar_indice.py` y `herramientas/nucleo/argumentos.py`, con sus pruebas (117 en total). Decisión: el nivel y el tiempo salen de la cabecera de cada módulo, así que los pendientes salen con «—» y el índice se completa solo al escribirlos (el autor prefiere no añadir horas previstas a `curso.json`: es temporal). Probado con una copia del curso inicial: su índice generado cumple `FORMATO.md`, y el curso pasa con 0 errores.
+**Tarea 3 hecha:** además, `nucleo/generar_chuleta_global.py` (con la copia de Java, idéntica a la original salvo una línea de ejemplo dentro de un bloque ` ```` ` que el original reescribía mal, y la frase de la cabecera) y `nucleo/comprobar_mermaid.py` (mismas versiones que Java, mermaid-cli 12.0.0 y 10.9.1; probado con los 23 diagramas del curso inicial y los 31 de la fase 03 de Java). 130 pruebas. **Pendiente del autor:** la última mermaid-cli es la 12.2.0 (npm, 8 de noviembre de 2026); ¿se sube la reciente o se mantiene la 12.0.0 del curso de Java?
+
+**Tarea 3, primera parte:** `herramientas/nucleo/generar_indice.py` y `herramientas/nucleo/argumentos.py`, con sus pruebas (117 en total). Decisión: el nivel y el tiempo salen de la cabecera de cada módulo, así que los pendientes salen con «—» y el índice se completa solo al escribirlos (el autor prefiere no añadir horas previstas a `curso.json`: es temporal). Probado con una copia del curso inicial: su índice generado cumple `FORMATO.md`, y el curso pasa con 0 errores.
 
 **Datos de esta máquina para la tarea 4** (8 de noviembre de 2026): existe el *locale* `es_ES.UTF-8` y Git (2.53.0) responde en español con `LC_ALL=es_ES.UTF-8`; el bash es el 5.3.9, sin un bash 3.2 instalado (para eso, la imagen `bash:3.2` de Docker: tarea 4 de `PLAN.md`).
 
@@ -40,6 +42,7 @@ Se trabaja a la vez que `../curso-inicial/`. **Lee su `ESTADO.md` (solo leer) al
 |---|---|---|
 | `formato_academia.py` | Comprobar y cerrar su fase 1 | **Hecho** (8 de noviembre de 2026): `herramientas/formato_academia.py` |
 | `generar_indice.py` | Generar `00-indice.md` (sus módulos ya lo enlazan) | **Hecho** (8 de noviembre de 2026): `herramientas/nucleo/generar_indice.py` |
+| `generar_chuleta_global.py` y `comprobar_mermaid.py` | Generar `99-chuleta-global.md` y comprobar sus diagramas | **Hecho** (8 de noviembre de 2026): `herramientas/nucleo/` |
 | Verificar con salidas en español (`LC_ALL`), rama `main`, Git con autor y fechas fijos, servidor HTTP local y compatibilidad con bash 3.2 | Sus ejercicios y retos de las fases 2 a 8 | Anotado en la tarea 4 de `PLAN.md`; pendiente |
 | No avisar de la falta de retos en una fase que solo contiene el proyecto final (su aviso 3) | Su fase 8 | **Hecho** en `FORMATO.md`, apartado 6 (8 de noviembre de 2026, dentro de la versión 1) |
 | Plantillas (`curso.json`, módulo, retos) | Puede empezar sin ellas, siguiendo `FORMATO.md` | **Hecho** (8 de noviembre de 2026): `plantillas/` |
@@ -58,6 +61,7 @@ Si algo bloquea, dilo al autor: él pasa la información de una sesión a otra.
 | 2026-11-08 | Tarea 1: README del kit, `LICENSE` (MIT, «Santiago (santi-cast)», elegido por el autor) y plantillas. |
 | 2026-11-08 | Tarea 2: `formato_academia.py`, sus pruebas y su documentación; `curso_json_de_java.py`. |
 | 2026-11-08 | Tarea 3, primera parte: `nucleo/generar_indice.py` y `nucleo/argumentos.py`. |
+| 2026-11-08 | Tarea 3 terminada: `nucleo/generar_chuleta_global.py` y `nucleo/comprobar_mermaid.py`. |
 
 ## Avisos de los cursos
 

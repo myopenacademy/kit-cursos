@@ -34,8 +34,8 @@ En este orden:
 2. ~~**`formato_academia.py`**~~ (hecho el 8 de noviembre de 2026; ver `ESTADO.md`): todo lo del apartado 13 de `FORMATO.md` (`curso.json`, módulos, retos, glosario, proyecto, enlaces del mismo curso y entre cursos, imágenes, Mermaid, HTML, ficheros obligatorios), con errores y avisos, y el campo `transicion`. Incluye que los títulos del curso, las fases, los módulos, los ejercicios y los retos sean texto plano (sin `` ` ``, `**`, `*`, `_`, enlaces ni HTML), en `curso.json` y en los encabezados. Con pruebas sobre cursos de ejemplo pequeños, buenos y malos.
 3. **Del núcleo de las herramientas de Java**, lo que necesita el curso inicial:
    - ~~`comprobar_enlaces.py`~~: no se hace aparte (decisión del autor, 8 de noviembre de 2026). `formato_academia.py` ya comprueba los enlaces y las anclas, también entre cursos; lo que cubría se añadirá como opciones de `formato_academia.py` (ver «Después»).
-   - `comprobar_mermaid.py` (necesita Node y Chrome; su ruta, en variables de entorno).
-   - ~~`generar_indice.py`~~ (hecho el 8 de noviembre de 2026) y `generar_chuleta_global.py`, que pasan a leer `curso.json` en vez de una lista dentro del script.
+   - ~~`comprobar_mermaid.py`~~ (hecho el 8 de noviembre de 2026; necesita Node y Chrome; la ruta de Chrome, en `CHROME_PATH`).
+   - ~~`generar_indice.py`~~ y ~~`generar_chuleta_global.py`~~ (hechos el 8 de noviembre de 2026), que pasan a leer `curso.json` en vez de una lista dentro del script.
    - ~~`argumentos.py`~~ (hecho el 8 de noviembre de 2026).
    - Van en `herramientas/nucleo/` y se ejecutan desde la raíz del curso (la raíz es la carpeta actual o la que se indique, no la carpeta del script).
 4. **Comprobadores de los formatos del curso inicial** para sus ejemplos, ejercicios y retos, según su lista (`../curso-inicial/ESTADO.md`, «Lista para el kit», aprobada el 8 de noviembre de 2026):

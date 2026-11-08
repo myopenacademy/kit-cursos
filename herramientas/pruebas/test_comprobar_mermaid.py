@@ -1,0 +1,65 @@
+"""Pruebas de nucleo/comprobar_mermaid.py. Necesitan Node.js (npx) y Chrome: si no están, se saltan.
+La primera vez, npx descarga mermaid-cli (tarda un poco).
+
+Desde la raíz del kit:
+    python3 -m unittest discover -s herramientas/pruebas -v
+"""
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+PRUEBAS = Path(__file__).resolve().parent
+SCRIPT = PRUEBAS.parent / "nucleo" / "comprobar_mermaid.py"
+BUENO = PRUEBAS / "cursos" / "bueno"
+HAY_CHROME = bool(os.environ.get("CHROME_PATH")) or any(
+    shutil.which(n) for n in ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser"))
+
+
+@unittest.skipUnless(shutil.which("npx") and HAY_CHROME, "hace falta Node.js (npx) y Chrome")
+class ComprobarMermaid(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="mermaid-pruebas-"))
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def ejecutar(self, *args, cwd=None):
+        return subprocess.run([sys.executable, str(SCRIPT), *args], capture_output=True, text=True, cwd=cwd, timeout=900)
+
+    def escribir(self, rel, diagrama):
+        ruta = self.tmp / rel
+        ruta.parent.mkdir(parents=True, exist_ok=True)
+        ruta.write_text(f"# Prueba\n\nTexto.\n\n```mermaid\n{diagrama}\n```\n", encoding="utf-8")
+        return ruta
+
+    def test_el_curso_bueno_se_dibuja(self):
+        r = self.ejecutar(cwd=BUENO)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("1 diagramas en 1 ficheros", r.stdout)
+
+    def test_un_diagrama_mal_escrito_dice_fichero_linea_y_version(self):
+        self.escribir("malo.md", "flowchart LR\n    A -->")
+        r = self.ejecutar("malo.md", cwd=self.tmp)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("malo.md:5: mermaid-cli 12.0.0", r.stdout)
+        self.assertIn("malo.md:5: mermaid-cli 10.9.1", r.stdout)
+        self.assertIn("Parse error", r.stdout)
+
+    def test_se_ignoran_codigo_y_verificacion_dentro_del_curso(self):
+        self.escribir("codigo/malo.md", "flowchart LR\n    A -->")
+        self.escribir(".verificacion/malo.md", "flowchart LR\n    A -->")
+        r = self.ejecutar(cwd=self.tmp)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("0 diagramas en 0 ficheros", r.stdout)
+
+    def test_argumentos_mal(self):
+        self.assertEqual(self.ejecutar("no-existe.md", cwd=self.tmp).returncode, 2)
+        self.assertEqual(self.ejecutar("--rapido", cwd=self.tmp).returncode, 2)
+
+
+if __name__ == "__main__":
+    unittest.main()

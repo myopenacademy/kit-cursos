@@ -7,7 +7,8 @@ Las herramientas para comprobar los cursos de MyOpenAcademy. Se ejecutan **desde
 | Herramienta | Necesita |
 |---|---|
 | `formato_academia.py` | Python 3.11 o posterior, sin librerías adicionales. Git, solo para comparar con la última versión publicada (si no está, no compara). |
-| `nucleo/generar_indice.py` | Python 3.11 o posterior, sin librerías adicionales. |
+| `nucleo/generar_indice.py`, `nucleo/generar_chuleta_global.py` | Python 3.11 o posterior, sin librerías adicionales. |
+| `nucleo/comprobar_mermaid.py` | **Node.js** (con `npx`) y **Google Chrome o Chromium** (si no está en un sitio habitual, su ruta en la variable `CHROME_PATH`). La primera vez, `npx` descarga mermaid-cli 12.0.0 y 10.9.1 en su caché, sin tocar el repositorio. Comprobado el 8 de noviembre de 2026 con Node 24.22.1 y Chrome en Linux. |
 
 ## Resumen
 
@@ -15,10 +16,12 @@ Las herramientas para comprobar los cursos de MyOpenAcademy. Se ejecutan **desde
 |---|---|---|
 | [`formato_academia.py`](#formato_academiapy) | Comprueba que el curso cumple `FORMATO.md` y se puede instalar en la academia | Al terminar cada módulo, al cerrar cada fase y antes de publicar una versión |
 | [`nucleo/generar_indice.py`](#nucleogenerar_indicepy) | Genera `00-indice.md` desde `curso.json` | Al terminar cada módulo y al cambiar el temario |
+| [`nucleo/generar_chuleta_global.py`](#nucleogenerar_chuleta_globalpy) | Genera `99-chuleta-global.md` con la chuleta de cada módulo | Al terminar cada módulo |
+| [`nucleo/comprobar_mermaid.py`](#nucleocomprobar_mermaidpy) | Comprueba que los diagramas Mermaid se dibujan con dos versiones de Mermaid | Al terminar cada módulo con diagramas y al cerrar cada fase |
 | [`nucleo/argumentos.py`](#nucleoargumentospy) | Revisión común de los argumentos de las herramientas del núcleo | La usan las herramientas; no se ejecuta a mano |
 | [`pruebas/`](#las-pruebas) | Pruebas de las herramientas, con un curso de ejemplo bueno | Al cambiar una herramienta |
 
-Las demás (enlaces, Mermaid, chuleta global y los comprobadores del código de cada formato) están en preparación: `PLAN.md` del kit, tareas 3 y 4.
+Los comprobadores del código de cada formato (JSON, YAML, XML, CSV, bash, Git…) están en preparación: `PLAN.md` del kit, tarea 4. No hay un `comprobar_enlaces.py` aparte: los enlaces y las anclas los comprueba `formato_academia.py`.
 
 ## `formato_academia.py`
 
@@ -79,6 +82,31 @@ python3 ../kit-cursos/herramientas/nucleo/generar_indice.py ../curso-x   # otro 
 - La carpeta de una fase solo se enlaza si ya existe.
 - Diferencias con el de Java: no genera `RUTA-MINIMA.md` ni los textos propios de aquel curso (bloques, hitos, versiones); se añadirán cuando los pida el curso de Java.
 
+## `nucleo/generar_chuleta_global.py`
+
+Genera `99-chuleta-global.md` reuniendo la sección «## 6. Chuleta» de cada módulo disponible, en el orden de `curso.json`. Sale de `generar_chuleta_global.py` del curso de Java.
+
+```bash
+python3 ../kit-cursos/herramientas/nucleo/generar_chuleta_global.py              # escribe 99-chuleta-global.md
+python3 ../kit-cursos/herramientas/nucleo/generar_chuleta_global.py --comprobar  # solo dice si está al día (1 si no)
+```
+
+- Baja un nivel los encabezados de cada chuleta y corrige sus enlaces, anclas e imágenes relativos para que funcionen desde la raíz del curso. Lo que está dentro de un bloque de código no se toca.
+- La chuleta de cada módulo termina en la sección siguiente («## 7. Preguntas de repaso») o en la línea `---` de la navegación.
+- Diferencias con el de Java: los títulos de las fases salen de `curso.json` (no de `00-indice.md`), y los bloques de código de cuatro comillas (` ```` `) se reconocen bien (el de Java reescribía un enlace de ejemplo dentro de uno). Con la copia del curso de Java, el resultado es idéntico salvo en esa línea y en la frase de la cabecera.
+
+## `nucleo/comprobar_mermaid.py`
+
+Comprueba que cada bloque ` ```mermaid ` se dibuja sin errores con **mermaid-cli 12.0.0 y 10.9.1**, porque no se sabe qué versión usará quien lea el curso (GitHub, un editor…). También comprueba los bloques Mermaid que están dentro de otro bloque (por ejemplo, en las chuletas). Sale de `comprobar_mermaid.py` del curso de Java, con lo mismo que comprueba. Las reglas de `FORMATO.md` sobre Mermaid (sin negrita, entidades…) las mira `formato_academia.py`; esta, solo que se dibujen.
+
+```bash
+python3 ../kit-cursos/herramientas/nucleo/comprobar_mermaid.py                         # todo el curso
+python3 ../kit-cursos/herramientas/nucleo/comprobar_mermaid.py fase-01-que-es-programar # una carpeta o un fichero
+python3 ../kit-cursos/herramientas/nucleo/comprobar_mermaid.py fase-01-…/04-….md --imagenes /tmp/diagramas
+```
+
+Con `--imagenes`, guarda además cada diagrama como PNG para revisarlo a ojo. Termina con 0 si todos se dibujan, con 1 y la lista de los que fallan (fichero, línea donde empieza el bloque, versión y el error de Mermaid) o si falta Node o Chrome, y con 2 si los argumentos están mal. Ignora `codigo/`, `.verificacion/`, `herramientas/` y `node_modules/` dentro de lo que revisa.
+
 ## `nucleo/argumentos.py`
 
 La revisión común de los argumentos, sacada de `argumentos.py` del curso de Java: `--help` muestra la ayuda de la herramienta, y una opción desconocida o una ruta que no existe terminan con código 2 sin hacer nada (así una ruta mal escrita no da un «✅» falso). Como las herramientas viven en el kit, las rutas se buscan desde la carpeta actual (la raíz del curso), no desde la carpeta del script.
@@ -88,6 +116,7 @@ La revisión común de los argumentos, sacada de `argumentos.py` del curso de Ja
 En `pruebas/`:
 
 - `cursos/bueno/`: un curso de ejemplo pequeño que cumple `FORMATO.md` (una fase con un módulo escrito y otro pendiente, retos, imagen, Mermaid y proyecto por etapas). Pasa sin errores.
+- `test_generar_chuleta_global.py` y `test_comprobar_mermaid.py`: las de esas herramientas (las de Mermaid se saltan si no hay Node o Chrome).
 - `test_generar_indice.py`: las de `generar_indice.py` (el índice del curso de ejemplo está al día, nivel y tiempo de la cabecera, pendientes sin enlace, `--comprobar`, y que el índice generado cumple `FORMATO.md`).
 - `test_formato_academia.py`: cada prueba copia ese curso a una carpeta temporal, lo estropea de una forma concreta y comprueba que sale justo ese error o aviso. Así, si un cambio en el comprobador deja de detectar algo, una prueba falla.
 - `curso_json_de_java.py`: genera un `curso.json` provisional para una **copia** del curso de Java original (que no lo tiene), para probar `formato_academia.py` con 199 módulos reales y como punto de partida de `curso-java/`. Su ayuda (`--help`) explica cómo sacar la copia solo con Git de lectura.
