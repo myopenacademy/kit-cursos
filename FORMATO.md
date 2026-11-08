@@ -117,12 +117,14 @@ Es la **fuente de verdad** de la estructura del curso: qué fases, módulos, eje
 | `repositorio` | Dirección del repositorio en GitHub. La usan los enlaces entre cursos y el botón «Mejorar esta lección». |
 | `conviene_saber_antes` | Cursos que se recomienda haber hecho antes (sus `id`). Son recomendaciones: nada se bloquea. |
 | `partes` | Opcional. Tramos con nombre del curso, cada uno con la lista ordenada de sus fases. Sirven para orientarse y como piezas de los roadmaps. Si hay partes, cada fase está exactamente en una. |
-| `fases` | Las fases en orden. Cada una con su `id`, su `carpeta`, su `titulo` (el mismo de `00-indice.md`), sus `modulos` en orden y, si tiene retos, la ruta de su `retos.md`. |
-| `modulos` | Cada módulo con su `id`, su `fichero`, su `titulo` (el mismo del encabezado del fichero) y sus `ejercicios` en orden. Un módulo todavía sin escribir lleva `"disponible": false` y no tiene fichero. |
+| `fases` | Las fases en orden. Cada una con su `id`, su `carpeta`, su `titulo` (el mismo de `00-indice.md`), sus `modulos` en orden y, si tiene retos, la ruta de su `retos.md`. Si los retos aún no están escritos, la fase lleva ya su ruta prevista y `"retos_disponibles": false`: se comprueba que la ruta es `<carpeta>/retos.md`, pero no que exista, y la academia no los muestra hasta que estén disponibles. |
+| `modulos` | Cada módulo con su `id`, su `fichero`, su `titulo` (el mismo del encabezado del fichero) y sus `ejercicios` en orden. Un módulo todavía sin escribir lleva `"disponible": false`; conviene que lleve ya su `fichero` previsto (así los nombres quedan cerrados antes de escribir). De ese fichero se comprueba la forma de la ruta y que está en la carpeta de su fase, pero no que exista, y la academia no lo muestra hasta que el módulo esté disponible. |
 | `ejercicios` | Cada ejercicio con su `id` y su `titulo`: el texto exacto que sigue a «Ejercicio N · » en el módulo (apartado 5.4). |
 | `proyecto` | El proyecto para el portfolio del alumno (apartado 8). |
 | `equivalencias` | Qué fue de los identificadores que ya no existen (apartado 11.2). |
 | `transicion` | Opcional. Reglas de este formato que el curso todavía no cumple y que, mientras tanto, la comprobación trata como avisos y no como errores. Solo para cursos escritos antes de este formato. Hoy solo admite `"preguntas-de-repaso"` (el curso de Java lleva `"transicion": ["preguntas-de-repaso"]` mientras las añade). |
+
+**Los títulos son texto plano.** Los del curso, las fases, los módulos, los ejercicios y los retos, tanto en `curso.json` como en sus encabezados, **no deben llevar formato Markdown**: ni negrita ni cursiva, ni código entre comillas invertidas, ni enlaces, ni HTML. La academia los muestra tal cual en menús, listas y seguimiento. Los nombres de órdenes, ficheros o código se escriben sin más: «Lee la salida de java -version», «Merge o rebase».
 
 ### 3.3. Identificadores
 
@@ -219,7 +221,7 @@ Razonamiento, código, salida y explicación…
 ```
 
 - Los ejercicios se agrupan en cuatro niveles, en este orden y con estos encabezados: `### 🟢 Básico`, `### 🟡 Intermedio`, `### 🔴 Avanzado` y `### 🏆 Caso real`.
-- Cada ejercicio es `#### Ejercicio N · Título`. El **título** (lo que sigue a «Ejercicio N · ») debe coincidir **exactamente** con el `titulo` de ese ejercicio en `curso.json`, y en el mismo orden. N es solo la posición: no identifica al ejercicio.
+- Cada ejercicio es `#### Ejercicio N · Título`. El **título** (lo que sigue a «Ejercicio N · ») debe coincidir **exactamente** con el `titulo` de ese ejercicio en `curso.json`, y en el mismo orden. Es texto plano, sin formato Markdown (apartado 3.2). N es solo la posición: no identifica al ejercicio.
 - **Pistas** (conviene): cero, una o varias, cada una en su `<details>` con `<summary>Pista N</summary>`, **antes** de la solución.
 - **Solución** (obligatoria): un `<details>` con `<summary>Ver solución</summary>`, **después** de las pistas. Completa, comentada y explicada.
 - Deja una línea en blanco después de `<summary>…</summary>` y antes de `</details>`, para que el Markdown de dentro se vea bien en GitHub.
@@ -278,10 +280,10 @@ Enunciado…
 ```
 
 - El fichero se llama siempre `retos.md` (queda el último de la fase al ordenar) y su ruta se declara en `curso.json`, en el campo `retos` de la fase.
-- Cada reto es `## Reto N · Título`, con pistas y solución como los ejercicios (apartado 5.4).
+- Cada reto es `## Reto N · Título`, con el título en texto plano (apartado 3.2) y con pistas y solución como los ejercicios (apartado 5.4).
 - Su código va en `codigo/retos/reto-NN-nombre/` de la fase y se verifica como el resto.
 - No es un módulo: no tiene identificador ni aparece en `modulos`. La academia lo muestra al final de su fase como extra opcional.
-- Conviene que **cada fase tenga sus retos**; la comprobación avisa si falta.
+- Conviene que **cada fase tenga sus retos**; la comprobación avisa si faltan o si siguen con `"retos_disponibles": false`.
 
 ## 7. El código
 
@@ -292,6 +294,9 @@ Enunciado…
   `📁 **Código:** [`codigo/04-polimorfismo/ejemplos/2.1-upcasting/`](codigo/04-polimorfismo/ejemplos/2.1-upcasting/)`
 - El bloque del módulo y el fichero de `codigo/` deben ser **idénticos**.
 - **Nombres reservados** junto a la solución de cada ejercicio, para la corrección automática futura: `partida/` (código de partida que se da al alumno) y `pruebas/` (pruebas que comprueban su solución). Hoy no los usa nadie, pero no se pueden usar para otra cosa.
+- **Ficheros de verificación** en la carpeta de un ejemplo o solución: le dicen al kit cómo comprobarlo. La academia los descarga con el resto de la carpeta, así que su texto debe entenderse sin el kit.
+  - `debe-fallar.txt`: el ejemplo está mal **a propósito** (un JSON con una coma de más, un YAML mal sangrado…). El kit comprueba que falla, en vez de darlo por malo. Dentro, una línea que diga qué error tiene. Los fragmentos que se quedan en el texto no se verifican.
+  - `separador.txt`: el separador de los CSV de la carpeta, en una sola línea (`;`, `|` o la palabra `tabulador`). Si no está, el separador es la coma.
 - La academia ofrece cada carpeta enlazada como descarga en ZIP.
 
 ## 8. El proyecto para el portfolio del alumno
@@ -379,7 +384,8 @@ Salvo que el curso diga otra cosa en su `LICENSE`, los cursos de MyOpenAcademy u
 
 La comprobación del kit (`formato_academia.py`) revisa que un curso cumple este formato **antes de instalarlo**. Cada error dice el fichero, la línea y qué falta (por ejemplo, «`fase-03-poo/04-polimorfismo.md:1165`: falta la solución del ejercicio 4»). Comprueba:
 
-- `curso.json`: campos, identificadores (forma, unicidad, que no desaparezca ninguno publicado sin equivalencia; para saberlo compara con la última versión etiquetada) y que cada fichero declarado existe y cada fichero de módulo está declarado.
+- `curso.json`: campos, identificadores (forma, unicidad, que no desaparezca ninguno publicado sin equivalencia; para saberlo compara con la última versión etiquetada) y que cada fichero declarado existe (salvo el previsto de un módulo o unos retos no disponibles) y cada fichero de módulo está declarado.
+- Títulos en texto plano: los del curso, las fases, los módulos, los ejercicios y los retos (apartado 3.2).
 - Cada módulo: título, cabecera, secciones en orden, ejercicios con sus títulos iguales a `curso.json`, solución de cada ejercicio, preguntas de repaso.
 - Retos, etapas, glosario y proyecto.
 - Enlaces del mismo curso y entre cursos (con sus anclas), imágenes, diagramas y HTML.
@@ -399,4 +405,6 @@ Para que los cursos no dependan unos de otros, algunas cosas son de la academia:
 
 - Se cambia **solo desde el proyecto del kit** (`Cursos/kit-cursos/`), nunca desde un curso ni desde la academia por su cuenta.
 - Cada cambio sube la versión del formato (el campo `formato`), se anota qué cursos hay que poner al día y la academia sigue sabiendo leer las versiones anteriores.
+- **Las versiones cuentan desde la primera publicación.** Hasta que se publique el primer curso, los ajustes se hacen dentro de la versión 1 y se anotan aquí:
+  - 8 de noviembre de 2026: un módulo con `"disponible": false` puede llevar su `fichero` previsto, y una fase sus `retos` previstos con `"retos_disponibles": false` (apartado 3.2); ficheros de verificación `debe-fallar.txt` y `separador.txt` (apartado 7); títulos del curso, las fases, los módulos, los ejercicios y los retos en texto plano (apartado 3.2). **A poner al día:** el curso de Java, al adaptarlo, tiene 88 títulos de ejercicio con formato (comillas invertidas o cursiva).
 - Si un curso necesita algo nuevo, primero se amplía la academia y este formato, y después lo usa el curso.

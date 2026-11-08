@@ -22,7 +22,8 @@ kit-cursos/
     ├── README.md
     ├── formato_academia.py   ← comprueba que un curso cumple FORMATO.md (la pieza central)
     ├── nucleo/               ← lo genérico: enlaces, Mermaid, índice y chuleta desde curso.json, argumentos…
-    └── lenguajes/            ← un ejecutor por lenguaje o formato (al principio, los formatos del curso inicial)
+    ├── servicios/            ← vacía hasta que la pida el curso de Java (bases de datos, contenedores, servidor Linux…)
+    └── lenguajes/            ← un ejecutor por lenguaje o formato, con prefijo formato_ los de formatos (formato_json.py…)
 ```
 
 ## 3. Tareas para el curso inicial (versión mínima)
@@ -30,7 +31,7 @@ kit-cursos/
 En este orden:
 
 1. **README del kit** y **plantillas** (apartado 2), con `curso.json` de ejemplo y el módulo tipo de `FORMATO.md`.
-2. **`formato_academia.py`**: todo lo del apartado 13 de `FORMATO.md` (`curso.json`, módulos, retos, glosario, proyecto, enlaces del mismo curso y entre cursos, imágenes, Mermaid, HTML, ficheros obligatorios), con errores y avisos, y el campo `transicion`. Con pruebas sobre cursos de ejemplo pequeños, buenos y malos.
+2. **`formato_academia.py`**: todo lo del apartado 13 de `FORMATO.md` (`curso.json`, módulos, retos, glosario, proyecto, enlaces del mismo curso y entre cursos, imágenes, Mermaid, HTML, ficheros obligatorios), con errores y avisos, y el campo `transicion`. Incluye que los títulos del curso, las fases, los módulos, los ejercicios y los retos sean texto plano (sin `` ` ``, `**`, `*`, `_`, enlaces ni HTML), en `curso.json` y en los encabezados. Con pruebas sobre cursos de ejemplo pequeños, buenos y malos.
 3. **Del núcleo de las herramientas de Java**, lo que necesita el curso inicial:
    - `comprobar_enlaces.py`, ampliado a los enlaces entre cursos (dirección de GitHub → carpeta hermana).
    - `comprobar_mermaid.py` (necesita Node y Chrome; su ruta, en variables de entorno).
@@ -41,8 +42,17 @@ En este orden:
 
 **Después** (cuando lo pida el curso de Java): separar `verificar_codigo.py` (unas 1.500 líneas) en núcleo y ejecutores (Java, SQL, Node, páginas, Compose, Linux, plataformas…), `generar_modulo.py`, y la prueba de fiabilidad contra el curso de Java original. Y una comprobación de **todos los cursos a la vez**, para detectar enlaces rotos cuando un curso renombra un fichero.
 
-## 4. Decisiones pendientes del autor
+## 4. Decisiones del autor
 
-1. Qué se verifica de los ejercicios del curso inicial (formatos, comandos de terminal, Git) y cómo.
-2. Si se acepta PyYAML como dependencia (hace falta para comprobar YAML de verdad).
-3. Cómo se llaman y se organizan las herramientas (mantener los nombres del curso de Java o renombrar).
+Resueltas el 8 de noviembre de 2026:
+
+1. **Qué se verifica de los ejercicios del curso inicial.** Solo los programas completos de `codigo/` (los fragmentos del texto no se verifican), y que el bloque del módulo sea idéntico a su fichero:
+   - **JSON** (`json`), **XML** (`xml.etree`, bien formado) y **CSV** (`csv`: se lee con su separador y todas las filas tienen las mismas columnas), con la biblioteca de Python. El separador va en un `separador.txt` en la carpeta; si no hay, coma.
+   - **YAML**, con PyYAML (decisión 2).
+   - **Markdown**: enlaces, anclas y Mermaid, con las herramientas del núcleo.
+   - **Lo que falla a propósito**: un `debe-fallar.txt` en su carpeta, y el kit comprueba que falla (misma idea que `termina-con-error.txt` y `no-validar.txt` del curso de Java). Ver `FORMATO.md`, apartado 7.
+   - **Terminal y Git**: sesiones con órdenes y su salida esperada, en bash y en una carpeta temporal (sin Docker). Se hacen cuando el curso diga sus ejercicios. En Git cambian los hashes y las fechas: hará falta algo como `salida-variable.txt` del curso de Java o fijar autor y fecha con variables de entorno (`GIT_AUTHOR_DATE`, `GIT_COMMITTER_DATE`…).
+2. **PyYAML, solo en el comprobador de YAML.** `formato_academia.py` y el resto de la parte mínima pública usan solo la biblioteca de Python. Si falta PyYAML, el comprobador lo dice y explica cómo instalarlo (`python3-yaml` o `pip install pyyaml`).
+3. **Nombres y organización.** Se mantienen los nombres del curso de Java (para compararlas en la prueba de fiabilidad y porque ya se conocen). `formato_academia.py` en `herramientas/`; el resto en `nucleo/`, `servicios/` (vacía de momento) y `lenguajes/`. Los comprobadores de formatos llevan el prefijo `formato_` para no chocar con los módulos de Python (`json`, `csv`…). Los cursos las ejecutan desde su raíz: `python3 ../kit-cursos/herramientas/nucleo/comprobar_enlaces.py`.
+
+Además: **los ajustes de `FORMATO.md` se hacen dentro de la versión 1** mientras no haya nada publicado (las versiones cuentan desde la primera publicación).
