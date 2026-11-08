@@ -20,12 +20,14 @@ Se trabaja a la vez que `../curso-inicial/`. **Lee su `ESTADO.md` (solo leer) al
 
 | El kit espera del curso inicial | Para | Estado |
 |---|---|---|
-| Qué ejercicios y retos de herramientas lleva (terminal, Git, Markdown, JSON, YAML, XML, CSV) y qué hay que comprobar de cada uno | Tarea 4 (comprobadores de formatos) y decisión 1 del apartado 4 de `PLAN.md` | Pendiente |
+| Qué ejercicios y retos de herramientas lleva (terminal, Git, Markdown, JSON, YAML, XML, CSV) y qué hay que comprobar de cada uno | Tarea 4 (comprobadores de formatos) y decisión 1 del apartado 4 de `PLAN.md` | **Hecho** (commit 7ee70c2 del curso, 8 de noviembre de 2026): su `ESTADO.md`, «Lista para el kit»; resumida en la tarea 4 de `PLAN.md` |
 | Su `curso.json` y la fase 1 escritos | Probar `formato_academia.py` con un curso real | `curso.json` **hecho** (commit 068fd7c del curso, 8 de noviembre de 2026): 8 fases y 31 módulos con su fichero previsto, todos con `"disponible": false`, y los retos con `"retos_disponibles": false`. Revisado a mano: encaja con `FORMATO.md`. Fase 1: pendiente |
 
 | El curso inicial espera del kit | Para | Estado |
 |---|---|---|
 | `formato_academia.py` | Comprobar y cerrar su fase 1 | Pendiente |
+| Verificar con salidas en español (`LC_ALL`), rama `main`, Git con autor y fechas fijos, servidor HTTP local y compatibilidad con bash 3.2 | Sus ejercicios y retos de las fases 2 a 8 | Anotado en la tarea 4 de `PLAN.md`; pendiente |
+| No avisar de la falta de retos en una fase que solo contiene el proyecto final (su aviso 3) | Su fase 8 | **Hecho** en `FORMATO.md`, apartado 6 (8 de noviembre de 2026, dentro de la versión 1) |
 | Plantillas (`curso.json`, módulo, retos) | Puede empezar sin ellas, siguiendo `FORMATO.md` | Pendiente |
 | Ajustes de `FORMATO.md` (sus avisos 1 y 2): fichero previsto de los módulos con `"disponible": false` y de los retos con `"retos_disponibles": false`; títulos en texto plano | Escribir su `curso.json` con los nombres cerrados | **Hecho** (8 de noviembre de 2026, dentro de la versión 1). El curso ya los aplicó (su commit 068fd7c) |
 
@@ -44,3 +46,4 @@ Lo que las sesiones de los cursos encuentren que no encaja con `FORMATO.md` o co
 
 - **Curso inicial, 8 de noviembre de 2026:** que un módulo con `"disponible": false` pueda llevar su fichero previsto en `curso.json`, y lo mismo el `retos` de una fase sin retos escritos. **Resuelto** el mismo día en `FORMATO.md`, apartado 3.2 (los retos, con `"retos_disponibles": false`).
 - **Curso inicial, 8 de noviembre de 2026:** títulos del curso, las fases, los módulos, los ejercicios y los retos en texto plano, en `curso.json` y en los encabezados, y que lo compruebe `formato_academia.py`. **Resuelto** el mismo día en `FORMATO.md`, apartados 3.2 y 13; la comprobación entra en la tarea 2.
+- **Curso inicial, 8 de noviembre de 2026:** que no se avise de la falta de retos en una fase que solo contiene el proyecto final (su aviso 3). **Resuelto** el mismo día en `FORMATO.md`, apartado 6.

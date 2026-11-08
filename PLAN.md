@@ -37,7 +37,12 @@ En este orden:
    - `comprobar_mermaid.py` (necesita Node y Chrome; su ruta, en variables de entorno).
    - `generar_indice.py` y `generar_chuleta_global.py`, que pasan a leer `curso.json` en vez de una lista dentro del script.
    - `argumentos.py`.
-4. **Comprobadores de los formatos del curso inicial** para sus ejemplos, ejercicios y retos: JSON, YAML, XML, CSV y Markdown; quizá comandos de terminal y Git (por decidir con el autor cuando se vea qué ejercicios lleva el curso).
+4. **Comprobadores de los formatos del curso inicial** para sus ejemplos, ejercicios y retos, según su lista (`../curso-inicial/ESTADO.md`, «Lista para el kit», aprobada el 8 de noviembre de 2026):
+   - JSON, YAML y XML (válidos, o que fallan con `debe-fallar.txt`; en las conversiones, que el JSON y el YAML cargan los mismos datos), CSV (con `separador.txt`, mismas columnas y número de filas esperado) y Markdown (enlaces, anclas, tablas bien formadas, bloques de código cerrados).
+   - bash: el script en una carpeta temporal; se comparan su salida y los ficheros y carpetas que deja. Compatibilidad con **bash 3.2** (el de macOS): ejecutarlos con un bash 3.2 o, al menos, detectar lo que no existe en él (arrays asociativos, `mapfile`, `${var,,}`, `|&`, `&>>`…).
+   - Git: comandos en un repositorio temporal; se comparan `git log`, `git status` y el contenido final. Autor, correo y fechas fijos (`GIT_AUTHOR_*`, `GIT_COMMITTER_*`) para que los hashes no cambien, y rama `main`.
+   - `curl`: contra un **servidor HTTP local pequeño del kit**, nunca contra internet, con sus partes variables.
+   - Condiciones comunes: **sin internet** y **salidas en español** (el kit fija `LC_ALL`, por ejemplo `es_ES.UTF-8`; la máquina necesita ese *locale* y las traducciones de Git).
 5. **`herramientas/README.md`** con cada herramienta, sus requisitos y ejemplos.
 
 **Después** (cuando lo pida el curso de Java): separar `verificar_codigo.py` (unas 1.500 líneas) en núcleo y ejecutores (Java, SQL, Node, páginas, Compose, Linux, plataformas…), `generar_modulo.py`, y la prueba de fiabilidad contra el curso de Java original. Y una comprobación de **todos los cursos a la vez**, para detectar enlaces rotos cuando un curso renombra un fichero.

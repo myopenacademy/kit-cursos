@@ -283,7 +283,7 @@ Enunciado…
 - Cada reto es `## Reto N · Título`, con el título en texto plano (apartado 3.2) y con pistas y solución como los ejercicios (apartado 5.4).
 - Su código va en `codigo/retos/reto-NN-nombre/` de la fase y se verifica como el resto.
 - No es un módulo: no tiene identificador ni aparece en `modulos`. La academia lo muestra al final de su fase como extra opcional.
-- Conviene que **cada fase tenga sus retos**; la comprobación avisa si faltan o si siguen con `"retos_disponibles": false`.
+- Conviene que **cada fase tenga sus retos**; la comprobación avisa si faltan o si siguen con `"retos_disponibles": false`. **Excepción:** una fase cuyo único módulo es el proyecto final (`"proyecto": {"tipo": "modulo"}`) no necesita retos, porque el proyecto ya lo es; si no los tiene, no se avisa.
 
 ## 7. El código
 
@@ -406,5 +406,5 @@ Para que los cursos no dependan unos de otros, algunas cosas son de la academia:
 - Se cambia **solo desde el proyecto del kit** (`Cursos/kit-cursos/`), nunca desde un curso ni desde la academia por su cuenta.
 - Cada cambio sube la versión del formato (el campo `formato`), se anota qué cursos hay que poner al día y la academia sigue sabiendo leer las versiones anteriores.
 - **Las versiones cuentan desde la primera publicación.** Hasta que se publique el primer curso, los ajustes se hacen dentro de la versión 1 y se anotan aquí:
-  - 8 de noviembre de 2026: un módulo con `"disponible": false` puede llevar su `fichero` previsto, y una fase sus `retos` previstos con `"retos_disponibles": false` (apartado 3.2); ficheros de verificación `debe-fallar.txt` y `separador.txt` (apartado 7); títulos del curso, las fases, los módulos, los ejercicios y los retos en texto plano (apartado 3.2). **A poner al día:** el curso de Java, al adaptarlo, tiene 88 títulos de ejercicio con formato (comillas invertidas o cursiva).
+  - 8 de noviembre de 2026: un módulo con `"disponible": false` puede llevar su `fichero` previsto, y una fase sus `retos` previstos con `"retos_disponibles": false` (apartado 3.2); ficheros de verificación `debe-fallar.txt` y `separador.txt` (apartado 7); títulos del curso, las fases, los módulos, los ejercicios y los retos en texto plano (apartado 3.2); una fase que solo contiene el proyecto final no necesita retos (apartado 6). **A poner al día:** el curso de Java, al adaptarlo, tiene 88 títulos de ejercicio con formato (comillas invertidas o cursiva).
 - Si un curso necesita algo nuevo, primero se amplía la academia y este formato, y después lo usa el curso.
