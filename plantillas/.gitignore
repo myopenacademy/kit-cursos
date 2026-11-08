@@ -1,0 +1,17 @@
+# Ficheros locales de cada máquina
+.env
+.env.*
+!.env.example
+
+# Pruebas sueltas que no se publican
+.verificacion/
+
+# Python (herramientas propias del curso, si las hay)
+__pycache__/
+*.pyc
+
+# Editores y sistema
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

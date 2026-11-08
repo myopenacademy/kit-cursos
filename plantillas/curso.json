@@ -1,0 +1,45 @@
+{
+  "formato": 1,
+  "tipo": "curso",
+  "id": "micurso",
+  "titulo": "[RELLENAR: título del curso, en texto plano]",
+  "descripcion": "[RELLENAR: una o dos frases para el catálogo de la academia]",
+  "version": "0.1.0",
+  "idioma": "es",
+  "repositorio": "https://github.com/myopenacademy/curso-micurso",
+  "conviene_saber_antes": ["inicial"],
+  "fases": [
+    {
+      "id": "micurso.fase.primeros-pasos",
+      "carpeta": "fase-01-primeros-pasos",
+      "titulo": "[RELLENAR: título de la fase]",
+      "retos": "fase-01-primeros-pasos/retos.md",
+      "retos_disponibles": false,
+      "modulos": [
+        {
+          "id": "micurso.primer-modulo",
+          "fichero": "fase-01-primeros-pasos/01-primer-modulo.md",
+          "titulo": "[RELLENAR: título del módulo, el mismo de su encabezado]",
+          "ejercicios": [
+            { "id": "micurso.primer-modulo.primer-ejercicio", "titulo": "[RELLENAR: título del ejercicio 1]" }
+          ]
+        },
+        {
+          "id": "micurso.segundo-modulo",
+          "fichero": "fase-01-primeros-pasos/02-segundo-modulo.md",
+          "titulo": "[RELLENAR: título de un módulo todavía sin escribir]",
+          "disponible": false,
+          "ejercicios": []
+        }
+      ]
+    }
+  ],
+  "proyecto": {
+    "tipo": "etapas",
+    "titulo": "[RELLENAR: nombre del proyecto para el portfolio]",
+    "etapas": [
+      { "id": "micurso.etapa.primera-version", "fichero": "proyecto/01-primera-version.md", "titulo": "[RELLENAR: título de la etapa]" }
+    ]
+  },
+  "equivalencias": []
+}

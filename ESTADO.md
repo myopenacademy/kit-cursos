@@ -4,7 +4,7 @@
 
 ## Dónde estamos
 
-**8 de noviembre de 2026:** repositorio creado desde la sesión de la raíz, con `CLAUDE.md`, `PLAN.md`, `ESTADO.md`, `README.md`, `.gitignore` y `FORMATO.md` (versión 1, aprobada en el paso 0 y movida aquí desde la raíz). Ninguna herramienta ni plantilla todavía.
+**8 de noviembre de 2026:** repositorio creado desde la sesión de la raíz, con `CLAUDE.md`, `PLAN.md`, `ESTADO.md`, `README.md`, `.gitignore` y `FORMATO.md` (versión 1, aprobada en el paso 0 y movida aquí desde la raíz). **Tarea 1 hecha:** `README.md` del kit (con el arranque de un curso paso a paso, probado en una carpeta temporal), `LICENSE` (MIT) y `plantillas/` (`curso.json`, `modulo.md`, `retos.md`, `README.md`, `LICENSE`, `CONTRIBUTING.md`, `CHANGELOG.md`, `.gitignore`, y los opcionales `CLAUDE.md`, `PLAN-CURSO.md` y `ESTADO.md`). Los huecos se marcan con `[RELLENAR: …]`. Ninguna herramienta todavía.
 
 Resueltas con el autor las tres decisiones del apartado 4 de `PLAN.md`, y ajustado `FORMATO.md` dentro de la versión 1: fichero previsto de los módulos y los retos no disponibles (lo pidió el curso inicial) ficheros de verificación `debe-fallar.txt` y `separador.txt`, y títulos en texto plano (el curso de Java tendrá que quitar el formato de 88 títulos de ejercicio al adaptarlo).
 
@@ -12,7 +12,9 @@ Resueltas con el autor las tres decisiones del apartado 4 de `PLAN.md`, y ajusta
 
 ## Siguiente paso
 
-Tarea 1 de `PLAN.md`: el README del kit y las plantillas.
+Tarea 2 de `PLAN.md`: `formato_academia.py`, con sus pruebas. Conviene que avise de los `[RELLENAR: …]` que queden en un curso. Para probarlo con un curso real, el `curso.json` del curso inicial (todo `"disponible": false`: el resultado esperado son solo avisos).
+
+**Datos de esta máquina para la tarea 4** (8 de noviembre de 2026): existe el *locale* `es_ES.UTF-8` y Git (2.53.0) responde en español con `LC_ALL=es_ES.UTF-8`; el bash es el 5.3.9, sin un bash 3.2 instalado (para eso, la imagen `bash:3.2` de Docker: tarea 4 de `PLAN.md`).
 
 ## Dependencias con el curso inicial
 
@@ -28,7 +30,7 @@ Se trabaja a la vez que `../curso-inicial/`. **Lee su `ESTADO.md` (solo leer) al
 | `formato_academia.py` | Comprobar y cerrar su fase 1 | Pendiente |
 | Verificar con salidas en español (`LC_ALL`), rama `main`, Git con autor y fechas fijos, servidor HTTP local y compatibilidad con bash 3.2 | Sus ejercicios y retos de las fases 2 a 8 | Anotado en la tarea 4 de `PLAN.md`; pendiente |
 | No avisar de la falta de retos en una fase que solo contiene el proyecto final (su aviso 3) | Su fase 8 | **Hecho** en `FORMATO.md`, apartado 6 (8 de noviembre de 2026, dentro de la versión 1) |
-| Plantillas (`curso.json`, módulo, retos) | Puede empezar sin ellas, siguiendo `FORMATO.md` | Pendiente |
+| Plantillas (`curso.json`, módulo, retos) | Puede empezar sin ellas, siguiendo `FORMATO.md` | **Hecho** (8 de noviembre de 2026): `plantillas/` |
 | Ajustes de `FORMATO.md` (sus avisos 1 y 2): fichero previsto de los módulos con `"disponible": false` y de los retos con `"retos_disponibles": false`; títulos en texto plano | Escribir su `curso.json` con los nombres cerrados | **Hecho** (8 de noviembre de 2026, dentro de la versión 1). El curso ya los aplicó (su commit 068fd7c) |
 
 Si algo bloquea, dilo al autor: él pasa la información de una sesión a otra.
@@ -39,6 +41,8 @@ Si algo bloquea, dilo al autor: él pasa la información de una sesión a otra.
 |---|---|
 | 2026-11-08 | Repositorio creado; `FORMATO.md` versión 1 movido desde la raíz. |
 | 2026-11-08 | Decisiones 1 a 3 del apartado 4 de `PLAN.md`. Ajustes de `FORMATO.md` dentro de la versión 1 (apartados 3.2, 7, 13 y 15). |
+| 2026-11-08 | Aviso 3 del curso inicial en `FORMATO.md` (fase del proyecto final sin retos) y su lista de comprobaciones en la tarea 4 de `PLAN.md`. |
+| 2026-11-08 | Tarea 1: README del kit, `LICENSE` (MIT, «Santiago (santi-cast)», elegido por el autor) y plantillas. |
 
 ## Avisos de los cursos
 
