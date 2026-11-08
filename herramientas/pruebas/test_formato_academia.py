@@ -22,6 +22,8 @@ import formato_academia  # noqa: E402
 import generar_indice  # noqa: E402
 
 BUENO = PRUEBAS / "cursos" / "bueno"
+DESTINO = PRUEBAS / "cursos" / "ejemplo-destino"
+ENLACE_DESTINO = "https://github.com/myopenacademy/ejemplo-destino/blob/main/"
 MODULO = "fase-01-primeros-pasos/01-ficheros-json.md"
 RETOS = "fase-01-primeros-pasos/retos.md"
 
@@ -31,6 +33,7 @@ class Base(unittest.TestCase):
         self.tmp = Path(tempfile.mkdtemp(prefix="formato-academia-"))
         self.raiz = self.tmp / "curso-ejemplo"
         shutil.copytree(BUENO, self.raiz)
+        shutil.copytree(DESTINO, self.tmp / "ejemplo-destino")     # el otro curso, en su carpeta hermana
 
     def tearDown(self):
         shutil.rmtree(self.tmp)
@@ -90,7 +93,7 @@ class CursoBueno(Base):
 
     def test_solo_los_avisos_esperados(self):
         self.comprobar()
-        self.assertEqual(len(self.avisos), 4, self.avisos)
+        self.assertEqual(len(self.avisos), 2, self.avisos)
         self.assertTrue(all("no he podido revisar" in a or "módulo pendiente" in a for a in self.avisos), self.avisos)
 
 
@@ -337,7 +340,7 @@ class Modulo(Base):
         self.assertError(MODULO + ":4:", "ahora se llama «Conviene saber antes»")
 
     def test_conviene_saber_antes_sin_enlaces(self):
-        self.cambiar(MODULO, "> **Conviene saber antes:** [Markdown]", "> **Conviene saber antes:** saber algo de [Markdown]")
+        self.cambiar(MODULO, "> **Conviene saber antes:** [Mi primer", "> **Conviene saber antes:** saber algo de [Mi primer")
         self.assertError(MODULO, "«Nada» o enlaces a módulos")
 
     def test_falta_una_seccion(self):
@@ -451,34 +454,34 @@ class Enlaces(Base):
         self.cambiar(MODULO, "](../00-indice.md)", "](../../curso-inicial/README.md)")
         self.assertError(MODULO, "sale del curso")
 
-    def preparar_hermano(self):
-        hermano = self.tmp / "curso-inicial"
-        (hermano / "fase-01-que-es-programar").mkdir(parents=True)
-        (hermano / "README.md").write_text("# Fundamentos\n\n## Qué es\n", encoding="utf-8")
-        (hermano / "curso.json").write_text(json.dumps({"id": "inicial", "fases": [{"modulos": [
-            {"fichero": "fase-01-que-es-programar/02-algoritmos.md", "disponible": False}]}]}), encoding="utf-8")
-
-    def test_enlace_a_otro_curso_bueno(self):
-        self.preparar_hermano()
-        self.cambiar(MODULO, "curso-inicial/blob/main/README.md", "curso-inicial/blob/main/README.md#qué-es")
+    def test_enlaces_a_otro_curso_buenos(self):
+        # un módulo con ancla y un término del glosario de ejemplo-destino, en su carpeta hermana
         self.assertSinErrores()
-        self.assertFalse(self.hay(self.avisos, "curso-inicial"), self.avisos)
+        self.assertFalse(self.hay(self.avisos, "ejemplo-destino"), self.avisos)
 
     def test_enlace_a_otro_curso_con_ancla_rota(self):
-        self.preparar_hermano()
-        self.cambiar(MODULO, "curso-inicial/blob/main/README.md", "curso-inicial/blob/main/README.md#no-existe")
-        self.assertError(MODULO, "no existe la sección #no-existe en README.md de ../curso-inicial/")
+        self.cambiar(MODULO, "#11-qué-es-un-repositorio", "#no-existe")
+        self.assertError(MODULO, "no existe la sección #no-existe", "de ../ejemplo-destino/")
+
+    def test_enlace_a_un_termino_del_glosario_que_no_existe(self):
+        self.cambiar(MODULO, "glosario.md#repositorio", "glosario.md#rapositorio")
+        self.assertError(MODULO, "no existe la sección #rapositorio en glosario.md de ../ejemplo-destino/")
 
     def test_enlace_a_un_modulo_pendiente_de_otro_curso(self):
-        self.preparar_hermano()
-        self.cambiar(MODULO, "curso-inicial/blob/main/README.md", "curso-inicial/blob/main/fase-01-que-es-programar/02-algoritmos.md")
-        self.assertAviso(MODULO, "módulo pendiente", "de ../curso-inicial/")
+        destino = self.tmp / "ejemplo-destino" / "curso.json"
+        d = json.loads(destino.read_text(encoding="utf-8"))
+        d["fases"][0]["modulos"].append({"id": "ejemplo-destino.ramas", "fichero": "fase-01-tu-primer-proyecto/02-ramas.md",
+                                         "titulo": "Ramas", "disponible": False, "ejercicios": []})
+        destino.write_text(json.dumps(d), encoding="utf-8")
+        self.cambiar(MODULO, "01-mi-primer-repositorio.md#11-qué-es-un-repositorio", "02-ramas.md")
+        self.assertAviso(MODULO, "módulo pendiente", "de ../ejemplo-destino/")
 
     def test_enlace_a_otro_curso_sin_la_carpeta_hermana_es_aviso(self):
-        self.assertAviso(MODULO, "no he podido revisar", "../curso-inicial/")
+        shutil.rmtree(self.tmp / "ejemplo-destino")
+        self.assertAviso(MODULO, "no he podido revisar", "../ejemplo-destino/")
 
     def test_enlace_a_otro_curso_en_otra_rama(self):
-        self.cambiar(MODULO, "curso-inicial/blob/main/", "curso-inicial/blob/dev/")
+        self.cambiar(MODULO, ENLACE_DESTINO, ENLACE_DESTINO.replace("/main/", "/dev/"))
         self.assertError(MODULO, "debe apuntar a la rama main")
 
 
@@ -567,9 +570,19 @@ class Html(Base):
 
 
 class Glosario(Base):
-    def test_glosario_fuera_del_curso_inicial_es_aviso(self):
-        self.escribir("glosario.md", "# Glosario\n")
-        self.assertAviso("glosario.md", "solo está en el curso inicial")
+    def test_cualquier_curso_puede_tener_su_glosario(self):
+        self.escribir("glosario.md", "# Glosario\n\n## J\n\n### JSON\n\nUn formato de datos.\n")
+        self.assertSinErrores()
+        self.assertFalse(self.hay(self.avisos, "glosario.md"), self.avisos)
+
+    def test_el_glosario_propio_tambien_se_comprueba(self):
+        self.escribir("glosario.md", "# Glosario\n\n## J\n\n### JSON\n\n### JSON\n")
+        self.assertError("glosario.md", "el término «JSON» está repetido")
+
+    def test_al_curso_inicial_no_le_puede_faltar(self):
+        d = self.json(); d["id"] = "inicial"
+        (self.raiz / "curso.json").write_text(json.dumps(d).replace('"ejemplo.', '"inicial.'), encoding="utf-8")
+        self.assertAviso("glosario.md", "el curso inicial tiene el glosario común")
 
     def test_glosario_desordenado(self):
         d = self.json(); d["id"] = "inicial"

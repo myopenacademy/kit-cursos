@@ -88,13 +88,16 @@ Si algo bloquea, dilo al autor: él pasa la información de una sesión a otra.
 | 2026-11-09 | Terminal del kit: `language-pack-es-base` 1:26.04+20260818 (bash, coreutils, grep, sed y tar en español) y el reloj de Git en `/usr/bin/git`, con el de verdad fuera del `PATH` (pedidos por el curso inicial al escribir su 02.03). Git compilado como el paquete de Ubuntu (`prefix=/usr`, `gitexecdir=/usr/lib/git-core`; nada en `/usr/local`), a propuesta del autor. La imagen guarda la lista de lo instalado con sus versiones (`verificar_codigo.py --versiones`); los paquetes de Ubuntu que no se fijan (`file`, `tree`, `curl`…), sin fijar hasta que den un problema real (decisión del autor). |
 | 2026-11-09 | Tarea 5: `herramientas/README.md` revisado entero (por dónde empezar, qué hay en cada carpeta, lo común a todas, sin repeticiones ni datos desfasados). `nucleo/reemplazar.py`, incorporado desde el curso inicial (con `--raiz`, `--comprobar`, saltos de línea de Windows y vuelta atrás si una escritura falla), con sus pruebas. |
 
+## Cursos de ejemplo para la academia
+
+**9 de noviembre de 2026:** la academia usa los cursos de ejemplo del kit (`herramientas/pruebas/cursos/bueno/` y `ejemplo-destino/`) como sus únicos cursos de ejemplo, con una copia sacada de un commit fijo del kit. **Si se cambian, hay que avisar a la academia del commit.** Hecho a petición suya: `FORMATO.md` 14 (los cursos de ejemplo viven en el kit), `ejemplo-destino` (id y repositorio propios, para no chocar con el curso inicial real: decisión del autor; un módulo que es su proyecto de tipo `"modulo"` y su glosario), y en `bueno` un enlace a un módulo de `ejemplo-destino` con ancla, otro a un término de su glosario y el «Siguiente» del último módulo a `retos.md`. Además, `FORMATO.md` 9 (aprobado por el autor): cualquier curso puede tener su propio glosario; el común sigue siendo el del curso inicial.
+
 ## Prueba de importación en la academia
 
 **9 de noviembre de 2026:** la academia ha importado la fase 1 del curso inicial (commit c2bfba8 de su repositorio). **`FORMATO.md` no cambia**: todo lo que no encajó es de la academia y lo arreglará su importador nuevo. Los identificadores con punto (`inicial.que-es-programar`) se aceptan tal cual, así que el apartado 3.3 se queda como está. Los cursos se instalan con una ruta relativa (`../Cursos/curso-inicial`), como dice el plan común.
 
 ## Para más adelante
 
-- **Curso de ejemplo para la academia:** la academia necesitará uno pequeño para sus pruebas y su demo (`../../PLAN.md`, apartado 8.5). El curso «bueno» de las pruebas del kit (`herramientas/pruebas/cursos/bueno/`) puede servir de base; se verá si la sesión de la academia lo pide (nota del autor, 9 de noviembre de 2026).
 - **Prueba de fiabilidad con el curso de Java:** cuando se adapte ese curso, después del pack base 1.0 (decisión del autor).
 
 ## Avisos de los cursos

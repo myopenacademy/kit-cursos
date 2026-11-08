@@ -732,7 +732,7 @@ class Curso:
             else:
                 self.informe.aviso("glosario.md", 0, "falta: el curso inicial tiene el glosario común (FORMATO.md, apartado 9)")
         elif glosario.is_file():
-            self.informe.aviso("glosario.md", 0, "el glosario común solo está en el curso inicial: aquí, enlaza a sus términos")
+            self.comprobar_glosario()          # el glosario propio del curso (FORMATO.md, apartado 9)
         declaradas = {f.get("carpeta") for f in self.fases}
         for carpeta in sorted(p for p in self.raiz.glob("fase-*") if p.is_dir()):
             if carpeta.name not in declaradas:
