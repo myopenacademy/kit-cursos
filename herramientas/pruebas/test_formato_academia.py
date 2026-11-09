@@ -783,6 +783,21 @@ class ComoUnClon(ConGit):
         self.publicar()
         self.assertEqual(self.avisos_de(self.PUNTO), [])
 
+    def test_en_una_serie_vale_el_chmod_de_otra_sesion(self):
+        self.script_y_sesion("ls\n")
+        self.escribir(f"{self.CARPETA}/sesion-1.txt", "chmod +x hola.sh\n")
+        self.escribir(f"{self.CARPETA}/sesion-2.txt", "./hola.sh\n")
+        self.publicar()
+        self.assertEqual(self.avisos_de(self.PUNTO), [])
+
+    def test_el_chmod_de_una_serie_no_vale_para_una_sesion_suelta(self):
+        self.script_y_sesion("./hola.sh\n")
+        self.escribir(f"{self.CARPETA}/sesion-1.txt", "chmod +x hola.sh\n")
+        self.publicar()
+        avisos = self.avisos_de(self.PUNTO)
+        self.assertEqual(len(avisos), 1, avisos)
+        self.assertTrue(avisos[0].startswith(f"{self.CARPETA}/sesion.txt:1: "))
+
     def test_con_bash_no_hace_falta_el_permiso(self):
         self.script_y_sesion("bash hola.sh\nbash ./hola.sh\n")
         self.publicar()

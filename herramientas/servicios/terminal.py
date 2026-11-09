@@ -25,6 +25,11 @@ FINAL, interpretada como lo haría una terminal (retornos de carro, borrados, co
 (GIT_PAGER y PAGER son «cat»): con una salida que no cabe en la pantalla, «git log» o «man» se quedarían esperando
 una tecla; con una que cabe, se ve igual. Sale de las sesiones
 «En tu terminal» del curso de Java (servidor_linux.py y bases_de_datos.py).
+LAS SESIONES ENCADENADAS (sesiones()): varias sesiones, una detrás de otra, en el MISMO contenedor (o la misma
+carpeta temporal), como las hace el alumno: los ficheros y el reloj de Git siguen de una a la siguiente. Cada
+sesión arranca en una bash NUEVA en la carpeta personal, sin la carpeta actual ni las variables de la anterior
+(el alumno puede cerrar la terminal entre una y otra: una sesión que depende de un cd anterior tiene que hacerlo
+ella). Devuelve la pantalla de cada una por separado.
 """
 import fcntl
 import hashlib
@@ -177,9 +182,12 @@ def ordenes_de(texto):
     return ordenes
 
 
-def _teclear(orden_de_la_shell, ordenes, **opciones):
-    """Teclea las órdenes en una bash con terminal y devuelve la pantalla, desde la primera orden hasta el último
-    indicador (sin él). Sale de servidor_linux._teclear del curso de Java."""
+def _teclear(orden_de_la_shell, tramos, **opciones):
+    """Teclea los tramos de órdenes, uno detrás de otro, en UNA bash con terminal y devuelve la pantalla de cada
+    tramo: desde su primera orden hasta el indicador que la sigue (sin él). Hoy se usa siempre con un tramo (una
+    sesión por bash); varios tramos en la misma bash quedan para cuando un curso lo necesite de forma explícita.
+    Si una orden no termina, la ErrorDeTerminal lleva `tramo` (el que falla, desde 0) y `pantallas` (las de los
+    anteriores). Sale de servidor_linux._teclear del curso de Java."""
     maestro, esclavo = os.openpty()
     fcntl.ioctl(esclavo, termios.TIOCSWINSZ, struct.pack("HHHH", 50, ANCHO, 0, 0))
     proceso = subprocess.Popen(orden_de_la_shell, stdin=esclavo, stdout=esclavo, stderr=esclavo,
@@ -208,25 +216,52 @@ def _teclear(orden_de_la_shell, ordenes, **opciones):
         raise ErrorDeTerminal(f"la orden «{orden}» no termina:\n"
                               + "\n".join(pantalla(bruto.decode("utf-8", "replace"))[-30:]))
 
+    def cortar(final, cortes):
+        """Las pantallas de los tramos: de cada corte al siguiente (cada corte es la línea de un indicador)."""
+        return ["\n".join(final[a:b]) + "\n" for a, b in zip(cortes, cortes[1:])]
+
+    cortes = []
     try:
         lineas = esperar_indicador(0, 30, "(arrancar bash)")
-        inicio = lineas - 1
-        for orden, ctrl_c in ordenes:
-            os.write(maestro, (orden + "\r").encode("utf-8"))
-            if ctrl_c is not None:
-                limite = time.time() + ctrl_c
-                while time.time() < limite:
-                    leer(0.05)
-                os.write(maestro, b"\x03")
-            lineas = esperar_indicador(lineas, ESPERA_ORDEN, orden, orden.rstrip().endswith("\\"))
+        cortes.append(lineas - 1)
+        for n, ordenes in enumerate(tramos):
+            try:
+                for orden, ctrl_c in ordenes:
+                    os.write(maestro, (orden + "\r").encode("utf-8"))
+                    if ctrl_c is not None:
+                        limite = time.time() + ctrl_c
+                        while time.time() < limite:
+                            leer(0.05)
+                        os.write(maestro, b"\x03")
+                    lineas = esperar_indicador(lineas, ESPERA_ORDEN, orden, orden.rstrip().endswith("\\"))
+            except ErrorDeTerminal as e:
+                e.tramo, e.pantallas = n, cortar(pantalla(bruto.decode("utf-8", "replace")), cortes)
+                raise
+            cortes.append(lineas - 1)
     finally:
         proceso.kill()
         proceso.wait()
         os.close(maestro)
-    final = pantalla(bruto.decode("utf-8", "replace"))[inicio:]
-    if final and INDICADOR.fullmatch(final[-1]):
-        final.pop()
-    return "\n".join(final) + "\n"
+    final = pantalla(bruto.decode("utf-8", "replace"))
+    pantallas = cortar(final, cortes[:-1])
+    # El último tramo, hasta el final (lo que se escriba tras el último indicador también se ve), sin el indicador
+    ultimo = final[cortes[-2]:] if len(cortes) > 1 else []
+    if ultimo and INDICADOR.fullmatch(ultimo[-1]):
+        ultimo.pop()
+    return pantallas + ["\n".join(ultimo) + "\n"] if tramos else []
+
+
+def _en_orden(teclear, tramos):
+    """Teclea cada tramo con teclear(tramo), en orden. Si uno falla, la ErrorDeTerminal lleva `tramo` (el que falla,
+    desde 0) y `pantallas` (las de los anteriores)."""
+    pantallas = []
+    for n, tramo in enumerate(tramos):
+        try:
+            pantallas.append(teclear(tramo))
+        except ErrorDeTerminal as e:
+            e.tramo, e.pantallas = n, pantallas
+            raise
+    return pantallas
 
 
 # Los permisos de los ficheros copiados, como los que da Git en una máquina con umask 022 (la más común): Git solo
@@ -288,9 +323,14 @@ class Contenedor:
         return r.returncode, r.stdout.decode("utf-8", "replace"), r.stderr.decode("utf-8", "replace")
 
     def sesion(self, ordenes):
-        return _teclear(["docker", "exec", "-it", "-w", CASA, "-e", "TERM=xterm-256color", "-e", "PS1=$ ",
-                         "-e", "PS2=> ", "-e", "GIT_PAGER=cat", "-e", "PAGER=cat", *ENTORNO_PERSONA, self.nombre,
-                         "bash", "--noprofile", "--norc", "-i"], ordenes)
+        return self.sesiones([ordenes])[0]
+
+    def sesiones(self, tramos):
+        """Varias sesiones encadenadas en este contenedor, cada una en una bash nueva: la pantalla de cada una."""
+        return _en_orden(lambda tramo: _teclear(
+            ["docker", "exec", "-it", "-w", CASA, "-e", "TERM=xterm-256color", "-e", "PS1=$ ", "-e", "PS2=> ",
+             "-e", "GIT_PAGER=cat", "-e", "PAGER=cat", *ENTORNO_PERSONA, self.nombre,
+             "bash", "--noprofile", "--norc", "-i"], [tramo])[0], tramos)
 
 
 class Local:
@@ -336,7 +376,12 @@ class Local:
         return r.returncode, r.stdout.decode("utf-8", "replace"), r.stderr.decode("utf-8", "replace")
 
     def sesion(self, ordenes):
-        return _teclear(["bash", "--noprofile", "--norc", "-i"], ordenes, cwd=self.casa, env=self.entorno)
+        return self.sesiones([ordenes])[0]
+
+    def sesiones(self, tramos):
+        """Varias sesiones encadenadas en esta carpeta, cada una en una bash nueva: la pantalla de cada una."""
+        return _en_orden(lambda tramo: _teclear(["bash", "--noprofile", "--norc", "-i"], [tramo], cwd=self.casa,
+                                                env=self.entorno)[0], tramos)
 
 
 def terminal(carpeta, excluir=(), con_docker=None):

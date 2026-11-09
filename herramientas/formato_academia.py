@@ -1161,8 +1161,16 @@ class Curso:
     def comprobar_lanzados_con_punto(self, presentes, modos):
         """Un script que una sesión lanza con ./ necesita el permiso de ejecución, y en un clon solo lo tiene si Git
         lo guarda así. Si la sesión hace un chmod de ese fichero (antes o después), es lo que enseña: no avisa.
-        Devuelve los scripts de los que ha avisado."""
+        En las sesiones encadenadas (sesion-1.txt, sesion-2.txt…), vale el chmod de cualquiera de la cadena: se
+        teclean en la misma terminal. Devuelve los scripts de los que ha avisado."""
         avisados = set()
+
+        def texto(rel):
+            try:
+                return (self.raiz / rel).read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                return ""
+
         for sesion in (rel for rel in presentes if re.fullmatch(r"sesion(-[\w-]+)?\.txt", Path(rel).name)):
             carpeta = Path(sesion).parent
             try:
@@ -1176,7 +1184,9 @@ class Curso:
                     rel = (carpeta / nombre).as_posix()
                     if rel not in presentes or self.ejecutable(rel, modos):
                         continue                                    # lo crea la sesión, o ya es ejecutable
-                    if re.search(r"\bchmod\b[^\n]*" + re.escape(Path(nombre).name), "\n".join(lineas)):
+                    cadena = [r for r in presentes if Path(r).parent == carpeta and re.fullmatch(r"sesion-\d+\.txt", Path(r).name)]
+                    tratado = "\n".join(lineas if sesion not in cadena else [texto(r) for r in cadena])
+                    if re.search(r"\bchmod\b[^\n]*" + re.escape(Path(nombre).name), tratado):
                         continue                    # la sesión trata sus permisos (p. ej., enseña «Permiso denegado»)
                     avisados.add(rel)
                     self.informe.aviso(sesion, n,

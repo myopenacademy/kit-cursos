@@ -19,7 +19,13 @@ Para cada bloque de código de un módulo seguido de una línea «📁 **Código
      las de GNU); eso lo avisa el texto de cada módulo.
 Para cada bloque «**En tu terminal** (`sesion.txt`):» con su bloque ```text y su enlace «📁 **Código:**»: se
 teclean las órdenes de ese sesion.txt de la carpeta en una bash con terminal (indicador «$ »), en una carpeta
-personal con los demás ficheros de la carpeta, y la pantalla debe ser la del bloque.
+personal con los demás ficheros de la carpeta (menos los sesion*.txt y salida-variable.txt), y la pantalla debe
+ser la del bloque.
+Las SESIONES ENCADENADAS (sesion-1.txt, sesion-2.txt… de una misma carpeta) se teclean una detrás de otra en la
+misma terminal, como las hace el alumno: cada una encuentra los ficheros y el reloj de Git como los dejó la
+anterior, pero arranca en una bash nueva en la carpeta del ejemplo (sin el cd ni las variables de la anterior: el
+alumno puede cerrar la terminal entre una y otra). Cada bloque se compara con la pantalla de la suya. Las demás
+sesiones (sesion.txt, sesion-<nombre>.txt) empiezan cada una desde cero, con los ficheros de la carpeta.
 Los ficheros de datos de cada carpeta enlazada (.json, .yaml/.yml, .xml, .csv y .md) tienen que ser válidos
 (lenguajes/formato_*.py: JSON y YAML que se leen, XML bien formado, CSV con su separador.txt y las mismas
 columnas en cada fila, Markdown con enlaces, anclas y tablas bien escritos y los bloques cerrados). Si la carpeta
@@ -84,6 +90,7 @@ FORMATOS = [formato_json, formato_yaml, formato_xml, formato_csv, formato_markdo
 ENLACE_CODIGO = re.compile(r"^📁 \*\*Código:\*\* \[[^\]]*\]\(([^)\s]+)\)")
 SESION = re.compile(r"^\*\*En tu terminal\*\* \(`([^`]+)`\):\s*$")
 SALIDA, SALIDA_DE_ERROR = "**Salida:**", "**Salida de error:**"
+ENCADENADA = re.compile(r"sesion-(\d+)\.txt")
 DE_VERIFICACION = {"entrada.txt", "args.txt", "termina-con-error.txt", "debe-fallar.txt", "separador.txt",
                    "salida-variable.txt"}
 
@@ -131,6 +138,8 @@ class Verificador:
         self.mostrados = set()          # ficheros que un bloque muestra
         self.cuentas = {"bloques": 0, "scripts": 0, "sesiones": 0, "datos": 0}
         self.compatibilidad_revisada = set()
+        self.cadenas = {}               # carpeta → {nombre: pantalla, o el error con el que no se ha podido teclear}
+        self.sesiones_mostradas = set() # sesiones encadenadas que muestra algún bloque
 
     def rel(self, ruta):
         try:
@@ -287,15 +296,63 @@ class Verificador:
         for f in carpeta.glob("*.sh"):
             self.compatibilidad_3_2(f)
             self.mostrados.add(f.resolve())          # en una sesión, los scripts se ven al ejecutarlos
-        try:
-            ordenes = terminal.ordenes_de(fichero.read_text(encoding="utf-8"))
-            excluir = {nombre, "salida-variable.txt"}
-            with terminal.terminal(carpeta, excluir, con_docker=self.con_docker) as t:
-                real = t.sesion(ordenes)
-        except terminal.ErrorDeTerminal as e:
-            self.informe.error(md.rel, linea + 1, f"la sesión {nombre}: {e}")
-            return
+        if ENCADENADA.fullmatch(nombre):
+            self.sesiones_mostradas.add(fichero.resolve())
+            if carpeta not in self.cadenas:
+                self.cadenas[carpeta] = self.teclear_cadena(carpeta)
+            real = self.cadenas[carpeta][nombre]
+            if isinstance(real, Exception):
+                self.informe.error(md.rel, linea + 1, f"la sesión {nombre}: {real}")
+                return
+        else:
+            try:
+                ordenes = terminal.ordenes_de(fichero.read_text(encoding="utf-8"))
+                with terminal.terminal(carpeta, self.no_se_copian(carpeta), con_docker=self.con_docker) as t:
+                    real = t.sesion(ordenes)
+            except terminal.ErrorDeTerminal as e:
+                self.informe.error(md.rel, linea + 1, f"la sesión {nombre}: {e}")
+                return
         self.comparar(md, linea, esperado, real, carpeta, f"la pantalla de {nombre}")
+
+    @staticmethod
+    def no_se_copian(carpeta):
+        """Lo que no se copia a la terminal de una sesión: las órdenes de todas las sesiones de la carpeta y
+        salida-variable.txt (son para el kit; un «ls» no los enseña)."""
+        return {f.name for f in carpeta.iterdir() if re.fullmatch(r"sesion(-[\w-]+)?\.txt", f.name)} | {"salida-variable.txt"}
+
+    def teclear_cadena(self, carpeta):
+        """Las sesiones encadenadas de la carpeta (sesion-1.txt, sesion-2.txt…), tecleadas en orden en la misma
+        terminal, cada una en una bash nueva, como las hace el alumno. Devuelve {nombre: pantalla, o el error}."""
+        numeros = sorted((int(m.group(1)), f.name) for f in carpeta.iterdir()
+                         if f.is_file() and (m := ENCADENADA.fullmatch(f.name)))
+        nombres = [n for _, n in numeros]
+        esperados = [f"sesion-{i}.txt" for i in range(1, len(nombres) + 1)]
+        if nombres != esperados:
+            problema = terminal.ErrorDeTerminal(
+                f"las sesiones encadenadas de {self.rel(carpeta)}/ tienen que ir de sesion-1.txt en adelante, sin "
+                f"saltos ni ceros delante (hay {', '.join(nombres)})")
+            return {n: problema for n in nombres}
+        resultado = {}
+        try:
+            tramos = [terminal.ordenes_de((carpeta / n).read_text(encoding="utf-8")) for n in nombres]
+        except terminal.ErrorDeTerminal as e:
+            return {n: e for n in nombres}
+        try:
+            with terminal.terminal(carpeta, self.no_se_copian(carpeta), con_docker=self.con_docker) as t:
+                pantallas = t.sesiones(tramos)
+        except terminal.ErrorDeTerminal as e:
+            fallo = getattr(e, "tramo", None)
+            pantallas = getattr(e, "pantallas", [])
+            for i, n in enumerate(nombres):
+                if fallo is None or i == fallo:
+                    resultado[n] = e
+                elif i > fallo:
+                    resultado[n] = terminal.ErrorDeTerminal(
+                        f"no se ha podido teclear: va encadenada detrás de {nombres[fallo]}, que falla")
+                else:
+                    resultado[n] = pantallas[i]
+            return resultado
+        return dict(zip(nombres, pantallas))
 
     # -- lo que no está enlazado o no llegaría a un clon -----------------------------------------------------
 
@@ -312,6 +369,10 @@ class Verificador:
                     if hoja.resolve() not in self.enlazadas:
                         self.informe.aviso(self.rel(hoja) + "/", 0, "carpeta de código que ningún módulo enlaza")
         for carpeta in sorted(self.enlazadas):
+            for sesion in sorted(carpeta.iterdir()):
+                if ENCADENADA.fullmatch(sesion.name) and sesion.resolve() not in self.sesiones_mostradas:
+                    self.informe.aviso(self.rel(sesion), 0, "sesión encadenada que ningún bloque muestra: se teclea "
+                                                           "igual, en su orden, pero el alumno no la ve")
             for script in sorted(carpeta.rglob("*.sh")):
                 if script.resolve() not in self.mostrados:
                     self.informe.aviso(self.rel(script), 0, "script que ningún bloque del módulo muestra")

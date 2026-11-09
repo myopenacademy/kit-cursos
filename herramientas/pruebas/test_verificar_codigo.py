@@ -192,6 +192,122 @@ class SinDocker(Base):
         self.assertIn("Uno 10:00", pantalla)
 
 
+class Encadenadas(Base):
+    """Las sesiones encadenadas (sesion-1.txt, sesion-2.txt…): en orden, en la misma terminal, cada una en una bash
+    nueva. Sin Docker (ConDockerEncadenadas repite las mismas pruebas con Docker)."""
+    sin_docker = True
+    CARPETA = f"{EJEMPLOS}/2.4-copias"
+    ENLACE = "📁 **Código:** [`codigo/01-ficheros-json/ejemplos/2.4-copias/`](codigo/01-ficheros-json/ejemplos/2.4-copias/)"
+    SERIE = [("mkdir copias\ncp notas.txt copias/\n", "$ mkdir copias\n$ cp notas.txt copias/\n"),
+             ("ls\nls copias\n", "$ ls\ncopias  notas.txt\n$ ls copias\nnotas.txt\n"),
+             ("rm -r copias\nls\n", "$ rm -r copias\n$ ls\nnotas.txt\n")]
+
+    def serie(self, sesiones, bloques=None):
+        """Escribe la carpeta con sus sesiones [(órdenes, pantalla)] y un bloque por sesión al final del módulo
+        (solo las de `bloques`, si se dice)."""
+        carpeta = self.raiz / self.CARPETA
+        carpeta.mkdir()
+        (carpeta / "notas.txt").write_text("comprar pan\n", encoding="utf-8")
+        texto = ""
+        for n, (ordenes, pantalla) in enumerate(sesiones, 1):
+            (carpeta / f"sesion-{n}.txt").write_text(ordenes, encoding="utf-8")
+            if bloques is None or n in bloques:
+                texto += f"\n**En tu terminal** (`sesion-{n}.txt`):\n\n```text\n{pantalla}```\n\n{self.ENLACE}\n"
+        with open(self.raiz / MODULO, "a", encoding="utf-8") as f:
+            f.write(texto)
+
+    def verificar_dentro(self):
+        """verificar_codigo.verificar en este proceso (para poder acortar la espera de una orden que no termina)."""
+        import contextlib, io, os
+        salida, antes = io.StringIO(), os.getcwd()
+        os.chdir(self.raiz)
+        try:
+            with contextlib.redirect_stdout(salida), contextlib.redirect_stderr(salida):
+                try:
+                    verificar_codigo.verificar(Path("."), [], {"--sin-docker"} if self.sin_docker else set())
+                    codigo = 0
+                except SystemExit as e:
+                    codigo = e.code
+        finally:
+            os.chdir(antes)
+        self.salida = salida.getvalue()
+        return codigo
+
+    def test_la_serie_pasa_y_cada_una_ve_lo_que_dejo_la_anterior(self):
+        self.serie(self.SERIE)
+        self.assertEqual(self.ejecutar(), 0, self.salida)
+        self.assertIn("4 sesiones", self.salida)
+
+    def test_desde_cero_no_pasaria(self):
+        # Lo que hacía antes el kit: la sesión 2, sola, no vería la carpeta copias
+        self.serie([("ls\nls copias\n", "$ ls\ncopias  notas.txt\n$ ls copias\nnotas.txt\n")])
+        self.assertError(MODULO, "la pantalla de sesion-1.txt no es la del texto")
+
+    def test_cada_sesion_arranca_en_una_bash_nueva_en_la_carpeta_del_ejemplo(self):
+        self.serie([("mkdir copias\ncd copias\nNOTA=pan\n", "$ mkdir copias\n$ cd copias\n$ NOTA=pan\n"),
+                    ('ls\necho "[$NOTA]"\n', '$ ls\ncopias  notas.txt\n$ echo "[$NOTA]"\n[]\n')])
+        self.assertEqual(self.ejecutar(), 0, self.salida)
+
+    def test_una_sesion_que_depende_de_un_cd_anterior_falla(self):
+        self.serie([("mkdir copias\ncd copias\n", "$ mkdir copias\n$ cd copias\n"),
+                    ("cp ../notas.txt .\n", "$ cp ../notas.txt .\n")])
+        self.assertError(MODULO, "la pantalla de sesion-2.txt no es la del texto")
+
+    def test_un_fallo_en_la_sesion_2_dice_cual_es(self):
+        serie = list(self.SERIE)
+        serie[1] = (serie[1][0], serie[1][1].replace("copias  notas.txt", "notas.txt"))
+        self.serie(serie)
+        self.assertEqual(self.ejecutar(), 1, self.salida)
+        errores = [l for l in self.salida.splitlines() if "ERROR" in l]
+        self.assertEqual(len(errores), 1, self.salida)
+        self.assertIn("la pantalla de sesion-2.txt no es la del texto", errores[0])
+
+    def test_una_orden_que_no_termina_en_la_sesion_2_y_las_siguientes(self):
+        serie = list(self.SERIE)
+        serie[1] = ("ls\nsleep 600\n", "$ ls\ncopias  notas.txt\n$ sleep 600\n")
+        self.serie(serie)
+        antes, terminal.ESPERA_ORDEN = terminal.ESPERA_ORDEN, 2
+        try:
+            self.assertEqual(self.verificar_dentro(), 1, self.salida)
+        finally:
+            terminal.ESPERA_ORDEN = antes
+        errores = [l for l in re.split(r"\n(?=\S)", self.salida) if "ERROR" in l]
+        self.assertEqual(len(errores), 2, self.salida)
+        self.assertIn("la sesión sesion-2.txt: la orden «sleep 600» no termina", errores[0])
+        self.assertIn("la sesión sesion-3.txt: no se ha podido teclear: va encadenada detrás de sesion-2.txt, que falla",
+                      errores[1])
+
+    def test_el_repositorio_y_el_reloj_de_git_siguen(self):
+        log = "git log --format='%ad %s' --date=format:%H:%M"
+        self.serie([("git init -q\ngit add notas.txt\ngit commit -q -m Uno\n",
+                     "$ git init -q\n$ git add notas.txt\n$ git commit -q -m Uno\n"),
+                    (f"echo leche >> notas.txt\ngit commit -q -am Dos\n{log}\n",
+                     f"$ echo leche >> notas.txt\n$ git commit -q -am Dos\n$ {log}\n10:01 Dos\n10:00 Uno\n")])
+        self.assertEqual(self.ejecutar(), 0, self.salida)
+
+    def test_numeros_con_saltos(self):
+        self.serie(self.SERIE)
+        (self.raiz / self.CARPETA / "sesion-2.txt").rename(self.raiz / self.CARPETA / "sesion-4.txt")
+        self.assertError(MODULO, "tienen que ir de sesion-1.txt en adelante, sin saltos")
+
+    def test_sesion_encadenada_sin_bloque_avisa_y_se_teclea_igual(self):
+        self.serie(self.SERIE, bloques={2, 3})
+        self.assertEqual(self.ejecutar(), 0, self.salida)
+        self.assertIn("sesion-1.txt: AVISO: sesión encadenada que ningún bloque muestra", self.salida)
+
+    def test_las_sueltas_siguen_desde_cero(self):
+        self.serie(self.SERIE)
+        (self.raiz / self.CARPETA / "sesion.txt").write_text("ls\n", encoding="utf-8")
+        with open(self.raiz / MODULO, "a", encoding="utf-8") as f:
+            f.write(f"\n**En tu terminal** (`sesion.txt`):\n\n```text\n$ ls\nnotas.txt\n```\n\n{self.ENLACE}\n")
+        self.assertEqual(self.ejecutar(), 0, self.salida)
+
+
+@unittest.skipUnless(HAY_DOCKER, "sin Docker")
+class ConDockerEncadenadas(Encadenadas):
+    sin_docker = False
+
+
 class Datos(Base):
     """JSON, YAML, XML, CSV y Markdown: se comprueban con Python, con o sin Docker."""
     sin_docker = True
