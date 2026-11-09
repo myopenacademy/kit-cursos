@@ -222,8 +222,12 @@ class Verificador:
                 orden = lenguaje_bash.orden(Path(ruta), carpeta)
                 orden[1] = ruta
                 codigo, out, err = t.ejecutar(orden, entrada)
-                otra = None
-                if t.completa:
+                completa = t.completa
+            otra = None
+            if completa:
+                # bash 3.2, en un contenedor limpio: un script que deja algo creado (una copia de seguridad) se
+                # comporta igual que la primera vez
+                with terminal.terminal(carpeta, con_docker=self.con_docker) as t:
                     otra = t.ejecutar(["bash-3.2", *orden[1:]], entrada)
         except terminal.ErrorDeTerminal as e:
             self.informe.error(md.rel, i + 1, f"{fichero.name}: {e}")

@@ -9,6 +9,9 @@
 #   - bash 3.2.57, la de macOS, compilada del código oficial de GNU (firma de Chet Ramey verificada el
 #     8 de noviembre de 2026; aquí, su SHA-256), como /usr/local/bin/bash-3.2: los scripts se ejecutan
 #     también con ella, con las mismas herramientas GNU, para que una diferencia sea solo del bash.
+#   - Las coreutils de GNU 9.7 (ls, cp, mkdir, date…), no las uutils (Rust) que trae Ubuntu 26.04: las de Git
+#     Bash y casi todos los Linux, con sus mensajes y sus fechas en español y el orden de ls de un sistema en
+#     español (decisión del autor, 9 de noviembre de 2026).
 #   - El idioma español (es_ES.UTF-8) generado, con language-pack-es-base (las traducciones de bash, coreutils,
 #     grep, sed, tar…: sin él, «bash: gti: command not found» sale en inglés) y la zona horaria de Madrid.
 #   - El reloj de Git (git-reloj, en /usr/bin/git, donde está el git de un Ubuntu, que así lo ve «command -v
@@ -48,8 +51,9 @@ RUN curl -fsSL "https://ftp.gnu.org/gnu/bash/bash-3.2.57.tar.gz" -o bash.tar.gz 
 
 FROM ubuntu:26.04@sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends --allow-remove-essential \
         locales language-pack-es-base=1:26.04+20260818 tzdata ca-certificates libcurl4t64 libexpat1 zlib1g \
+        coreutils-from-gnu=0.0.0~ubuntu25 gnu-coreutils=9.7-3ubuntu2.1 coreutils-from-uutils- \
         file less tree curl jq python3 \
     && sed -i 's/^# *es_ES.UTF-8 UTF-8/es_ES.UTF-8 UTF-8/' /etc/locale.gen && locale-gen \
     && ln -sf /usr/share/zoneinfo/Europe/Madrid /etc/localtime && echo Europe/Madrid > /etc/timezone \
@@ -79,4 +83,4 @@ RUN mkdir -p /usr/share/kit-terminal && { \
 ENV LANG=es_ES.UTF-8 LC_ALL=es_ES.UTF-8 LANGUAGE=es_ES:es TZ=Europe/Madrid
 USER alumno
 WORKDIR /home/alumno
-RUN git --version | grep -q 'git version 2.56.0'
+RUN git --version | grep -q 'git version 2.56.0' && ls --version | grep -q 'GNU coreutils'

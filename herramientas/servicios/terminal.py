@@ -51,6 +51,8 @@ INDICADOR = re.compile(r"\$")
 CTRL_C = re.compile(r"^@ctrl-c\s+(\d+(?:\.\d+)?)\s*$")
 CONFIG_GIT = "[user]\n\tname = Ana García\n\temail = ana@example.com\n[init]\n\tdefaultBranch = main\n"
 PROXY_MUERTO = "http://127.0.0.1:9"
+# Lo que pone un inicio de sesión y docker exec no (sin ellas, «echo $USER» sale vacío)
+ENTORNO_PERSONA = ["-e", f"USER={USUARIO}", "-e", f"LOGNAME={USUARIO}", "-e", "SHELL=/bin/bash"]
 
 # Interpretar la pantalla (de bases_de_datos.py del curso de Java)
 SECUENCIA = re.compile(r"\x1b\[([0-9;?]*)([A-Za-z@])|\x1b\][^\x07]*\x07|\x1b[=>()][0-9A-Za-z]?|\r|\n|\x08|\x07"
@@ -115,6 +117,11 @@ def pantalla(texto):
             linea(fila)
         elif t == "\x08":
             col = max(0, col - 1)
+        elif t == "\t":                       # el tabulador lleva a la siguiente columna múltiplo de 8 (el ls
+            actual = linea(fila)                # de GNU alinea así sus columnas en una terminal)
+            siguiente = min((col // 8 + 1) * 8, ANCHO - 1)
+            actual.extend(" " * (siguiente - len(actual)))
+            col = siguiente
         elif t.startswith("\x1b["):
             n = int(m.group(1)) if m.group(1).isdigit() else None
             orden = m.group(2)
@@ -253,7 +260,7 @@ class Contenedor:
     def ejecutar(self, orden, entrada=None, espera=ESPERA_SCRIPT):
         """Ejecuta la orden (lista) en la carpeta personal: (código, salida, salida de error)."""
         try:
-            r = subprocess.run(["docker", "exec", "-i", "-w", CASA, self.nombre, *orden], input=entrada,
+            r = subprocess.run(["docker", "exec", "-i", "-w", CASA, *ENTORNO_PERSONA, self.nombre, *orden], input=entrada,
                                capture_output=True, timeout=espera)
         except subprocess.TimeoutExpired:
             raise ErrorDeTerminal(f"«{' '.join(orden)}» no termina en {espera} segundos")
@@ -261,7 +268,7 @@ class Contenedor:
 
     def sesion(self, ordenes):
         return _teclear(["docker", "exec", "-it", "-w", CASA, "-e", "TERM=xterm-256color", "-e", "PS1=$ ",
-                         "-e", "PS2=> ", "-e", "GIT_PAGER=cat", "-e", "PAGER=cat", self.nombre,
+                         "-e", "PS2=> ", "-e", "GIT_PAGER=cat", "-e", "PAGER=cat", *ENTORNO_PERSONA, self.nombre,
                          "bash", "--noprofile", "--norc", "-i"], ordenes)
 
 
@@ -283,7 +290,7 @@ class Local:
         binarios.mkdir()
         shutil.copy2(DOCKERFILE.parent / "git-reloj", binarios / "git")
         self.entorno = {
-            "PATH": f"{binarios}:{os.environ.get('PATH', '/usr/bin:/bin')}", "HOME": str(self.casa), "USER": USUARIO,
+            "PATH": f"{binarios}:{os.environ.get('PATH', '/usr/bin:/bin')}", "HOME": str(self.casa), "USER": USUARIO, "LOGNAME": USUARIO, "SHELL": "/bin/bash",
             "KIT_GIT_REAL": shutil.which("git") or "git", "KIT_RELOJ": str(configuracion.parent / "reloj"),
             "LANG": "es_ES.UTF-8", "LC_ALL": "es_ES.UTF-8", "LANGUAGE": "es_ES:es", "TZ": "Europe/Madrid",
             "TERM": "xterm-256color", "PS1": "$ ", "PS2": "> ", "COLUMNS": str(ANCHO), "GIT_PAGER": "cat", "PAGER": "cat",

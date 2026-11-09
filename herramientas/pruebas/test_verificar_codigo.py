@@ -62,6 +62,9 @@ class Bash32(unittest.TestCase):
 
 
 class Pantalla(unittest.TestCase):
+    def test_tabuladores_hasta_la_siguiente_columna_de_8(self):
+        self.assertEqual(terminal.pantalla("ab\tc\r\n12345678\tx"), ["ab      c", "12345678        x"])
+
     def test_interpreta_retornos_borrados_y_colores(self):
         self.assertEqual(terminal.pantalla("hola\rHO\r\n\x1b[31mrojo\x1b[0m\r\nabc\x08\x08X\x1b[K"), ["HOla", "rojo", "aX"])
 
@@ -161,6 +164,22 @@ class SinDocker(Base):
 
     def test_argumentos_mal(self):
         self.assertEqual(self.ejecutar("no-existe.md"), 2)
+
+    def test_script_que_deja_algo_creado(self):
+        # crea una copia de seguridad y falla si ya existe: bash 3.2 se ejecuta en una carpeta limpia
+        orden = 'echo "Clientes de $ciudad: $total"'
+        nuevo = orden + '\nif [ -e copia.json ]; then echo "ya hay copia" >&2; exit 1; fi\ncp clientes.json copia.json'
+        self.cambiar(CONTAR, orden, nuevo)
+        self.cambiar(MODULO, orden, nuevo)
+        self.assertEqual(self.ejecutar(), 0, self.salida)
+
+    def test_user_en_los_scripts(self):
+        orden = 'echo "Clientes de $ciudad: $total"'
+        nuevo = orden + '\necho "Lo ha contado $USER"'
+        self.cambiar(CONTAR, orden, nuevo)
+        self.cambiar(MODULO, orden, nuevo)
+        self.cambiar(MODULO, "Clientes de Madrid: 2\n", "Clientes de Madrid: 2\nLo ha contado alumno\n")
+        self.assertEqual(self.ejecutar(), 0, self.salida)
 
     def test_reloj_de_git_tambien_sin_docker(self):
         with terminal.Local(self.raiz / f"{EJEMPLOS}/2.3-ver-un-fichero") as t:
@@ -292,7 +311,18 @@ class ConDocker(SinDocker):
     def test_bash_y_las_herramientas_en_espanol(self):
         pantalla = self.sesion(["gti", "ls no-existe"])
         self.assertIn("bash: gti: orden no encontrada", pantalla)
-        self.assertIn("ls: no se puede acceder a 'no-existe': No existe el archivo o directorio", pantalla)
+        self.assertIn("ls: no se puede acceder a 'no-existe': No existe el archivo o el directorio", pantalla)
+
+    def test_coreutils_de_gnu_en_espanol(self):
+        pantalla = self.sesion(["ls --version | head -1", "touch -d '2026-01-15 10:00' Zeta.txt alfa.txt", "ls",
+                                "ls -l alfa.txt", "rmdir nada"])
+        self.assertIn("ls (GNU coreutils)", pantalla)
+        self.assertIn("alfa.txt  cliente.json  sesion.txt  Zeta.txt", pantalla)  # sin distinguir mayúsculas; tabuladores, en espacios
+        self.assertIn("ene 15  2026 alfa.txt", pantalla)
+        self.assertIn("rmdir: fallo al borrar 'nada': No existe el archivo o el directorio", pantalla)
+
+    def test_user_logname_y_shell(self):
+        self.assertIn("alumno alumno /bin/bash", self.sesion(['echo "$USER $LOGNAME $SHELL"']))
 
     def test_git_esta_donde_en_un_ubuntu(self):
         pantalla = self.sesion(["command -v git", "type git"])
