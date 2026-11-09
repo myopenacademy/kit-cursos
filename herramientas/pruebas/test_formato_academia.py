@@ -286,7 +286,8 @@ class Proyecto(Base):
         self.assertError("proyecto/02-segunda.md", "etapa del proyecto que no está en curso.json")
 
 
-class Versiones(Base):
+class ConGit(Base):
+    """Base para las pruebas que necesitan el curso en un repositorio de Git."""
     def git(self, *args):
         subprocess.run(["git", "-C", str(self.raiz), *args], check=True, capture_output=True,
                        env={"GIT_AUTHOR_NAME": "Prueba", "GIT_AUTHOR_EMAIL": "p@ejemplo.org", "GIT_COMMITTER_NAME": "Prueba",
@@ -298,6 +299,8 @@ class Versiones(Base):
         self.git("commit", "-q", "-m", "v1")
         self.git("tag", "v1.0.0")
 
+
+class Versiones(ConGit):
     def test_identificador_publicado_que_desaparece(self):
         self.publicar()
         d = self.json(); self.modulo(d)["ejercicios"][1]["id"] = "ejemplo.ficheros-json.coma"; self.guardar_json(d)
@@ -608,6 +611,96 @@ class Glosario(Base):
         self.glosario_inicial("# Glosario\n\n## N\n\n### Nube\n\n## Ñ\n\n### Ñandú\n\n## O\n\n### Oso\n")
         self.comprobar()
         self.assertFalse(self.hay(self.avisos + self.errores, "glosario.md"), self.avisos)
+
+
+class SaltosDeLinea(ConGit):
+    SCRIPT = "fase-01-primeros-pasos/codigo/01-ficheros-json/ejemplos/2.2-contar-clientes/contar.sh"
+    CRLF = "saltos de línea CRLF"
+    SIN_LF = "no saldría con LF en un clon"
+
+    def crlf(self, rel=None):
+        ruta = self.raiz / (rel or self.SCRIPT)
+        ruta.write_bytes(ruta.read_bytes().replace(b"\n", b"\r\n"))
+
+    def avisos_de(self, trozo):
+        self.comprobar()
+        return [a for a in self.avisos if trozo in a]
+
+    # -- sin Git: solo el disco ---------------------------------------------------------------------
+
+    def test_sin_git_un_script_con_crlf_avisa_con_la_linea(self):
+        self.crlf()
+        avisos = self.avisos_de(self.CRLF)
+        self.assertEqual(len(avisos), 1, avisos)
+        self.assertTrue(avisos[0].startswith(f"{self.SCRIPT}:1: "), avisos)
+        self.assertSinErrores()
+
+    def test_sin_git_la_linea_es_la_primera_con_crlf(self):
+        ruta = self.raiz / self.SCRIPT
+        ruta.write_bytes(b"#!/bin/bash\necho uno\necho dos\r\n")
+        self.assertTrue(self.avisos_de(self.CRLF)[0].startswith(f"{self.SCRIPT}:3: "))
+
+    def test_sin_git_un_fichero_de_datos_con_crlf_tambien_avisa(self):
+        self.crlf(self.SCRIPT.replace("contar.sh", "clientes.json"))
+        self.assertEqual(len(self.avisos_de(self.CRLF)), 1)
+
+    def test_un_binario_no_avisa(self):
+        self.escribir(self.SCRIPT.replace("contar.sh", "logo.png"), "")
+        (self.raiz / self.SCRIPT.replace("contar.sh", "logo.png")).write_bytes(b"\x89PNG\r\n\x1a\n\0\0\r\n")
+        self.assertEqual(self.avisos_de(self.CRLF), [])
+
+    def test_fuera_de_codigo_no_avisa(self):
+        self.crlf("README.md")
+        self.assertEqual(self.avisos_de(self.CRLF), [])
+
+    def test_el_curso_bueno_no_avisa_de_saltos_de_linea(self):
+        self.publicar()
+        self.assertEqual(self.avisos_de(self.CRLF) + self.avisos_de(self.SIN_LF), [])
+
+    # -- con Git: lo que guarda Git y lo que saldría en un clon -------------------------------------
+
+    def test_sin_eol_lf_en_gitattributes_avisa_una_vez(self):
+        (self.raiz / ".gitattributes").write_text("*.sh text eol=lf\n", encoding="utf-8")
+        self.publicar()
+        avisos = self.avisos_de(self.SIN_LF)
+        self.assertEqual(len(avisos), 1, avisos)
+        self.assertTrue(avisos[0].startswith(".gitattributes:0: "))
+        self.assertIn("* text=auto eol=lf", avisos[0])
+        self.assertNotIn("contar.sh", avisos[0])                 # el script sí sale con LF
+
+    def test_sin_gitattributes_avisa(self):
+        (self.raiz / ".gitattributes").unlink()
+        self.publicar()
+        self.assertEqual(len(self.avisos_de(self.SIN_LF)), 1)
+
+    def test_un_script_guardado_con_crlf_avisa(self):
+        (self.raiz / ".gitattributes").unlink()
+        self.crlf()
+        self.publicar()
+        self.assertEqual(len(self.avisos_de(f"{self.SCRIPT}:1: {self.CRLF}")), 1)
+
+    def test_crlf_solo_en_el_disco_no_avisa_si_git_guarda_lf(self):
+        self.publicar()
+        self.crlf()                                               # p. ej., un clon en Windows sin eol=lf
+        self.assertEqual(self.avisos_de(self.CRLF), [])
+
+    def test_un_fichero_nuevo_con_crlf_que_git_normalizara_no_avisa(self):
+        self.publicar()
+        self.escribir(self.SCRIPT.replace("contar.sh", "nuevo.sh"), "echo hola\r\n")
+        self.assertEqual(self.avisos_de(self.CRLF), [])
+
+    def test_un_fichero_nuevo_con_crlf_sin_gitattributes_avisa(self):
+        (self.raiz / ".gitattributes").unlink()
+        self.publicar()
+        self.escribir(self.SCRIPT.replace("contar.sh", "nuevo.sh"), "echo hola\r\n")
+        self.assertEqual(len(self.avisos_de(self.CRLF)), 1)
+
+    def test_marcado_con_menos_text_no_avisa(self):
+        with open(self.raiz / ".gitattributes", "a", encoding="utf-8") as f:
+            f.write(f"{self.SCRIPT} -text\n")
+        self.crlf()
+        self.publicar()
+        self.assertEqual(self.avisos_de(self.CRLF) + self.avisos_de(self.SIN_LF), [])
 
 
 class LineaDeOrdenes(unittest.TestCase):

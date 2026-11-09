@@ -25,6 +25,7 @@ curso-xxx/
 ├── curso.json                ← identidad y estructura del curso (apartado 3)
 ├── README.md                 ← portada: qué es, a quién va, cómo usarlo, versiones, requisitos
 ├── LICENSE                   ← licencias (apartado 12)
+├── .gitattributes            ← saltos de línea LF en todo el texto (apartado 7)
 ├── CONTRIBUTING.md           ← cómo proponer cambios
 ├── CHANGELOG.md              ← qué cambia en cada versión
 ├── 00-indice.md              ← índice completo; se genera desde curso.json
@@ -297,6 +298,7 @@ Enunciado…
 - El bloque del módulo y el fichero de `codigo/` deben ser **idénticos**.
 - **Nombres reservados** junto a la solución de cada ejercicio, para la corrección automática futura: `partida/` (código de partida que se da al alumno) y `pruebas/` (pruebas que comprueban su solución). Hoy no los usa nadie, pero no se pueden usar para otra cosa.
 - La academia ofrece cada carpeta enlazada como descarga en ZIP.
+- **Saltos de línea LF** en los ficheros de texto de `codigo/` (scripts y datos): con CRLF (los de Windows), bash falla (`$'\r': orden no encontrada`) y `grep`, `cut` o `read` ven un `\r` al final de cada línea. Conviene que el curso lleve en su raíz un `.gitattributes` con `* text=auto eol=lf`, como el de la plantilla del kit: así Git guarda LF y cualquier clon sale con LF, también en Windows con `core.autocrlf=true`. Un fichero con CRLF a propósito (para enseñar el error) se marca con `-text` en `.gitattributes`.
 
 ### 7.1. Ficheros de verificación y salidas en el texto
 
@@ -419,6 +421,7 @@ La comprobación del kit (`formato_academia.py`) revisa que un curso cumple este
 - Retos, etapas, glosario y proyecto.
 - Enlaces del mismo curso y entre cursos (con sus anclas), imágenes, diagramas y HTML.
 - Ficheros obligatorios.
+- Saltos de línea de `codigo/` (apartado 7): aviso si un fichero de texto tiene CRLF en lo que guarda Git (o en el disco, si el curso no está en Git) o no saldría con LF en un clon.
 
 **Errores** (no se instala) frente a **avisos** (se instala, pero conviene corregirlo): lo que este documento dice con «debe» es un error, y lo que dice con «conviene», un aviso.
 
@@ -436,5 +439,5 @@ Para que los cursos no dependan unos de otros, algunas cosas son de la academia:
 - Se cambia **solo desde el proyecto del kit** (`Cursos/kit-cursos/`), nunca desde un curso ni desde la academia por su cuenta.
 - Cada cambio sube la versión del formato (el campo `formato`), se anota qué cursos hay que poner al día y la academia sigue sabiendo leer las versiones anteriores.
 - **Las versiones cuentan desde la primera publicación.** Hasta que se publique el primer curso, los ajustes se hacen dentro de la versión 1 y se anotan aquí:
-  - 8 de noviembre de 2026: un módulo con `"disponible": false` puede llevar su `fichero` previsto, y una fase sus `retos` previstos con `"retos_disponibles": false` (apartado 3.2); ficheros de verificación `debe-fallar.txt` y `separador.txt`, y después todos los del curso de Java con las salidas en el texto (apartado 7.1); títulos del curso, las fases, los módulos, los ejercicios y los retos en texto plano (apartado 3.2); una fase que solo contiene el proyecto final no necesita retos (apartado 6); qué subapartados se numeran (apartado 5.1); «Conviene saber antes», solo enlaces, con ancla para precisar la sección (apartado 5.2); el HTML que admite de verdad la academia, y `<details open>` no (apartado 10.5); 9 de noviembre de 2026: los cursos de ejemplo viven en el kit y la academia guarda una copia (apartado 14), y cualquier curso puede tener su propio glosario además del común del curso inicial (apartado 9). **A poner al día:** el curso de Java, al adaptarlo, tiene 88 títulos de ejercicio con formato (comillas invertidas o cursiva).
+  - 8 de noviembre de 2026: un módulo con `"disponible": false` puede llevar su `fichero` previsto, y una fase sus `retos` previstos con `"retos_disponibles": false` (apartado 3.2); ficheros de verificación `debe-fallar.txt` y `separador.txt`, y después todos los del curso de Java con las salidas en el texto (apartado 7.1); títulos del curso, las fases, los módulos, los ejercicios y los retos en texto plano (apartado 3.2); una fase que solo contiene el proyecto final no necesita retos (apartado 6); qué subapartados se numeran (apartado 5.1); «Conviene saber antes», solo enlaces, con ancla para precisar la sección (apartado 5.2); el HTML que admite de verdad la academia, y `<details open>` no (apartado 10.5); 9 de noviembre de 2026: los cursos de ejemplo viven en el kit y la academia guarda una copia (apartado 14), y cualquier curso puede tener su propio glosario además del común del curso inicial (apartado 9); saltos de línea LF en `codigo/` y `.gitattributes` con `* text=auto eol=lf` (apartados 2, 7 y 13). **A poner al día:** el curso de Java, al adaptarlo, tiene 88 títulos de ejercicio con formato (comillas invertidas o cursiva); el curso inicial, su `.gitattributes` (hoy solo `*.sh text eol=lf`) por el de la plantilla.
 - Si un curso necesita algo nuevo, primero se amplía la academia y este formato, y después lo usa el curso.

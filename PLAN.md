@@ -17,7 +17,7 @@ kit-cursos/
 ├── plantillas/               ← lo que se copia al crear un curso, con huecos
 │   ├── curso.json
 │   ├── CLAUDE.md, PLAN-CURSO.md, ESTADO.md
-│   ├── README.md, LICENSE, CONTRIBUTING.md, CHANGELOG.md, .gitignore
+│   ├── README.md, LICENSE, CONTRIBUTING.md, CHANGELOG.md, .gitignore, .gitattributes
 │   ├── modulo.md
 │   └── retos.md
 └── herramientas/

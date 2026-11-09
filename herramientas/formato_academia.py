@@ -17,8 +17,9 @@ Revisa, sin ejecutar nada del curso:
 Lo que FORMATO.md dice con «debe» es un ERROR (el curso no se instala) y lo que dice con «conviene»,
 un AVISO (se instala, pero conviene corregirlo). Cada línea dice el fichero, la línea y qué falta.
 
-No revisa el código de codigo/ (eso lo hacen las demás herramientas del kit) ni dibuja los
-diagramas (comprobar_mermaid.py).
+De codigo/ solo mira los saltos de línea (aviso si un fichero de texto tiene CRLF o no saldría con LF
+en un clon en Windows; con Git, lo que guarda Git, y sin Git, el disco); el código lo verifican las demás
+herramientas del kit. No dibuja los diagramas (comprobar_mermaid.py).
 
 Uso, desde la raíz del curso (con el kit en la carpeta hermana ../kit-cursos/):
     python3 ../kit-cursos/herramientas/formato_academia.py            # el curso de la carpeta actual
@@ -1042,6 +1043,65 @@ class Curso:
 
     # -- todos los Markdown: enlaces, imágenes, Mermaid, HTML y huecos -----------------------------------
 
+    # -- saltos de línea del código ----------------------------------------------------------------
+
+    def comprobar_saltos_de_linea(self):
+        """Que los ficheros de texto de codigo/ tengan saltos de línea LF (FORMATO.md, apartado 7): con CRLF, bash
+        falla ($'\\r': orden no encontrada) y grep, cut o read ven un \\r al final de cada línea. Dos avisos:
+          - un fichero con CRLF en lo que guarda Git (o, si no es suyo todavía, en lo que guardaría);
+          - ficheros que no saldrían con LF en un clon con core.autocrlf=true (lo normal en Git for Windows),
+            porque al curso le falta «* text=auto eol=lf» en su .gitattributes.
+        Los marcados con -text en .gitattributes (CRLF a propósito) no avisan. Sin Git, solo se mira el disco."""
+        try:
+            salida = subprocess.run(["git", "-C", str(self.raiz), "ls-files", "--eol", "-z", "--cached", "--others",
+                                     "--exclude-standard"], capture_output=True, text=True, check=True).stdout
+        except (OSError, subprocess.CalledProcessError):
+            salida = None
+        if salida is None:
+            for ruta in sorted(p for p in self.raiz.rglob("*") if p.is_file()):
+                rel = ruta.relative_to(self.raiz)
+                if "codigo" in rel.parts[:-1] and not ({".git", ".verificacion"} & set(rel.parts)):
+                    self.aviso_crlf(rel.as_posix(), sin_git=True)
+            return
+        sin_lf = []
+        for entrada in filter(None, salida.split("\0")):
+            datos, _, rel = entrada.partition("\t")
+            if "codigo" not in rel.split("/")[:-1]:
+                continue
+            campos = dict(c.split("/", 1) for c in datos.split()[:2])        # i/… (índice) y w/… (disco)
+            atributos = datos.split("attr/", 1)[1].split() if "attr/" in datos else []
+            if "-text" in atributos:
+                continue                                                    # CRLF a propósito, o binario
+            texto = any(a == "text" or a.startswith("text=") for a in atributos)
+            # Lo que guarda Git: el índice, y lo del disco si Git no lo va a normalizar al añadirlo
+            guardado = ([campos.get("i")] if campos.get("i") else []) + ([] if texto else [campos.get("w")])
+            if {"crlf", "mixed"} & set(guardado):
+                self.aviso_crlf(rel)
+            if "eol=lf" not in atributos and {"lf", "crlf", "mixed"} & {campos.get("i"), campos.get("w")}:
+                sin_lf.append(rel)
+        if sin_lf:
+            ejemplo = sin_lf[0] + (f" y {len(sin_lf) - 1} más" if len(sin_lf) > 1 else "")
+            self.informe.aviso(".gitattributes", 0,
+                               f"algún fichero de texto de codigo/ no saldría con LF en un clon en Windows ({ejemplo}): "
+                               "con core.autocrlf=true, lo normal en Git for Windows, se rompen los scripts y los datos "
+                               "que leen; añade «* text=auto eol=lf» al .gitattributes del curso, como el de la plantilla "
+                               "del kit (FORMATO.md, apartado 7)")
+
+    def aviso_crlf(self, rel, sin_git=False):
+        """Avisa de que rel tiene CRLF, con la primera línea que lo tiene en el disco. Sin Git, lo mira en el disco."""
+        try:
+            datos = (self.raiz / rel).read_bytes()
+        except OSError:
+            datos = b""
+        if sin_git and (b"\0" in datos[:8000] or b"\r\n" not in datos):
+            return                                                          # binario, o sin CRLF
+        linea = datos[:datos.find(b"\r\n")].count(b"\n") + 1 if b"\r\n" in datos else 0
+        self.informe.aviso(rel, linea, "saltos de línea CRLF (de Windows): con ellos bash falla ($'\\r': orden no "
+                                       "encontrada) y grep, cut o read ven un \\r al final de cada línea. Guárdalo con LF "
+                                       "(en VS Code, «CRLF» abajo a la derecha) o, con «* text=auto eol=lf» en "
+                                       ".gitattributes, «git add --renormalize .»; si es a propósito, márcalo con -text "
+                                       "en .gitattributes (FORMATO.md, apartado 7)")
+
     def markdown_del_curso(self):
         for ruta in sorted(self.raiz.rglob("*.md")):
             rel = ruta.relative_to(self.raiz)
@@ -1254,6 +1314,7 @@ def comprobar(raiz):
     curso.comprobar_modulos()
     curso.comprobar_indice()
     curso.comprobar_markdown()
+    curso.comprobar_saltos_de_linea()
     modulos = [m for f in curso.fases for m in f.get("_modulos", [])]
     disponibles = sum(1 for m in modulos if m.get("_disponible"))
     ejercicios = sum(len(m.get("ejercicios", [])) for m in modulos if isinstance(m.get("ejercicios"), list))

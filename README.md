@@ -24,6 +24,7 @@ Para crear un curso basta con `FORMATO.md`, las plantillas y `formato_academia.p
 | [`CONTRIBUTING.md`](plantillas/CONTRIBUTING.md) | Cómo proponer cambios al curso. |
 | [`CHANGELOG.md`](plantillas/CHANGELOG.md) | Qué cambia en cada versión (apartado 11). |
 | [`.gitignore`](plantillas/.gitignore) | Lo que no se sube a Git. |
+| [`.gitattributes`](plantillas/.gitattributes) | Saltos de línea LF en todos los ficheros de texto, también al clonar en Windows: con CRLF, los scripts y los datos que leen se rompen (apartado 7). |
 | [`CLAUDE.md`](plantillas/CLAUDE.md), [`PLAN-CURSO.md`](plantillas/PLAN-CURSO.md), [`ESTADO.md`](plantillas/ESTADO.md) | Opcionales: las reglas, el plan y el estado del curso, para quien lo escribe con un asistente (Claude Code u otro) o quiere llevar su planificación por escrito. |
 
 ## Cómo arrancar un curso nuevo
@@ -43,7 +44,7 @@ Cursos/
    mkdir curso-micurso
    cd curso-micurso
    git init -b main
-   cp ../kit-cursos/plantillas/{curso.json,README.md,LICENSE,CONTRIBUTING.md,CHANGELOG.md,.gitignore} .
+   cp ../kit-cursos/plantillas/{curso.json,README.md,LICENSE,CONTRIBUTING.md,CHANGELOG.md,.gitignore,.gitattributes} .
    cp ../kit-cursos/plantillas/{CLAUDE.md,PLAN-CURSO.md,ESTADO.md} .   # opcionales
    ```
 
