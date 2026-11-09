@@ -12,8 +12,12 @@ biblioteca Mermaid, fijadas las dos (mermaid-cli solo pide un rango, así que si
   - Mermaid 10.9.8 (con mermaid-cli 10.9.1): la antigua, la del curso de Java, por GitHub y los
     visores de Markdown, donde también se leen los cursos.
 Un diagrama tiene que funcionar en las dos. También se comprueban los bloques ```mermaid que están dentro
-de otro bloque (por ejemplo, en las chuletas), para que quien los copie pueda usarlos tal cual.
-Se ignoran las carpetas .verificacion/, codigo/, herramientas/ y node_modules/.
+de otro bloque (por ejemplo, en las chuletas), para que quien los copie pueda usarlos tal cual, y los de los
+.md de codigo/ (como el README de un ejemplo), que el alumno descarga y abre en GitHub o en su editor.
+Lo que está mal a propósito no se comprueba: los .md de una carpeta de codigo/ con debe-fallar.txt (en ella o
+en una de sus carpetas de arriba, dentro de codigo/), y los diagramas del bloque de un módulo cuyo enlace
+«📁 Código» lleva a una de esas carpetas (también los que van dentro de él, como el README roto de un reto).
+Se ignoran las carpetas .verificacion/, herramientas/ y node_modules/.
 Las reglas de FORMATO.md sobre Mermaid (sin negrita, entidades, directivas…) las comprueba
 formato_academia.py; esta herramienta solo mira que se dibujen.
 
@@ -42,13 +46,16 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from argumentos import revisar   # noqa: E402
+from formato_academia import Markdown   # noqa: E402
 
 # (mermaid-cli, biblioteca mermaid). La primera, la de la academia (frontend/package.json de Code Academy,
 # visto el 8 de noviembre de 2026); la segunda, la antigua del curso de Java.
 VERSIONES = [("12.2.0", "12.2.0"), ("10.9.1", "10.9.8")]
 BLOQUE = re.compile(r"^[ \t]*```mermaid[ \t]*\n(.*?)^[ \t]*```", re.S | re.M)
-IGNORADAS = {".verificacion", "codigo", "node_modules", ".git", "herramientas"}
+IGNORADAS = {".verificacion", "node_modules", ".git", "herramientas"}
+ENLACE_CODIGO = re.compile(r"^📁 \*\*Código:\*\* \[[^\]]*\]\(([^)\s]+)\)")
 NAVEGADORES = [
     "google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "microsoft-edge",
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
@@ -77,14 +84,47 @@ def ficheros(rutas):
             continue
         # Las carpetas ignoradas se miran solo dentro de lo que se revisa (el curso puede estar, por
         # ejemplo, dentro de una carpeta herramientas/ de otro proyecto)
-        encontrados += [f for f in sorted(ruta.rglob("*.md")) if not IGNORADAS & set(f.relative_to(ruta).parts[:-1])]
+        encontrados += [f for f in sorted(ruta.rglob("*.md")) if not IGNORADAS & set(f.relative_to(ruta).parts[:-1])
+                        and not mal_a_proposito(f.parent)]
     return encontrados
+
+
+def mal_a_proposito(carpeta):
+    """Si la carpeta, o una de sus carpetas de arriba dentro de codigo/, tiene debe-fallar.txt."""
+    carpeta = carpeta.resolve()
+    if "codigo" not in carpeta.parts:
+        return False
+    for c in [carpeta, *carpeta.parents]:
+        if (c / "debe-fallar.txt").is_file():
+            return True
+        if c.name == "codigo":
+            return False
+    return False
+
+
+def bloques_rotos(md):
+    """Las líneas (desde 0) de los bloques de código cuyo «📁 Código» lleva a una carpeta con debe-fallar.txt."""
+    leido = Markdown(md, md.as_posix())
+    lineas = set()
+    for i, linea in enumerate(leido.lineas):
+        m = ENLACE_CODIGO.match(linea.strip()) if not leido.en_codigo[i] else None
+        if not m or not mal_a_proposito(md.parent / m.group(1)):
+            continue
+        j = i - 1
+        while j >= 0 and not leido.lineas[j].strip():
+            j -= 1
+        bloque = next((b for b in leido.bloques if b[1] == j), None)
+        if bloque:
+            lineas.update(range(bloque[0], bloque[1] + 1))
+    return lineas
 
 
 def diagramas(md):
     """Lista de (línea donde empieza el bloque, texto del diagrama)."""
     texto = md.read_text(encoding="utf-8")
-    return [(texto.count("\n", 0, m.start()) + 1, m.group(1)) for m in BLOQUE.finditer(texto)]
+    rotos = bloques_rotos(md)
+    encontrados = [(texto.count("\n", 0, m.start()) + 1, m.group(1)) for m in BLOQUE.finditer(texto)]
+    return [(linea, d) for linea, d in encontrados if linea - 1 not in rotos]
 
 
 def mmdc(version, entrada, salida, configuracion):

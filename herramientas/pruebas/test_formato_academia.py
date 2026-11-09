@@ -572,6 +572,23 @@ class Html(Base):
         self.assertSinErrores()
 
 
+class ListasDeTareas(Base):
+    """La academia todavía no dibuja las listas de tareas de Markdown (- [ ] / - [x]): aviso fuera del código."""
+
+    def test_lista_de_tareas_avisa(self):
+        self.cambiar(MODULO, "- Usa nombres de clave claros.", "- [ ] Usa nombres de clave claros.\n- [x] Hecho.\n1. [X] Otro.")
+        self.comprobar()
+        avisos = [a for a in self.avisos if "lista de tareas" in a]
+        self.assertEqual(len(avisos), 3, self.avisos)
+        self.assertEqual(self.errores, [])
+
+    def test_en_un_bloque_de_codigo_o_un_enlace_no_avisa(self):
+        self.cambiar(MODULO, "- Usa nombres de clave claros.",
+                     "- [x](https://example.com) es un enlace.\n\n```markdown\n- [ ] Comprar pan\n```\n\n- `- [ ]` en línea.")
+        self.comprobar()
+        self.assertFalse(self.hay(self.avisos, "lista de tareas"), self.avisos)
+
+
 class Glosario(Base):
     def test_cualquier_curso_puede_tener_su_glosario(self):
         self.escribir("glosario.md", "# Glosario\n\n## J\n\n### JSON\n\nUn formato de datos.\n")

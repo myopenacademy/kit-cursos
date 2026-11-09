@@ -49,12 +49,29 @@ class ComprobarMermaid(unittest.TestCase):
         self.assertIn("malo.md:5: Mermaid 10.9.8", r.stdout)
         self.assertIn("Parse error", r.stdout)
 
-    def test_se_ignoran_codigo_y_verificacion_dentro_del_curso(self):
-        self.escribir("codigo/malo.md", "flowchart LR\n    A -->")
+    def test_se_ignora_verificacion_dentro_del_curso(self):
         self.escribir(".verificacion/malo.md", "flowchart LR\n    A -->")
         r = self.ejecutar(cwd=self.tmp)
         self.assertEqual(r.returncode, 0, r.stdout)
         self.assertIn("0 diagramas en 0 ficheros", r.stdout)
+
+    def test_se_revisan_los_md_de_codigo(self):
+        self.escribir("fase-01/codigo/01-x/ejemplos/2.1-a/README.md", "flowchart LR\n    A -->")
+        r = self.ejecutar(cwd=self.tmp)
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("2.1-a/README.md:5: Mermaid 12.2.0", r.stdout)
+
+    def test_se_salta_lo_que_esta_mal_a_proposito(self):
+        # Un README roto en una carpeta con debe-fallar.txt, y el módulo que lo muestra en un bloque
+        roto = self.escribir("fase-01/codigo/01-x/ejemplos/2.1-roto/README.md", "flowchart LR\n    A -->")
+        (roto.parent / "debe-fallar.txt").write_text("El diagrama está mal a propósito.\n", encoding="utf-8")
+        (self.tmp / "fase-01" / "01-x.md").write_text(
+            "# 01.01 X\n\n````markdown\n# Roto\n\n```mermaid\nflowchart LR\n    A -->\n```\n````\n\n"
+            "📁 **Código:** [`codigo/01-x/ejemplos/2.1-roto/`](codigo/01-x/ejemplos/2.1-roto/)\n\n"
+            "```mermaid\nflowchart LR\n    A --> B\n```\n", encoding="utf-8")
+        r = self.ejecutar(cwd=self.tmp)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("1 diagramas en 1 ficheros", r.stdout)
 
     def test_argumentos_mal(self):
         self.assertEqual(self.ejecutar("no-existe.md", cwd=self.tmp).returncode, 2)

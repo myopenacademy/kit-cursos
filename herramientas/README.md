@@ -43,7 +43,7 @@ En el disco de quien escribe puede funcionar lo que en un clon falla: carpetas v
 | Herramienta | Qué hace | Necesita |
 |---|---|---|
 | [`formato_academia.py`](#formato_academiapy) | Comprueba que el curso cumple `FORMATO.md` y se puede instalar en la academia | Python 3.11 o posterior, sin librerías adicionales. Git, solo para comparar con la última versión publicada y mirar los saltos de línea que guarda (si no está, no compara y mira el disco) |
-| [`nucleo/verificar_codigo.py`](#nucleoverificar_codigopy) | Comprueba que el código de los módulos coincide con `codigo/` y funciona: scripts de bash, sesiones de terminal (también de Git) y ficheros JSON, YAML, XML, CSV y Markdown | Python 3.11 o posterior; **PyYAML** para los YAML (en Ubuntu, `python3-yaml`; con pip, `pyyaml`: la única librería de fuera de Python que usa el kit, y solo para eso); **Docker** para la verificación completa (sin él, verifica de forma parcial y avisa) |
+| [`nucleo/verificar_codigo.py`](#nucleoverificar_codigopy) | Comprueba que el código de los módulos coincide con `codigo/` y funciona: scripts de bash, sesiones de terminal (también de Git) y ficheros JSON, YAML, XML, CSV, TSV, TOML, INI, SVG y Markdown, y que un CSV y su JSON dicen lo mismo | Python 3.11 o posterior; **PyYAML** para los YAML (en Ubuntu, `python3-yaml`; con pip, `pyyaml`: la única librería de fuera de Python que usa el kit, y solo para eso); **Docker** para la verificación completa (sin él, verifica de forma parcial y avisa) |
 | [`nucleo/declarar_ejercicios.py`](#nucleodeclarar_ejerciciospy) | Declara en `curso.json` los ejercicios de un módulo o una fase, conservando sus identificadores, y los pone disponibles | Python 3.11 o posterior |
 | [`nucleo/generar_indice.py`](#nucleogenerar_indicepy) | Genera `00-indice.md` desde `curso.json` | Python 3.11 o posterior |
 | [`nucleo/generar_chuleta_global.py`](#nucleogenerar_chuleta_globalpy) | Genera `99-chuleta-global.md` con la chuleta de cada módulo | Python 3.11 o posterior |
@@ -56,7 +56,7 @@ Las carpetas:
 |---|---|
 | `herramientas/` | `formato_academia.py`, la parte pública: un solo fichero, sin dependencias |
 | `nucleo/` | Las herramientas comunes a todos los cursos, sacadas del curso de Java original, y `argumentos.py` (la revisión común de sus argumentos) |
-| `lenguajes/` | Un comprobador por lenguaje o formato, que usa `verificar_codigo.py`: `bash.py` y `formato_json.py`, `formato_yaml.py`, `formato_xml.py`, `formato_csv.py` y `formato_markdown.py` |
+| `lenguajes/` | Un comprobador por lenguaje o formato, que usa `verificar_codigo.py`: `bash.py` y `formato_json.py`, `formato_yaml.py`, `formato_xml.py`, `formato_csv.py` (también TSV y la comparación con su JSON), `formato_markdown.py`, `formato_toml.py`, `formato_ini.py` y `formato_svg.py` |
 | `servicios/` | Lo que necesitan los comprobadores para ejecutar: `terminal.py` y la imagen de [la terminal del kit](#la-terminal-del-kit) (`terminal/`) |
 | `pruebas/` | [Las pruebas](#las-pruebas) de las herramientas y un curso de ejemplo pequeño |
 
@@ -105,6 +105,7 @@ Curso «inicial» 0.1.0: 8 fases, 31 módulos (4 disponibles), 36 ejercicios; si
   - El formato sin efecto (`span`, `div`, `u`, `b`, `i`…) y los `<a>` los quita al instalar y deja su texto: **aviso**.
   - Cualquier otra etiqueta (`script`, `iframe`, `img`, `style`…) y cualquier otro atributo (`onclick`, `style`, `open`…) hacen fallar la instalación: **error**.
 - **Mermaid**: sin negrita ni cursiva en las etiquetas (tampoco `<b>` o `<i>`), solo las entidades `&quot;`, `&lt;`, `&gt;` y `&amp;`, y sin directivas, *frontmatter*, `click`, `url()` ni `@import`. Que el diagrama se dibuje lo comprueba [`comprobar_mermaid.py`](#nucleocomprobar_mermaidpy).
+- **Listas de tareas** (`- [ ]`, `- [x]`) fuera de los bloques de código: **aviso**, porque la academia todavía no las dibuja (`FORMATO.md` 10.6; desde el 9 de noviembre de 2026, hasta que la academia avise de que ya las dibuja).
 - **Versiones publicadas**: si el curso tiene etiquetas `vX.Y.Z` en Git, compara los identificadores de la última con los de ahora; cada uno que haya desaparecido necesita su equivalencia (`FORMATO.md`, apartado 11.2).
 
 ## `nucleo/verificar_codigo.py`
@@ -127,10 +128,13 @@ python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --sin-docker      
   - **JSON** (`formato_json.py`): que se lee.
   - **YAML** (`formato_yaml.py`, con PyYAML): que se leen todos sus documentos. Si falta PyYAML, avisa de que no los ha podido comprobar.
   - **XML** (`formato_xml.py`): que está bien formado (no lo valida contra un esquema).
-  - **CSV** (`formato_csv.py`): que se lee con el separador de `separador.txt` (`;`, `|` o `tabulador`; si no hay, la coma), sin comillas sin cerrar, y con las mismas columnas en cada fila que en la cabecera.
+  - **CSV y TSV** (`formato_csv.py`): que se lee con el separador de `separador.txt` (`;`, `|` o `tabulador`; si no hay, la coma; un `.tsv`, siempre con tabulador), sin comillas sin cerrar, y con las mismas columnas en cada fila que en la cabecera. En **UTF-8 sin BOM** (un BOM es un error), salvo que la carpeta tenga un **`codificacion.txt`** con el nombre de `iconv` (`WINDOWS-1252`, `ISO-8859-15`…): entonces se convierte desde ella y se comprueba igual. Si con `codificacion.txt` el fichero resulta estar en UTF-8 (y no solo en ASCII), es un error: lo más probable es que ya se convirtiera y sobre el `codificacion.txt`.
+  - **TOML** (`formato_toml.py`, con `tomllib`): que se lee (TOML 1.0).
+  - **INI** (`formato_ini.py`, con `configparser`): INI no tiene norma, así que se comprueba lo que aceptan casi todos los programas: cada clave dentro de una sección `[nombre]`, con `=` o `:`, sin secciones ni claves repetidas, y comentarios con `;` o `#`.
+  - **SVG** (`formato_svg.py`): XML bien formado con la raíz `<svg xmlns="http://www.w3.org/2000/svg">` (sin el `xmlns`, el navegador no lo dibuja como imagen). Las imágenes se comprueban siempre: `debe-fallar.txt` no les afecta.
   - **Markdown** (`formato_markdown.py`, los `.md` de `codigo/`, como el README de un proyecto): enlaces relativos y anclas que existen, tablas con su fila separadora y las mismas columnas en cada fila, y bloques de código cerrados. Los enlaces a internet no se comprueban (sin red).
   - **`debe-fallar.txt`**: si la carpeta lo tiene, **todos** sus ficheros de datos tienen que fallar (están mal a propósito); uno válido es un error. Cada ejemplo roto, en su propia carpeta.
-  - **Conversiones**: un `.json` y un `.yaml` con el mismo nombre en la misma carpeta tienen que cargar los mismos datos.
+  - **Conversiones**: un `.json` y un `.yaml` con el mismo nombre en la misma carpeta tienen que cargar los mismos datos. Un `.csv` (o `.tsv`) y un `.json` con el mismo nombre, también, con las reglas de `FORMATO.md` 7.1 (pedidas por el curso inicial para su reto 3 de la fase 4): el JSON, una lista con un objeto por fila de datos y en el mismo orden; cada objeto, con exactamente las claves de la cabecera; y cada campo según el tipo de su valor en el JSON (un texto, igual letra a letra; un número, escrito como `-?(0|[1-9][0-9]*)(\.[0-9]+)?` y con el mismo valor; un booleano, `sí`/`true` o `no`/`false` en minúscula; `null`, el campo vacío, que solo vale como `null`; una lista o un objeto, error). Cada error dice la línea del CSV, la fila y la clave. El resumen cuenta cuántos CSV se han comparado.
 - **bash 3.2, la de macOS**: cada `.sh` no puede usar lo que no existe en ella (arrays asociativos, `mapfile`, `${var,,}`, `|&`, `&>>`, `[[ -v ]]`, `{1..10..2}`…); esa búsqueda funciona siempre. Con Docker, además, cada script se **ejecuta con bash 3.2.57** y su salida y su código de salida tienen que ser los de bash 5: así salen también las diferencias que la búsqueda no ve (un `printf '%(%Y)T'`, de bash 4.2, falla en la 3.2). Cada pasada, en un contenedor limpio: un script que deja algo creado se comporta igual en las dos.
 - **Lo que no comprueba de macOS**: que `sed`, `date`, `ls`, `grep`… se comporten igual. En macOS son las versiones de **BSD** y en la terminal del kit, las de **GNU** (Linux), con opciones y salidas distintas (`sed -i ''`, `date -v`…). Eso lo cubren los avisos del texto de cada módulo, no el kit.
 - **También**: error por cada fichero enlazado que Git ignora (no llegaría a un clon del curso), y aviso por cada carpeta de `codigo/` que ningún módulo enlaza y por cada script que ningún bloque muestra.
@@ -246,7 +250,7 @@ python3 ../kit-cursos/herramientas/nucleo/comprobar_mermaid.py fase-01-que-es-pr
 python3 ../kit-cursos/herramientas/nucleo/comprobar_mermaid.py fase-01-…/04-….md --imagenes /tmp/diagramas
 ```
 
-Con `--imagenes`, guarda además cada diagrama como PNG para revisarlo a ojo. Cada fallo dice el fichero, la línea donde empieza el bloque, la versión y el error de Mermaid. Ignora `codigo/`, `.verificacion/`, `herramientas/` y `node_modules/` dentro de lo que revisa. Si falta Node o Chrome, termina con 1 y lo dice.
+Con `--imagenes`, guarda además cada diagrama como PNG para revisarlo a ojo. Cada fallo dice el fichero, la línea donde empieza el bloque, la versión y el error de Mermaid. Revisa también los `.md` de `codigo/` (como el README de un ejemplo, que el alumno abre en GitHub o en su editor). Se salta lo que está mal a propósito: los `.md` de una carpeta de `codigo/` con `debe-fallar.txt` (en ella o en una de sus carpetas de arriba, dentro de `codigo/`) y los diagramas del bloque de un módulo cuyo «📁 Código» lleva a una de esas carpetas, también los anidados (el README roto de un reto, mostrado en un bloque ` ````markdown `). Ignora `.verificacion/`, `herramientas/` y `node_modules/` dentro de lo que revisa. Si falta Node o Chrome, termina con 1 y lo dice.
 
 Dibuja cada diagrama con **dos versiones de la biblioteca Mermaid**, fijadas las dos (a 8 de noviembre de 2026):
 

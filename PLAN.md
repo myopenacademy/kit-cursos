@@ -25,7 +25,7 @@ kit-cursos/
     ├── formato_academia.py   ← comprueba que un curso cumple FORMATO.md (la pieza central, sin dependencias)
     ├── nucleo/               ← lo común: verificar_codigo, declarar_ejercicios, generar_indice, generar_chuleta_global,
     │                           comprobar_mermaid, reemplazar y argumentos
-    ├── lenguajes/            ← un comprobador por lenguaje o formato: bash.py y formato_json/yaml/xml/csv/markdown.py
+    ├── lenguajes/            ← un comprobador por lenguaje o formato: bash.py y formato_json/yaml/xml/csv/markdown/toml/ini/svg.py
     ├── servicios/            ← terminal.py y la imagen de la terminal del kit (terminal/); lo del curso de Java, cuando lo pida
     └── pruebas/              ← las pruebas y los cursos de ejemplo (bueno y ejemplo-destino), que usa también la academia
 ```

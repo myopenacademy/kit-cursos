@@ -6,6 +6,7 @@ se construye la imagen de la terminal del kit (unos minutos, con internet).
 Desde la raíz del kit:
     python3 -m unittest discover -s herramientas/pruebas -v
 """
+import json
 import re
 import shutil
 import subprocess
@@ -379,6 +380,158 @@ class Datos(Base):
     def test_conversion_con_otros_datos(self):
         self.carpeta("2.9-conv", {"pedido.json": '{"id": 1, "total": 25.5}\n', "pedido.yaml": "id: 1\ntotal: 25\n"})
         self.assertError("2.9-conv", "no tienen los mismos datos")
+
+    # -- CSV con su JSON (reglas del reto 3 de la fase 4 del curso inicial, FORMATO.md 7.1) -----------------
+
+    CSV = ('pedido,cp,precio,pagado,notas\n'
+           'P-1,08012,12.50,sí,"Que ponga ""frágil"""\n'
+           'P-2,28004,7,false,\n')
+    JSON = [{"pedido": "P-1", "cp": "08012", "precio": 12.5, "pagado": True, "notas": 'Que ponga "frágil"'},
+            {"notas": None, "pedido": "P-2", "cp": "28004", "precio": 7.0, "pagado": False}]
+
+    def comparar(self, csv=None, datos=None, extra=None):
+        self.carpeta("2.9-tabla", {"pedidos.csv": csv if csv is not None else self.CSV,
+                                   "pedidos.json": json.dumps(datos if datos is not None else self.JSON, ensure_ascii=False),
+                                   **(extra or {})}, mostrar="pedidos.csv")
+
+    def cambiado(self, fila, clave, valor):
+        datos = json.loads(json.dumps(self.JSON))
+        datos[fila][clave] = valor
+        return datos
+
+    def test_csv_y_json_con_los_mismos_datos(self):
+        self.comparar()
+        self.assertEqual(self.ejecutar(), 0, self.salida)
+        self.assertIn("(1 CSV comparados con su JSON)", self.salida)
+
+    def test_sin_json_no_se_compara(self):
+        self.carpeta("2.9-tabla", {"pedidos.csv": self.CSV})
+        self.assertEqual(self.ejecutar(), 0, self.salida)
+        self.assertNotIn("comparados", self.salida)
+
+    def test_codigo_postal_como_numero(self):
+        self.comparar(datos=self.cambiado(0, "cp", 8012))
+        self.assertError("pedidos.csv:2:", "fila 1 de datos", "clave «cp»", "no se lee como número")
+
+    def test_numero_con_coma_decimal(self):
+        self.comparar(csv=self.CSV.replace("12.50", '"12,50"'))
+        self.assertError("pedidos.csv:2:", "clave «precio»", "«12,50»")
+
+    def test_otro_numero(self):
+        self.comparar(datos=self.cambiado(1, "precio", 7.01))
+        self.assertError("pedidos.csv:3:", "clave «precio»", "es el número 7.01 y en el CSV 7")
+
+    def test_booleano_solo_en_minuscula(self):
+        self.comparar(csv=self.CSV.replace(",sí,", ",Sí,"))
+        self.assertError("pedidos.csv:2:", "clave «pagado»", "sí, no, true o false")
+
+    def test_booleano_al_reves(self):
+        self.comparar(datos=self.cambiado(1, "pagado", True))
+        self.assertError("pedidos.csv:3:", "clave «pagado»", "es true y en el CSV «false»")
+
+    def test_texto_igual_exacto(self):
+        self.comparar(datos=self.cambiado(0, "cp", "8012"))
+        self.assertError("pedidos.csv:2:", "clave «cp»", "texto «8012» y en el CSV «08012»")
+
+    def test_vacio_solo_como_null(self):
+        self.comparar(datos=self.cambiado(1, "notas", ""))
+        self.assertError("pedidos.csv:3:", "clave «notas»", "solo vale como null")
+
+    def test_null_con_campo_lleno(self):
+        self.comparar(datos=self.cambiado(0, "notas", None))
+        self.assertError("pedidos.csv:2:", "clave «notas»", "es null")
+
+    def test_lista_en_el_json(self):
+        self.comparar(datos=self.cambiado(0, "precio", [12.5]))
+        self.assertError("pedidos.csv:2:", "clave «precio»", "es una lista")
+
+    def test_claves_que_faltan_y_sobran(self):
+        datos = json.loads(json.dumps(self.JSON))
+        datos[1]["nota"] = datos[1].pop("notas")
+        self.comparar(datos=datos)
+        self.assertError("pedidos.csv:3:", "le falta «notas»")
+        self.assertError("pedidos.csv:3:", "le sobra «nota»")
+
+    def test_importa_el_orden_de_las_filas(self):
+        self.comparar(datos=list(reversed(self.JSON)))
+        self.assertError("pedidos.csv:2:", "clave «pedido»", "«P-2» y en el CSV «P-1»")
+
+    def test_distinto_numero_de_filas(self):
+        self.comparar(datos=self.JSON[:1])
+        self.assertError("pedidos.csv", "2 filas de datos y pedidos.json, 1 objetos")
+
+    def test_el_json_no_es_una_lista(self):
+        self.comparar(datos={"pedidos": self.JSON})
+        self.assertError("pedidos.csv", "debe ser una lista", "es un objeto")
+
+    def test_con_su_separador(self):
+        self.comparar(csv=self.CSV.replace(",", ";").replace('"Que ponga ""frágil"""', '"Que ponga ""frágil"""'),
+                      extra={"separador.txt": ";\n"})
+        self.assertEqual(self.ejecutar(), 0, self.salida)
+
+    def test_tsv_con_su_json(self):
+        self.carpeta("2.9-tabla", {"pedidos.tsv": self.CSV.replace(",", "\t"),
+                                   "pedidos.json": json.dumps(self.JSON, ensure_ascii=False)}, mostrar="pedidos.tsv")
+        self.assertEqual(self.ejecutar(), 0, self.salida)
+        self.assertIn("(1 CSV comparados con su JSON)", self.salida)
+
+    # -- la codificación de los CSV -------------------------------------------------------------------
+
+    def csv_en_bytes(self, nombre, datos, extra=None):
+        self.carpeta(nombre, {"leeme.md": "# Datos\n", **(extra or {})}, mostrar="leeme.md")
+        (self.raiz / EJEMPLOS / nombre / "clientes.csv").write_bytes(datos)
+
+    def test_csv_con_bom(self):
+        self.csv_en_bytes("2.9-bom", "nombre,ciudad\nLucía,Ávila\n".encode("utf-8-sig"))
+        self.assertError("clientes.csv:1:", "BOM")
+
+    def test_csv_en_windows_1252_sin_codificacion(self):
+        self.csv_en_bytes("2.9-1252", "nombre,ciudad\nLucía,Ávila\n".encode("cp1252"))
+        self.assertError("clientes.csv:2:", "no está en UTF-8", "codificacion.txt")
+
+    def test_csv_en_windows_1252_con_codificacion(self):
+        self.csv_en_bytes("2.9-1252", "nombre,ciudad\nLucía,Ávila\n".encode("cp1252"), {"codificacion.txt": "WINDOWS-1252\n"})
+        self.assertEqual(self.ejecutar(), 0, self.salida)
+
+    def test_codificacion_que_sobra(self):
+        self.csv_en_bytes("2.9-1252", "nombre,ciudad\nLucía,Ávila\n".encode("utf-8"), {"codificacion.txt": "WINDOWS-1252\n"})
+        self.assertError("clientes.csv", "está en UTF-8", "sobra el codificacion.txt")
+
+    def test_codificacion_desconocida(self):
+        self.csv_en_bytes("2.9-1252", "nombre,ciudad\nLucia,Avila\n".encode("utf-8"), {"codificacion.txt": "MARCIANO\n"})
+        self.assertError("clientes.csv", "«MARCIANO»", "no es una codificación conocida")
+
+    # -- TOML, INI y SVG ------------------------------------------------------------------------------
+
+    def test_toml_bueno_y_malo(self):
+        self.carpeta("2.9-toml", {"tienda.toml": '[tienda]\nnombre = "La Taza"\npuerto = 8080\n'})
+        self.assertEqual(self.ejecutar(), 0, self.salida)
+        (self.raiz / EJEMPLOS / "2.9-toml" / "otra.toml").write_text('[tienda]\nnombre = La Taza\n', encoding="utf-8")
+        self.assertError("otra.toml:2:", "TOML no válido")
+
+    def test_ini_bueno(self):
+        self.carpeta("2.9-ini", {"tienda.ini": "; La tienda\n[tienda]\nnombre = La Taza\nmargen = 20%\n"})
+        self.assertEqual(self.ejecutar(), 0, self.salida)
+
+    def test_ini_con_clave_fuera_de_seccion_y_repetida(self):
+        self.carpeta("2.9-ini", {"tienda.ini": "nombre = La Taza\n[tienda]\n"})
+        self.assertError("tienda.ini:1:", "antes de la primera sección")
+        (self.raiz / EJEMPLOS / "2.9-ini" / "tienda.ini").write_text("[tienda]\nnombre = A\nnombre = B\n", encoding="utf-8")
+        self.assertError("tienda.ini:3:", "«nombre» está repetida en la sección [tienda]")
+
+    def test_svg_sin_xmlns(self):
+        self.carpeta("2.9-svg", {"logo.svg": '<svg width="10" height="10"><rect width="10" height="10"/></svg>\n'})
+        self.assertError("logo.svg:1:", "xmlns")
+
+    def test_svg_bueno_en_una_carpeta_con_debe_fallar(self):
+        self.carpeta("2.9-roto", {"README.md": "# Roto\n\n[x](no-existe.md)\n", "debe-fallar.txt": "Enlace roto.\n",
+                                  "logo.svg": '<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>\n'},
+                     mostrar="README.md")
+        self.assertEqual(self.ejecutar(), 0, self.salida)
+
+    def test_debe_fallar_con_solo_imagenes(self):
+        self.carpeta("2.9-roto", {"logo.svg": '<svg xmlns="http://www.w3.org/2000/svg"/>\n', "debe-fallar.txt": "x\n"})
+        self.assertError("debe-fallar.txt", "sin ficheros de datos")
 
 
 @unittest.skipUnless(HAY_DOCKER, "hace falta Docker")

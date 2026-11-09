@@ -315,11 +315,21 @@ Le dicen al kit cómo comprobar un ejemplo o una solución. Son los mismos del c
 | `entrada.txt` | Lo que se teclea: se pasa como entrada estándar al programa o al script. |
 | `args.txt` | Los argumentos, en una línea, con comillas como en la terminal. |
 | `termina-con-error.txt` | El programa o el script termina **a propósito** con un error (un código distinto de 0). Dentro, una línea que dice por qué. |
-| `debe-fallar.txt` | El fichero de datos está mal **a propósito** (un JSON con una coma de más, un YAML mal sangrado…): el kit comprueba que falla, en vez de darlo por malo. Dentro, una línea que dice qué error tiene. |
-| `separador.txt` | El separador de los CSV de la carpeta, en una sola línea (`;`, `\|` o la palabra `tabulador`). Si no está, la coma. |
+| `debe-fallar.txt` | El fichero de datos está mal **a propósito** (un JSON con una coma de más, un YAML mal sangrado…): el kit comprueba que falla, en vez de darlo por malo. Dentro, una línea que dice qué error tiene. Las imágenes SVG de la carpeta no cuentan: tienen que ser válidas siempre. |
+| `separador.txt` | El separador de los CSV de la carpeta, en una sola línea (`;`, `\|` o la palabra `tabulador`). Si no está, la coma. Un `.tsv` va siempre con tabulador. |
+| `codificacion.txt` | La codificación de los CSV de la carpeta cuando no están en UTF-8 a propósito (como los que exporta un programa antiguo), en una sola línea y con el nombre que entiende `iconv`: `WINDOWS-1252`, `ISO-8859-15`… El kit convierte el CSV desde esa codificación y lo comprueba como cualquier otro. Sin él, los CSV deben estar en UTF-8 **sin BOM** (un BOM es un error). |
 | `salida-variable.txt` | Lo que cambia en cada ejecución (fechas, identificadores de commit, tiempos): una expresión regular de Python por línea (las vacías y las que empiezan por `#` no cuentan). Antes de comparar, lo que encaja se sustituye por `…` en la salida real y en la del texto, y el texto avisa de que la del alumno será distinta en esas partes. |
 | `sesion.txt` (o `sesion-<nombre>.txt`) | Las órdenes de una sesión de terminal, una por línea, como se teclean; las líneas vacías y las que empiezan por `#` no se teclean. Cada una empieza desde cero, con los ficheros de la carpeta. |
 | `sesion-1.txt`, `sesion-2.txt`… | **Sesiones encadenadas**: las de un ejemplo que el alumno hace una detrás de otra. Se teclean en ese orden en la misma terminal: cada una encuentra los ficheros (y los commits) como los dejó la anterior, pero arranca en una terminal nueva, en la carpeta del ejemplo, sin la carpeta actual ni las variables de la anterior (el alumno puede cerrarla entre una y otra; si una sesión necesita un `cd`, lo hace ella). Van de la 1 en adelante, sin saltos ni ceros delante, y conviven con las sueltas de la misma carpeta. |
+
+**Conversiones.** Si una carpeta tiene ficheros de datos con el mismo nombre, el kit comprueba que dicen lo mismo:
+
+- Un `.json` y un `.yaml`: deben cargar los mismos datos.
+- Un `.csv` (o `.tsv`) y un `.json` (si no hay `.json`, no se compara):
+  - El JSON es una **lista** en el nivel superior, con **un objeto por fila de datos** del CSV (la primera fila es la cabecera), **en el mismo orden**. El orden de las claves dentro de cada objeto no importa.
+  - Cada objeto tiene **exactamente las claves de la cabecera** (ni una más ni una menos), y la cabecera no repite nombres.
+  - Cada campo del CSV se compara según el tipo de su valor en el JSON: un **texto**, igual letra a letra, aunque parezca un número (`"08012"`); un **número**, el campo escrito como `-?(0|[1-9][0-9]*)(\.[0-9]+)?` y con el mismo valor (`12.50` es `12.5`; `08012` o `12,50` como número son un error); un **booleano**, `sí` o `true` para `true`, y `no` o `false` para `false`, exactamente así, en minúscula; **`null`**, el campo vacío (y un campo vacío solo vale como `null`, no como `""`); una **lista** o un **objeto**, error (un CSV no los tiene).
+  - Cada error dice la línea del CSV, la fila y la clave.
 
 Lo que se compara se escribe en el módulo **justo después del programa y de su enlace «📁 Código»**, con estas líneas exactas, cada una seguida de un bloque ` ```text `:
 
@@ -381,6 +391,10 @@ La academia trata el HTML así:
 - **Formato sin efecto** (`span`, `div`, `u`, `b`, `i`, `s`, `mark`, `small`, `center`, `section`…) y enlaces escritos en HTML (`<a>`): la academia quita la etiqueta al instalar y deja su texto. Es un **aviso**.
 - **Cualquier otra etiqueta** (scripts, marcos, estilos, formularios, imágenes escritas en HTML…) y **cualquier otro atributo** (manejadores de eventos como `onclick`, `style`, `id`, `open`…) **hacen fallar la instalación**: es un **error**.
 
+### 10.6. Listas de tareas
+
+Las listas de tareas de Markdown (`- [ ] Pendiente`, `- [x] Hecho`), que dibuja GitHub, **de momento no se admiten** fuera de los bloques de código: la academia todavía no las dibuja (se vería `[ ]` como texto). Es un **aviso**. Dentro de un bloque de código (para enseñar cómo se escriben) o en los `.md` de `codigo/` se pueden usar. Cuando la academia las dibuje, se quitará el aviso.
+
 ## 11. Versiones del curso
 
 ### 11.1. Versión y registro de cambios
@@ -423,6 +437,7 @@ La comprobación del kit (`formato_academia.py`) revisa que un curso cumple este
 - Cada módulo: título, cabecera, secciones en orden, ejercicios con sus títulos iguales a `curso.json`, solución de cada ejercicio, preguntas de repaso.
 - Retos, etapas, glosario y proyecto.
 - Enlaces del mismo curso y entre cursos (con sus anclas), imágenes, diagramas y HTML.
+- Listas de tareas fuera de los bloques de código (apartado 10.6), con un aviso.
 - Ficheros obligatorios.
 - Lo de `codigo/` que no viaja con Git (apartado 7), con avisos: un fichero de texto con CRLF en lo que guarda Git (o en el disco, si el curso no está en Git) o que no saldría con LF en un clon; carpetas vacías; scripts que una sesión lanza con `./` sin permiso de ejecución en Git; y permisos del disco que un clon no tendría.
 
@@ -444,5 +459,5 @@ Para que los cursos no dependan unos de otros, algunas cosas son de la academia:
 - Se cambia **solo desde el proyecto del kit** (`Cursos/kit-cursos/`), nunca desde un curso ni desde la academia por su cuenta.
 - Cada cambio sube la versión del formato (el campo `formato`), se anota qué cursos hay que poner al día y la academia sigue sabiendo leer las versiones anteriores.
 - **Las versiones cuentan desde la primera publicación.** Hasta que se publique el primer curso, los ajustes se hacen dentro de la versión 1 y se anotan aquí:
-  - 8 de noviembre de 2026: un módulo con `"disponible": false` puede llevar su `fichero` previsto, y una fase sus `retos` previstos con `"retos_disponibles": false` (apartado 3.2); ficheros de verificación `debe-fallar.txt` y `separador.txt`, y después todos los del curso de Java con las salidas en el texto (apartado 7.1); títulos del curso, las fases, los módulos, los ejercicios y los retos en texto plano (apartado 3.2); una fase que solo contiene el proyecto final no necesita retos (apartado 6); qué subapartados se numeran (apartado 5.1); «Conviene saber antes», solo enlaces, con ancla para precisar la sección (apartado 5.2); el HTML que admite de verdad la academia, y `<details open>` no (apartado 10.5); 9 de noviembre de 2026: los cursos de ejemplo viven en el kit y la academia guarda una copia (apartado 14), y cualquier curso puede tener su propio glosario además del común del curso inicial (apartado 9); saltos de línea LF en `codigo/` y `.gitattributes` con `* text=auto eol=lf` (apartados 2, 7 y 13); lo que no viaja con Git (carpetas vacías y permisos), sin `export-ignore` en `codigo/`, y verificar el commit para cerrar una fase (apartados 7 y 13); sesiones encadenadas, `sesion-1.txt`, `sesion-2.txt`… (apartado 7.1). **A poner al día:** el curso de Java, al adaptarlo, tiene 88 títulos de ejercicio con formato (comillas invertidas o cursiva).
+  - 8 de noviembre de 2026: un módulo con `"disponible": false` puede llevar su `fichero` previsto, y una fase sus `retos` previstos con `"retos_disponibles": false` (apartado 3.2); ficheros de verificación `debe-fallar.txt` y `separador.txt`, y después todos los del curso de Java con las salidas en el texto (apartado 7.1); títulos del curso, las fases, los módulos, los ejercicios y los retos en texto plano (apartado 3.2); una fase que solo contiene el proyecto final no necesita retos (apartado 6); qué subapartados se numeran (apartado 5.1); «Conviene saber antes», solo enlaces, con ancla para precisar la sección (apartado 5.2); el HTML que admite de verdad la academia, y `<details open>` no (apartado 10.5); 9 de noviembre de 2026: los cursos de ejemplo viven en el kit y la academia guarda una copia (apartado 14), y cualquier curso puede tener su propio glosario además del común del curso inicial (apartado 9); saltos de línea LF en `codigo/` y `.gitattributes` con `* text=auto eol=lf` (apartados 2, 7 y 13); lo que no viaja con Git (carpetas vacías y permisos), sin `export-ignore` en `codigo/`, y verificar el commit para cerrar una fase (apartados 7 y 13); sesiones encadenadas, `sesion-1.txt`, `sesion-2.txt`… (apartado 7.1); `codificacion.txt`, CSV en UTF-8 sin BOM, `.tsv` con tabulador y la comparación de un CSV con su JSON (apartado 7.1); listas de tareas, de momento no (apartado 10.6). **A poner al día:** el curso de Java, al adaptarlo, tiene 88 títulos de ejercicio con formato (comillas invertidas o cursiva).
 - Si un curso necesita algo nuevo, primero se amplía la academia y este formato, y después lo usa el curso.

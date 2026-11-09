@@ -26,11 +26,16 @@ misma terminal, como las hace el alumno: cada una encuentra los ficheros y el re
 anterior, pero arranca en una bash nueva en la carpeta del ejemplo (sin el cd ni las variables de la anterior: el
 alumno puede cerrar la terminal entre una y otra). Cada bloque se compara con la pantalla de la suya. Las demás
 sesiones (sesion.txt, sesion-<nombre>.txt) empiezan cada una desde cero, con los ficheros de la carpeta.
-Los ficheros de datos de cada carpeta enlazada (.json, .yaml/.yml, .xml, .csv y .md) tienen que ser válidos
-(lenguajes/formato_*.py: JSON y YAML que se leen, XML bien formado, CSV con su separador.txt y las mismas
-columnas en cada fila, Markdown con enlaces, anclas y tablas bien escritos y los bloques cerrados). Si la carpeta
-tiene debe-fallar.txt, todos sus ficheros de datos tienen que FALLAR (están mal a propósito). Si una carpeta tiene
-un .json y un .yaml con el mismo nombre (una conversión), tienen que cargar los mismos datos.
+Los ficheros de datos de cada carpeta enlazada (.json, .yaml/.yml, .xml, .csv/.tsv, .md, .toml, .ini y .svg)
+tienen que ser válidos (lenguajes/formato_*.py: JSON, YAML y TOML que se leen, XML bien formado, CSV con su
+separador.txt y las mismas columnas en cada fila, en UTF-8 sin BOM o en la codificación de su codificacion.txt,
+TSV igual pero con tabulador, INI con sus claves dentro de secciones y sin repetir, SVG bien formado con su
+xmlns, Markdown con enlaces, anclas y tablas bien escritos y los bloques cerrados). Si la carpeta tiene
+debe-fallar.txt, todos sus ficheros de datos tienen que FALLAR (están mal a propósito), menos las imágenes SVG,
+que siempre tienen que ser válidas. Si una carpeta tiene un .json y un .yaml con el mismo nombre (una
+conversión), tienen que cargar los mismos datos; y si tiene un .csv (o .tsv) y un .json con el mismo nombre, los
+mismos datos con las reglas de FORMATO.md, apartado 7.1 (cada fila, un objeto con las claves de la cabecera;
+cada campo, según el tipo de su valor en el JSON).
 Antes de comparar, lo que encaja con cada expresión regular del salida-variable.txt de la carpeta se sustituye
 por «…», en la salida real y en la del texto.
 Además: error por cada fichero enlazado que Git ignora (.gitignore: no llegaría a un clon del curso), y aviso por
@@ -83,16 +88,16 @@ from argumentos import revisar                                                  
 from formato_academia import CARPETAS_IGNORADAS, FICHEROS_DE_TRABAJO, Informe, Markdown   # noqa: E402
 import terminal                                                                    # noqa: E402
 import bash as lenguaje_bash                                                       # noqa: E402
-import formato_csv, formato_json, formato_markdown, formato_xml, formato_yaml       # noqa: E402,E401
+import formato_csv, formato_ini, formato_json, formato_markdown, formato_svg, formato_toml, formato_xml, formato_yaml  # noqa: E402,E401
 
-FORMATOS = [formato_json, formato_yaml, formato_xml, formato_csv, formato_markdown]
+FORMATOS = [formato_json, formato_yaml, formato_xml, formato_csv, formato_markdown, formato_toml, formato_ini, formato_svg]
 
 ENLACE_CODIGO = re.compile(r"^📁 \*\*Código:\*\* \[[^\]]*\]\(([^)\s]+)\)")
 SESION = re.compile(r"^\*\*En tu terminal\*\* \(`([^`]+)`\):\s*$")
 SALIDA, SALIDA_DE_ERROR = "**Salida:**", "**Salida de error:**"
 ENCADENADA = re.compile(r"sesion-(\d+)\.txt")
 DE_VERIFICACION = {"entrada.txt", "args.txt", "termina-con-error.txt", "debe-fallar.txt", "separador.txt",
-                   "salida-variable.txt"}
+                   "codificacion.txt", "salida-variable.txt"}
 
 
 def es_de_verificacion(nombre):
@@ -136,7 +141,7 @@ class Verificador:
         self.raiz, self.informe, self.con_docker = raiz, informe, con_docker
         self.enlazadas = set()          # carpetas enlazadas (resueltas)
         self.mostrados = set()          # ficheros que un bloque muestra
-        self.cuentas = {"bloques": 0, "scripts": 0, "sesiones": 0, "datos": 0}
+        self.cuentas = {"bloques": 0, "scripts": 0, "sesiones": 0, "datos": 0, "comparaciones": 0}
         self.compatibilidad_revisada = set()
         self.cadenas = {}               # carpeta → {nombre: pantalla, o el error con el que no se ha podido teclear}
         self.sesiones_mostradas = set() # sesiones encadenadas que muestra algún bloque
@@ -387,9 +392,9 @@ class Verificador:
             debe_fallar = (carpeta / "debe-fallar.txt").is_file()
             de_datos = [(f, fmt) for f in sorted(carpeta.rglob("*")) if f.is_file() and not es_de_verificacion(f.name)
                         for fmt in FORMATOS if fmt.es_mio(f)]
-            if debe_fallar and not de_datos:
+            if debe_fallar and not any(not getattr(fmt, "SIEMPRE", False) for _, fmt in de_datos):
                 self.informe.error(self.rel(carpeta / "debe-fallar.txt"), 0, "debe-fallar.txt en una carpeta sin ficheros de datos")
-            cargados = {}
+            cargados, tablas = {}, []
             for f, fmt in de_datos:
                 if f.resolve() in vistos:
                     continue
@@ -400,7 +405,7 @@ class Verificador:
                     sin_pyyaml = sin_pyyaml or (self.rel(f), str(e))
                     continue
                 self.cuentas["datos"] += 1
-                if debe_fallar:
+                if debe_fallar and not getattr(fmt, "SIEMPRE", False):
                     if not problemas:
                         self.informe.error(self.rel(f), 0, "su carpeta tiene debe-fallar.txt (está mal a propósito), pero es válido")
                     continue
@@ -408,11 +413,20 @@ class Verificador:
                     self.informe.error(self.rel(f), linea, mensaje)
                 if not problemas and fmt in (formato_json, formato_yaml):
                     cargados.setdefault(f.with_suffix(""), []).append((f, fmt.cargar(f)))
+                if not problemas and fmt is formato_csv:
+                    tablas.append(f)
             for _, versiones in cargados.items():
                 if len(versiones) > 1 and any(d != versiones[0][1] for _, d in versiones[1:]):
                     nombres = " y ".join(f.name for f, _ in versiones)
                     self.informe.error(self.rel(versiones[0][0].parent), 0, f"{nombres} no tienen los mismos datos "
                                                                            "(una conversión debe cargar lo mismo)")
+            # Un CSV (o TSV) y un JSON con el mismo nombre: los mismos datos, con las reglas de FORMATO.md 7.1
+            for f in tablas:
+                json_fichero = next((g for g, _ in cargados.get(f.with_suffix(""), []) if g.suffix.lower() == ".json"), None)
+                if json_fichero:
+                    self.cuentas["comparaciones"] += 1
+                    for linea, mensaje in formato_csv.comparar(f, f.parent, json_fichero):
+                        self.informe.error(self.rel(f), linea, f"no coincide con {json_fichero.name}: {mensaje}")
         if sin_pyyaml:
             self.informe.aviso(sin_pyyaml[0], 0, f"no se han podido comprobar los YAML: {sin_pyyaml[1]}")
 
@@ -550,7 +564,8 @@ def verificar(raiz, rutas, usadas):
     verificador.revisar_codigo(carpetas if not any(Path(r).is_file() for r in rutas) else [])
     c = verificador.cuentas
     resumen = (f"{len(mds)} ficheros revisados: {c['bloques']} bloques con su fichero, {c['scripts']} scripts "
-               f"ejecutados, {c['sesiones']} sesiones de terminal y {c['datos']} ficheros de datos.")
+               f"ejecutados, {c['sesiones']} sesiones de terminal y {c['datos']} ficheros de datos"
+               + (f" ({c['comparaciones']} CSV comparados con su JSON)." if c["comparaciones"] else "."))
     if con_docker:
         resumen += " En la terminal del kit (Docker, sin red): verificación completa."
     else:

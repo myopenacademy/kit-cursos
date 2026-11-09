@@ -12,6 +12,8 @@ Revisa, sin ejecutar nada del curso:
   - Los retos de cada fase, las etapas del proyecto, el glosario, 00-indice.md y los ficheros
     obligatorios.
   - Enlaces del mismo curso y a otros cursos (con sus anclas), imágenes, diagramas Mermaid y HTML.
+  - Listas de tareas de Markdown (- [ ], - [x]) fuera de los bloques de código, que la academia todavía no
+    dibuja (aviso).
   - Los huecos [RELLENAR: …] de las plantillas que queden sin rellenar.
 
 Lo que FORMATO.md dice con «debe» es un ERROR (el curso no se instala) y lo que dice con «conviene»,
@@ -85,6 +87,8 @@ ENCABEZADO = re.compile(r"^(#{1,6})[ \t]+(.*?)[ \t]*#*[ \t]*$")
 CODIGO_EN_LINEA = re.compile(r"(`+)(?!`)(.+?)(?<!`)\1(?!`)")
 ENLACE = re.compile(r"(!?)\[((?:[^\[\]]|\[[^\]]*\])*)\]\(\s*<?([^)\s>]*)>?(?:\s+\"[^\"]*\")?\s*\)")
 ETIQUETA = re.compile(r"<(/?)([a-zA-Z][a-zA-Z0-9-]*)(?=[\s/>])([^>]*)>")
+# Un elemento de una lista de tareas de GitHub: «- [ ] …», «* [x] …», «1. [X] …» (también dentro de una cita)
+TAREA = re.compile(r"^[ \t]*(?:>[ \t]*)*(?:[-*+]|[0-9]{1,9}[.)])[ \t]+\[[ xX]\](?:[ \t]|$)")
 DETALLES = re.compile(r"<details\b[^>]*>|</details\s*>|<summary>(.*?)</summary>")
 RELLENAR = re.compile(r"\[RELLENAR\b")
 ENTIDAD = re.compile(r"&(#?[a-zA-Z0-9]+);")
@@ -1233,6 +1237,10 @@ class Curso:
                 for m in ENLACE.finditer(linea):
                     self.comprobar_enlace(md, i, m.group(1) == "!", m.group(2), m.group(3))
                 self.comprobar_html(md, i, linea)
+                if TAREA.match(linea):
+                    self.informe.aviso(md.rel, i + 1, "lista de tareas (- [ ] / - [x]): la academia todavía no las dibuja "
+                                                      "(se ve «[ ]» como texto); fuera de un bloque de código, usa una "
+                                                      "lista normal")
             for inicio, fin, lenguaje in md.bloques:
                 if lenguaje == "mermaid":
                     self.comprobar_mermaid(md, inicio, fin)
