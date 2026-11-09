@@ -17,9 +17,11 @@ Revisa, sin ejecutar nada del curso:
 Lo que FORMATO.md dice con «debe» es un ERROR (el curso no se instala) y lo que dice con «conviene»,
 un AVISO (se instala, pero conviene corregirlo). Cada línea dice el fichero, la línea y qué falta.
 
-De codigo/ solo mira los saltos de línea (aviso si un fichero de texto tiene CRLF o no saldría con LF
-en un clon en Windows; con Git, lo que guarda Git, y sin Git, el disco); el código lo verifican las demás
-herramientas del kit. No dibuja los diagramas (comprobar_mermaid.py).
+De codigo/ solo mira lo que no viaja con Git, con avisos (con Git, lo que guarda Git; sin Git, el disco):
+ficheros de texto con CRLF o que no saldrían con LF en un clon en Windows, carpetas vacías, scripts que una
+sesión lanza con ./ sin permiso de ejecución, y permisos que un clon no tendría. El código lo verifican las
+demás herramientas del kit (verificar_codigo.py --commit, como un clon). No dibuja los diagramas
+(comprobar_mermaid.py).
 
 Uso, desde la raíz del curso (con el kit en la carpeta hermana ../kit-cursos/):
     python3 ../kit-cursos/herramientas/formato_academia.py            # el curso de la carpeta actual
@@ -31,6 +33,7 @@ argumentos están mal (una opción desconocida o una carpeta que no existe), sin
 Necesita Python 3.11 o posterior, sin librerías adicionales.
 """
 import json
+import os
 import re
 import subprocess
 import sys
@@ -196,6 +199,11 @@ class Markdown:
                 self._anclas.add(base if n == 0 else f"{base}-{n}")
                 vistas[base] = n + 1
         return self._anclas
+
+
+def en_codigo(rel):
+    """Si la ruta relativa está dentro de una carpeta codigo/ del curso."""
+    return "codigo" in rel.split("/")[:-1]
 
 
 def ancla(encabezado):
@@ -1043,31 +1051,51 @@ class Curso:
 
     # -- todos los Markdown: enlaces, imágenes, Mermaid, HTML y huecos -----------------------------------
 
-    # -- saltos de línea del código ----------------------------------------------------------------
+    # -- codigo/ como lo recibirá el alumno ---------------------------------------------------------
+    # Un clon (y la academia, que instala desde un commit) solo recibe lo que guarda Git: ni carpetas vacías,
+    # ni más permisos que «ejecutable o no», y los saltos de línea según .gitattributes. Todo son avisos: el
+    # fallo real lo da verificar_codigo.py --commit, que verifica una copia como la de un clon.
 
-    def comprobar_saltos_de_linea(self):
-        """Que los ficheros de texto de codigo/ tengan saltos de línea LF (FORMATO.md, apartado 7): con CRLF, bash
-        falla ($'\\r': orden no encontrada) y grep, cut o read ven un \\r al final de cada línea. Dos avisos:
-          - un fichero con CRLF en lo que guarda Git (o, si no es suyo todavía, en lo que guardaría);
-          - ficheros que no saldrían con LF en un clon con core.autocrlf=true (lo normal en Git for Windows),
-            porque al curso le falta «* text=auto eol=lf» en su .gitattributes.
-        Los marcados con -text en .gitattributes (CRLF a propósito) no avisan. Sin Git, solo se mira el disco."""
+    def git(self, *argumentos):
+        """La salida de una orden de Git en la raíz del curso, o None si no hay Git o no es un repositorio."""
         try:
-            salida = subprocess.run(["git", "-C", str(self.raiz), "ls-files", "--eol", "-z", "--cached", "--others",
-                                     "--exclude-standard"], capture_output=True, text=True, check=True).stdout
+            return subprocess.run(["git", "-C", str(self.raiz), *argumentos], capture_output=True, text=True,
+                                  check=True).stdout
         except (OSError, subprocess.CalledProcessError):
-            salida = None
-        if salida is None:
-            for ruta in sorted(p for p in self.raiz.rglob("*") if p.is_file()):
-                rel = ruta.relative_to(self.raiz)
-                if "codigo" in rel.parts[:-1] and not ({".git", ".verificacion"} & set(rel.parts)):
-                    self.aviso_crlf(rel.as_posix(), sin_git=True)
-            return
-        sin_lf = []
+            return None
+
+    def comprobar_codigo_en_git(self):
+        """Saltos de línea, carpetas vacías y permisos de los ficheros de codigo/ (FORMATO.md, apartado 7)."""
+        salida = self.git("ls-files", "--eol", "-z", "--cached", "--others", "--exclude-standard")
+        if salida is None:                                      # sin Git: solo el disco
+            presentes = [p.relative_to(self.raiz).as_posix() for p in sorted(self.raiz.rglob("*"))
+                         if p.is_file() and en_codigo(p.relative_to(self.raiz).as_posix())]
+            for rel in presentes:
+                self.aviso_crlf(rel, sin_git=True)
+            modos = {}
+        else:
+            presentes = self.comprobar_saltos_de_linea(salida)
+            modos = {}                                          # ruta → ¿Git la guarda como ejecutable?
+            for entrada in filter(None, (self.git("ls-files", "-s", "-z") or "").split("\0")):
+                datos, _, rel = entrada.partition("\t")
+                modos[rel] = datos.split()[0] == "100755"
+        self.comprobar_carpetas_vacias(set(presentes))
+        if os.name != "nt":                                     # en Windows el disco no tiene esos permisos
+            lanzados = self.comprobar_lanzados_con_punto(presentes, modos)
+            self.comprobar_permisos(presentes, modos, lanzados, salida is not None)
+
+    def comprobar_saltos_de_linea(self, salida):
+        """Con CRLF, bash falla ($'\\r': orden no encontrada) y grep, cut o read ven un \\r al final de cada línea.
+        Dos avisos: un fichero con CRLF en lo que guarda Git (o, si no es suyo todavía, en lo que guardaría), y
+        ficheros que no saldrían con LF en un clon con core.autocrlf=true (lo normal en Git for Windows), porque
+        al curso le falta «* text=auto eol=lf» en su .gitattributes. Los marcados con -text no avisan.
+        Devuelve los ficheros de codigo/ que Git guarda o guardaría."""
+        presentes, sin_lf = [], []
         for entrada in filter(None, salida.split("\0")):
             datos, _, rel = entrada.partition("\t")
-            if "codigo" not in rel.split("/")[:-1]:
+            if not en_codigo(rel):
                 continue
+            presentes.append(rel)
             campos = dict(c.split("/", 1) for c in datos.split()[:2])        # i/… (índice) y w/… (disco)
             atributos = datos.split("attr/", 1)[1].split() if "attr/" in datos else []
             if "-text" in atributos:
@@ -1086,6 +1114,7 @@ class Curso:
                                "con core.autocrlf=true, lo normal en Git for Windows, se rompen los scripts y los datos "
                                "que leen; añade «* text=auto eol=lf» al .gitattributes del curso, como el de la plantilla "
                                "del kit (FORMATO.md, apartado 7)")
+        return presentes
 
     def aviso_crlf(self, rel, sin_git=False):
         """Avisa de que rel tiene CRLF, con la primera línea que lo tiene en el disco. Sin Git, lo mira en el disco."""
@@ -1101,6 +1130,80 @@ class Curso:
                                        "(en VS Code, «CRLF» abajo a la derecha) o, con «* text=auto eol=lf» en "
                                        ".gitattributes, «git add --renormalize .»; si es a propósito, márcalo con -text "
                                        "en .gitattributes (FORMATO.md, apartado 7)")
+
+    def comprobar_carpetas_vacias(self, presentes):
+        """Git no guarda carpetas: una carpeta de codigo/ sin ningún fichero que Git guarde (vacía, o con todo
+        ignorado) no existe en un clon. Se avisa solo de la de más arriba."""
+        con_algo = {"/".join(Path(rel).parts[:n]) for rel in presentes for n in range(1, len(Path(rel).parts))}
+        avisadas = []
+        for carpeta in sorted(p for p in self.raiz.rglob("*") if p.is_dir()):
+            rel = carpeta.relative_to(self.raiz).as_posix()
+            if not en_codigo(rel + "/x") or rel in con_algo or any(rel.startswith(a + "/") for a in avisadas):
+                continue
+            if ".git" in Path(rel).parts or ".verificacion" in Path(rel).parts:
+                continue
+            avisadas.append(rel)
+            self.informe.aviso(rel + "/", 0,
+                               "carpeta que no existirá en un clon del curso: Git no guarda las carpetas vacías (ni las "
+                               "que solo tienen ficheros ignorados). Mejor, créala dentro de la sesión (mkdir); si no, "
+                               "pon dentro un fichero .gitkeep, sabiendo que ls -a, find y du lo muestran y que un "
+                               "rmdir de esa carpeta fallaría porque no está vacía (FORMATO.md, apartado 7)")
+
+    def ejecutable(self, rel, modos):
+        """Si Git guarda rel como ejecutable (o, si no es suyo todavía, si lo es en el disco)."""
+        if rel in modos:
+            return modos[rel]
+        try:
+            return bool((self.raiz / rel).stat().st_mode & 0o100)
+        except OSError:
+            return True
+
+    def comprobar_lanzados_con_punto(self, presentes, modos):
+        """Un script que una sesión lanza con ./ necesita el permiso de ejecución, y en un clon solo lo tiene si Git
+        lo guarda así. Si la sesión hace un chmod de ese fichero (antes o después), es lo que enseña: no avisa.
+        Devuelve los scripts de los que ha avisado."""
+        avisados = set()
+        for sesion in (rel for rel in presentes if re.fullmatch(r"sesion(-[\w-]+)?\.txt", Path(rel).name)):
+            carpeta = Path(sesion).parent
+            try:
+                lineas = (self.raiz / sesion).read_text(encoding="utf-8").splitlines()
+            except (OSError, UnicodeDecodeError):
+                continue
+            for n, linea in enumerate(lineas, 1):
+                if not linea.strip() or linea.lstrip().startswith("#"):
+                    continue
+                for nombre in re.findall(r"(?:^|&&|\|\||[;|(])\s*\./([^\s;&|<>()]+)", linea):
+                    rel = (carpeta / nombre).as_posix()
+                    if rel not in presentes or self.ejecutable(rel, modos):
+                        continue                                    # lo crea la sesión, o ya es ejecutable
+                    if re.search(r"\bchmod\b[^\n]*" + re.escape(Path(nombre).name), "\n".join(lineas)):
+                        continue                    # la sesión trata sus permisos (p. ej., enseña «Permiso denegado»)
+                    avisados.add(rel)
+                    self.informe.aviso(sesion, n,
+                                       f"«./{nombre}» necesita permiso de ejecución y {rel} no lo tiene en lo que guarda "
+                                       "Git: en un clon saldría «Permiso denegado». Dáselo con «git update-index "
+                                       f"--chmod=+x {rel}» (o «chmod +x» y «git add»), o haz el chmod dentro de la sesión "
+                                       "(FORMATO.md, apartado 7)")
+        return avisados
+
+    def comprobar_permisos(self, presentes, modos, lanzados, con_git):
+        """Git solo guarda si un fichero es ejecutable o no: un clon lo tendrá con lectura y escritura para su
+        propietario. Se miran solo los permisos del propietario (los del grupo dependen de cada equipo)."""
+        mira_ejecucion = con_git and (self.git("config", "--bool", "core.fileMode") or "true").strip() != "false"
+        for rel in presentes:
+            try:
+                modo = (self.raiz / rel).stat().st_mode
+            except OSError:
+                continue
+            if not (modo & 0o400 and modo & 0o200):
+                self.informe.aviso(rel, 0, "en el disco no tiene permiso de lectura o de escritura para su propietario, "
+                                           "y Git no guarda eso: en un clon tendrá los dos. Si el ejemplo necesita otros "
+                                           "permisos, ponlos con chmod dentro de la sesión (FORMATO.md, apartado 7)")
+            elif mira_ejecucion and rel in modos and rel not in lanzados and bool(modo & 0o100) != modos[rel]:
+                que = ("es ejecutable en el disco y Git lo guarda sin permiso de ejecución" if modo & 0o100 else
+                       "no es ejecutable en el disco y Git lo guarda como ejecutable")
+                self.informe.aviso(rel, 0, f"{que}: un clon lo tendrá como lo guarda Git; haz el commit del permiso "
+                                           "(git add) o ponlo como estaba (FORMATO.md, apartado 7)")
 
     def markdown_del_curso(self):
         for ruta in sorted(self.raiz.rglob("*.md")):
@@ -1314,7 +1417,7 @@ def comprobar(raiz):
     curso.comprobar_modulos()
     curso.comprobar_indice()
     curso.comprobar_markdown()
-    curso.comprobar_saltos_de_linea()
+    curso.comprobar_codigo_en_git()
     modulos = [m for f in curso.fases for m in f.get("_modulos", [])]
     disponibles = sum(1 for m in modulos if m.get("_disponible"))
     ejercicios = sum(len(m.get("ejercicios", [])) for m in modulos if isinstance(m.get("ejercicios"), list))

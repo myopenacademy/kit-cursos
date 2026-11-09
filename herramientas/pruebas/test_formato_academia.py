@@ -703,6 +703,138 @@ class SaltosDeLinea(ConGit):
         self.assertEqual(self.avisos_de(self.CRLF) + self.avisos_de(self.SIN_LF), [])
 
 
+class ComoUnClon(ConGit):
+    """Carpetas vacías y permisos de codigo/, que no viajan con Git."""
+    CARPETA = "fase-01-primeros-pasos/codigo/01-ficheros-json/ejemplos/2.3-ver-un-fichero"
+    VACIA = "no existirá en un clon"
+    PUNTO = "necesita permiso de ejecución"
+
+    def avisos_de(self, trozo):
+        self.comprobar()
+        return [a for a in self.avisos if trozo in a]
+
+    def script_y_sesion(self, sesion, ejecutable=False):
+        self.escribir(f"{self.CARPETA}/hola.sh", "#!/bin/bash\necho hola\n")
+        (self.raiz / self.CARPETA / "hola.sh").chmod(0o755 if ejecutable else 0o644)
+        self.escribir(f"{self.CARPETA}/sesion.txt", sesion)
+
+    # -- carpetas vacías -----------------------------------------------------------------------------
+
+    def test_carpeta_vacia_avisa_y_propone_mkdir_y_gitkeep(self):
+        (self.raiz / self.CARPETA / "Descargas").mkdir()
+        avisos = self.avisos_de(self.VACIA)
+        self.assertEqual(len(avisos), 1, avisos)
+        self.assertTrue(avisos[0].startswith(f"{self.CARPETA}/Descargas/:0: "))
+        self.assertIn("mkdir", avisos[0])
+        self.assertIn(".gitkeep", avisos[0])
+        self.assertIn("rmdir", avisos[0])
+        self.assertLess(avisos[0].index("mkdir"), avisos[0].index(".gitkeep"))   # primero, mkdir
+
+    def test_solo_avisa_de_la_carpeta_de_mas_arriba(self):
+        (self.raiz / self.CARPETA / "a" / "b" / "c").mkdir(parents=True)
+        avisos = self.avisos_de(self.VACIA)
+        self.assertEqual(len(avisos), 1, avisos)
+        self.assertIn(f"{self.CARPETA}/a/:0:", avisos[0])
+
+    def test_carpeta_con_un_fichero_no_avisa(self):
+        self.escribir(f"{self.CARPETA}/Descargas/.gitkeep", "")
+        self.assertEqual(self.avisos_de(self.VACIA), [])
+
+    def test_carpeta_vacia_fuera_de_codigo_no_avisa(self):
+        (self.raiz / "fase-01-primeros-pasos" / "img" / "vacia").mkdir(parents=True)
+        self.assertEqual(self.avisos_de(self.VACIA), [])
+
+    def test_carpeta_con_solo_ficheros_ignorados_avisa(self):
+        self.escribir(f"{self.CARPETA}/Descargas/basura.tmp", "x")
+        with open(self.raiz / ".gitignore", "a", encoding="utf-8") as f:
+            f.write("*.tmp\n")
+        self.publicar()
+        self.assertEqual(len(self.avisos_de(self.VACIA)), 1)
+
+    # -- scripts lanzados con ./ ---------------------------------------------------------------------
+
+    def test_lanzado_con_punto_sin_permiso_en_git(self):
+        self.script_y_sesion("ls\n./hola.sh\n")
+        self.publicar()
+        avisos = self.avisos_de(self.PUNTO)
+        self.assertEqual(len(avisos), 1, avisos)
+        self.assertTrue(avisos[0].startswith(f"{self.CARPETA}/sesion.txt:2: "))
+        self.assertIn("git update-index --chmod=+x", avisos[0])
+
+    def test_permiso_en_el_disco_pero_no_en_git_avisa(self):
+        self.script_y_sesion("./hola.sh\n")
+        self.publicar()
+        (self.raiz / self.CARPETA / "hola.sh").chmod(0o755)          # sin commit del permiso
+        self.assertEqual(len(self.avisos_de(self.PUNTO)), 1)
+
+    def test_con_permiso_en_git_no_avisa(self):
+        self.script_y_sesion("./hola.sh\n", ejecutable=True)
+        self.publicar()
+        self.comprobar()
+        self.assertEqual([a for a in self.avisos if self.PUNTO in a or "hola.sh" in a], [])
+
+    def test_detras_de_y_y_punto_y_coma(self):
+        self.script_y_sesion("cd . && ./hola.sh\necho; ./hola.sh hola\n")
+        self.publicar()
+        self.assertEqual(len(self.avisos_de(self.PUNTO)), 2)
+
+    def test_la_sesion_que_ensena_el_chmod_no_avisa(self):
+        self.script_y_sesion("./hola.sh\nchmod +x hola.sh\n./hola.sh\n")      # primero, «Permiso denegado»
+        self.publicar()
+        self.assertEqual(self.avisos_de(self.PUNTO), [])
+
+    def test_con_bash_no_hace_falta_el_permiso(self):
+        self.script_y_sesion("bash hola.sh\nbash ./hola.sh\n")
+        self.publicar()
+        self.assertEqual(self.avisos_de(self.PUNTO), [])
+
+    def test_un_script_que_crea_la_sesion_no_avisa(self):
+        self.escribir(f"{self.CARPETA}/sesion.txt", "./otro.sh\n")
+        self.publicar()
+        self.assertEqual(self.avisos_de(self.PUNTO), [])
+
+    def test_sin_git_mira_el_disco(self):
+        self.script_y_sesion("./hola.sh\n")
+        self.assertEqual(len(self.avisos_de(self.PUNTO)), 1)
+        (self.raiz / self.CARPETA / "hola.sh").chmod(0o755)
+        self.assertEqual(self.avisos_de(self.PUNTO), [])
+
+    # -- permisos que no viajan ----------------------------------------------------------------------
+
+    def test_solo_lectura_avisa(self):
+        self.publicar()
+        (self.raiz / self.CARPETA / "cliente.json").chmod(0o444)
+        avisos = self.avisos_de("no tiene permiso de lectura o de escritura")
+        self.assertEqual(len(avisos), 1, avisos)
+        self.assertIn("cliente.json", avisos[0])
+
+    def test_solo_lectura_sin_git_tambien_avisa(self):
+        (self.raiz / self.CARPETA / "cliente.json").chmod(0o444)
+        self.assertEqual(len(self.avisos_de("no tiene permiso de lectura o de escritura")), 1)
+
+    def test_ejecutable_en_el_disco_y_no_en_git(self):
+        self.publicar()
+        (self.raiz / self.CARPETA / "cliente.json").chmod(0o755)
+        avisos = self.avisos_de("es ejecutable en el disco y Git lo guarda sin permiso")
+        self.assertEqual(len(avisos), 1, avisos)
+
+    def test_permisos_del_grupo_no_avisan(self):
+        self.publicar()
+        (self.raiz / self.CARPETA / "cliente.json").chmod(0o600)
+        self.comprobar()
+        self.assertEqual([a for a in self.avisos if "cliente.json" in a], [])
+
+    def test_con_core_filemode_false_no_mira_la_ejecucion(self):
+        self.publicar()
+        self.git("config", "core.fileMode", "false")
+        (self.raiz / self.CARPETA / "cliente.json").chmod(0o755)
+        self.assertEqual(self.avisos_de("Git lo guarda sin permiso"), [])
+
+    def test_el_curso_bueno_no_avisa(self):
+        self.publicar()
+        self.assertEqual(self.avisos_de(self.VACIA) + self.avisos_de(self.PUNTO) + self.avisos_de("permiso"), [])
+
+
 class LineaDeOrdenes(unittest.TestCase):
     def ejecutar(self, *args):
         return subprocess.run([sys.executable, str(HERRAMIENTAS / "formato_academia.py"), *args],

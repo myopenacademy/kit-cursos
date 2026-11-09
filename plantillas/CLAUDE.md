@@ -30,6 +30,6 @@
 
 - **Por fases.** Al terminar cada módulo: las herramientas del kit en el orden de «Por dónde empezar» de `../kit-cursos/herramientas/README.md` (declarar sus ejercicios, índice, chuleta global, `formato_academia.py`, su código y sus diagramas), `ESTADO.md` al día y **un commit por módulo** (Conventional Commits: `docs(fase-01): añade el módulo …`). Para cambiar varios documentos a la vez, `../kit-cursos/herramientas/nucleo/reemplazar.py` (todos o ninguno).
 - **Después de cada módulo, actualiza toda la documentación** que le afecte: índice, chuleta global, enlaces, `ESTADO.md`, plan, portada, roadmaps, módulos anteriores y proyecto.
-- **Al cerrar cada fase:** comprobación entera tras el último cambio (el código, **con Docker**), enlaces de todo el curso, Mermaid, y apuntarlo en `ESTADO.md`. **Para** para que el autor la revise.
+- **Al cerrar cada fase:** comprobación entera del último commit, como la recibirá el alumno (el código con `verificar_codigo.py --commit`, **con Docker**), enlaces de todo el curso, Mermaid, y apuntarlo en `ESTADO.md`. **Para** para que el autor la revise.
 - **No cambies el plan por tu cuenta:** propón el cambio y espera la aprobación del autor.
 - Commit o publicación solo cuando el autor lo pida o el plan lo diga.

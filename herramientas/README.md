@@ -28,9 +28,15 @@ python3 ../kit-cursos/herramientas/nucleo/comprobar_mermaid.py fase-NN-…/NN-�
 python3 ../kit-cursos/herramientas/nucleo/declarar_ejercicios.py fase-NN-…/NN-….md
 ```
 
-**Al cerrar cada fase**, lo mismo con la fase entera (`verificar_codigo.py fase-NN-…`, `comprobar_mermaid.py fase-NN-…`), y `verificar_codigo.py` **con Docker** ([la verificación completa](#la-terminal-del-kit)).
+**Al cerrar cada fase**, lo mismo con la fase entera, después del último commit: `comprobar_mermaid.py fase-NN-…` y el código **como lo recibirá el alumno**, desde el commit y con Docker ([la verificación completa](#la-terminal-del-kit)):
 
-**Antes de publicar una versión**, `formato_academia.py` sin errores, con la versión etiquetada en Git (`v1.0.0`): así compara los identificadores con los de la versión anterior.
+```bash
+python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --commit fase-NN-…
+```
+
+En el disco de quien escribe puede funcionar lo que en un clon falla: carpetas vacías, permisos o saltos de línea que no están en Git ([`--commit`](#verificar-el-commit---commit)).
+
+**Antes de publicar una versión**, `formato_academia.py` sin errores, con la versión etiquetada en Git (`v1.0.0`): así compara los identificadores con los de la versión anterior. Y `verificar_codigo.py --commit v1.0.0`: el código de la etiqueta que instalará la academia.
 
 ## Qué hay
 
@@ -72,7 +78,7 @@ Comprueba, sin ejecutar nada del curso, todo lo del apartado 13 de [`FORMATO.md`
 - **Cada módulo disponible**: título igual al de `curso.json`, cabecera (`Conviene saber antes`, `Tiempo estimado` y `Nivel`), las ocho secciones en orden, subapartados numerados donde toca, los ejercicios con los títulos y el orden de `curso.json`, sus pistas antes de la solución, la solución, las preguntas de repaso con su respuesta y la navegación del final.
 - **Retos** de cada fase, **etapas** del proyecto, **glosario** (el común del curso inicial, que no le puede faltar, y el propio de cualquier curso: letras y términos en orden alfabético español, con la ñ entre la n y la o, cada término en su letra, y ningún término repetido, que es un error porque cada término se define una vez), **`00-indice.md`** (sus fases, las de `curso.json`) y **ficheros obligatorios**.
 - En todos los Markdown del curso (salvo `codigo/`, `herramientas/` y los ficheros de trabajo `CLAUDE.md`, `PLAN-CURSO.md` y `ESTADO.md`): **enlaces** y sus **anclas** (también a otros cursos), **imágenes**, **diagramas Mermaid**, **HTML**, bloques de código sin cerrar y huecos `[RELLENAR: …]` de las plantillas.
-- **Saltos de línea de `codigo/`** (lo único que mira de esas carpetas): aviso por cada fichero de texto con CRLF, con la primera línea que lo tiene, y un aviso en `.gitattributes` si algún fichero no saldría con LF en un clon en Windows (con `core.autocrlf=true`, lo normal en Git for Windows), porque falta `* text=auto eol=lf`. Con Git mira **lo que guarda Git** (`git ls-files --eol`: el índice y, en los ficheros nuevos, lo que guardaría al añadirlos), no el disco, porque la academia instala desde un commit; sin Git, el disco. Los marcados con `-text` en `.gitattributes` (CRLF a propósito) y los binarios no avisan.
+- **Lo de `codigo/` que no viaja con Git** (lo único que mira de esas carpetas), todo avisos: el fallo real lo da [`verificar_codigo.py --commit`](#verificar-el-commit---commit). **Carpetas vacías** (o con solo ficheros ignorados), solo la de más arriba: el aviso propone crearla en la sesión con `mkdir` y, si no, un `.gitkeep` (que `ls -a`, `find` y `du` muestran y que hace fallar un `rmdir`). **Scripts lanzados con `./`** en un `sesion*.txt` (también detrás de `&&`, `||`, `;`, `|` o `(`) que Git no guarda como ejecutables, en la línea de la sesión; no avisa si la sesión hace un `chmod` de ese script (antes o después: es lo que enseña, como un «Permiso denegado» a propósito), si se lanza con `bash` ni si el script lo crea la sesión. **Permisos del disco que un clon no tendría**: un fichero sin lectura o escritura para su propietario, o ejecutable en el disco y no en Git (o al revés; no con `core.fileMode=false`); solo los del propietario, porque los del grupo dependen del equipo. En Windows no se miran los permisos. **Saltos de línea**: aviso por cada fichero de texto con CRLF, con la primera línea que lo tiene, y un aviso en `.gitattributes` si algún fichero no saldría con LF en un clon en Windows (con `core.autocrlf=true`, lo normal en Git for Windows), porque falta `* text=auto eol=lf`. Con Git mira **lo que guarda Git** (`git ls-files --eol`: el índice y, en los ficheros nuevos, lo que guardaría al añadirlos), no el disco, porque la academia instala desde un commit; sin Git, el disco. Los marcados con `-text` en `.gitattributes` (CRLF a propósito) y los binarios no avisan.
 
 ```bash
 python3 ../kit-cursos/herramientas/formato_academia.py            # el curso de la carpeta actual
@@ -108,6 +114,7 @@ El núcleo de `verificar_codigo.py` del curso de Java, sin nada de Java y con la
 ```bash
 python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py                       # todo el curso
 python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py fase-03-herramientas  # una fase (o un módulo)
+python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --commit              # el último commit, como un clon
 python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --sin-docker          # en la bash del equipo
 ```
 
@@ -127,11 +134,21 @@ python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --sin-docker      
 - **Lo que no comprueba de macOS**: que `sed`, `date`, `ls`, `grep`… se comporten igual. En macOS son las versiones de **BSD** y en la terminal del kit, las de **GNU** (Linux), con opciones y salidas distintas (`sed -i ''`, `date -v`…). Eso lo cubren los avisos del texto de cada módulo, no el kit.
 - **También**: error por cada fichero enlazado que Git ignora (no llegaría a un clon del curso), y aviso por cada carpeta de `codigo/` que ningún módulo enlaza y por cada script que ningún bloque muestra.
 
+### Verificar el commit (`--commit`)
+
+Sin `--commit` se verifican los ficheros del disco, tal como están: lo normal mientras se escribe un módulo. Con `--commit [referencia]` (`HEAD` si no se dice otra; un commit, una rama o una etiqueta: `--commit v1.0.0` o `--commit=v1.0.0`) se verifica **el curso como lo recibe el alumno**:
+
+- Se saca esa versión con `git archive` a una carpeta temporal y se verifica esa copia. `git archive` solo lee: no toca el repositorio del curso (`git worktree` escribiría en su `.git`).
+- La copia es como un clon: saltos de línea según `.gitattributes`, solo los permisos que guarda Git (ejecutable o no), sin carpetas vacías, sin lo que Git ignora y sin lo que no tiene commit. `docker cp` conserva los permisos al pasarla a la terminal del kit, así que lo que fallaría en un clon falla aquí.
+- Si hay cambios sin commit, lo dice al principio: no entran. Una ruta que no está en ese commit termina con 2.
+- Los mensajes dicen las rutas del curso, como siempre. El curso puede ser una subcarpeta de su repositorio (como los cursos de ejemplo del kit).
+- Nada de `codigo/` puede llevar `export-ignore` en `.gitattributes`: `git archive` lo dejaría fuera (`FORMATO.md`, apartado 7).
+
 ### La terminal del kit
 
 Donde se ejecutan los scripts y las sesiones (`servicios/terminal.py`).
 
-**Con Docker, la verificación completa.** Un contenedor de la imagen `servicios/terminal/Dockerfile` (se llama `kit-terminal:<huella del Dockerfile>` y se construye la primera vez, en unos minutos y con internet), **sin red** (`--network none`), con el nombre de máquina `ordenador`, la persona `alumno` (con `USER`, `LOGNAME` y `SHELL`, como tras un inicio de sesión) y la configuración de Git de todo el sistema (nombre «Ana García», `ana@example.com` y la rama `main`; una sesión que enseña `git config --global` la cambia, como en cualquier equipo). Los ficheros de la carpeta se copian con una fecha fija (15 de enero de 2026, 10:00), para que `ls -l` no cambie. Fija todo lo que cambia la salida de una orden, así que es **la misma en cualquier máquina** (a 8 de noviembre de 2026):
+**Con Docker, la verificación completa.** Un contenedor de la imagen `servicios/terminal/Dockerfile` (se llama `kit-terminal:<huella del Dockerfile>` y se construye la primera vez, en unos minutos y con internet), **sin red** (`--network none`), con el nombre de máquina `ordenador`, la persona `alumno` (con `USER`, `LOGNAME` y `SHELL`, como tras un inicio de sesión) y la configuración de Git de todo el sistema (nombre «Ana García», `ana@example.com` y la rama `main`; una sesión que enseña `git config --global` la cambia, como en cualquier equipo). Los ficheros de la carpeta se copian con una fecha fija (15 de enero de 2026, 10:00) y con **permisos fijos**, como los da Git al clonar con la umask más común (022): ficheros `644` (`755` si son ejecutables) y carpetas `755`; así `ls -l` no cambia, ni con la umask de cada máquina (con 002, Git deja `rw-rw-r--`) ni con `--commit` (`git archive` pone `664` y `775`). Un permiso distinto que necesite un ejemplo (un fichero de solo lectura) se pone con `chmod` en la sesión. Fija todo lo que cambia la salida de una orden, así que es **la misma en cualquier máquina** (a 8 de noviembre de 2026):
 
 | Pieza | Versión | De dónde y por qué |
 |---|---|---|

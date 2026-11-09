@@ -38,10 +38,22 @@ Dónde se ejecuta (servicios/terminal.py):
     sus versiones y sin bash 3.2 (solo la búsqueda de lo que no existe en ella). Lo dice al final: para cerrar
     una fase, verifica con Docker.
 
+Qué se verifica:
+  - SIN --commit, los ficheros del disco, tal como están: lo normal mientras se escribe un módulo.
+  - CON --commit [referencia] (HEAD si no se dice otra: un commit, una rama o una etiqueta, como v1.0.0), el
+    curso como lo recibe el alumno: se saca esa versión con «git archive» (que solo lee: no toca el repositorio)
+    a una carpeta temporal y se verifica esa copia. Es igual que un clon: saltos de línea según .gitattributes,
+    solo los permisos que guarda Git (ejecutable o no), sin carpetas vacías y sin lo que Git ignora ni lo que
+    no tiene commit (si hay cambios sin commit, lo avisa al principio). Es la forma de verificar una fase
+    entera antes de cerrarla, y la etiqueta antes de publicar una versión. Los mensajes dicen las rutas del
+    curso, como siempre.
+
 Uso, desde la raíz del curso (con el kit en la carpeta hermana ../kit-cursos/):
     python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py                         # todo el curso
     python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py fase-02-tu-ordenador    # una carpeta
     python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py fase-02-…/02-….md       # un módulo
+    python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --commit                # el último commit, como un clon
+    python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --commit v1.0.0         # una etiqueta (o --commit=v1.0.0)
     python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --sin-docker            # sin Docker
     python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --versiones             # qué lleva la imagen
     python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --help
@@ -49,9 +61,13 @@ Termina con 0 si todo coincide y funciona (aunque haya avisos), con 1 si hay alg
 argumentos están mal.
 """
 import difflib
+import io
 import re
+import shutil
 import subprocess
 import sys
+import tarfile
+import tempfile
 from pathlib import Path
 
 AQUI = Path(__file__).resolve().parent
@@ -368,7 +384,59 @@ def ficheros_md(raiz, rutas):
     return encontrados
 
 
+def opcion_commit(argumentos, existe=lambda a: Path(a).exists()):
+    """Saca --commit y su referencia de los argumentos. Devuelve (referencia o None, argumentos restantes).
+    La referencia es opcional (HEAD): «--commit=REF», o la palabra siguiente si no es una opción ni una ruta."""
+    ref, resto, i = None, [], 0
+    while i < len(argumentos):
+        a = argumentos[i]
+        if a.startswith("--commit="):
+            ref = a.split("=", 1)[1] or "HEAD"
+        elif a == "--commit":
+            ref = "HEAD"
+            siguiente = argumentos[i + 1] if i + 1 < len(argumentos) else None
+            if siguiente and not siguiente.startswith("-") and not existe(siguiente):
+                ref, i = siguiente, i + 1
+        else:
+            resto.append(a)
+        i += 1
+    return ref, resto
+
+
+def git(raiz, *argumentos, binario=False):
+    r = subprocess.run(["git", "-C", str(raiz), *argumentos], capture_output=True, text=not binario)
+    if r.returncode != 0:
+        raise RuntimeError((r.stderr if not binario else r.stderr.decode(errors="replace")).strip())
+    return r.stdout
+
+
+def sacar_commit(raiz, ref, destino):
+    """Saca la versión ref del curso de la carpeta raiz a destino con git archive, como la recibiría un clon.
+    Devuelve (carpeta del curso dentro de destino, descripción del commit, cuántos cambios sin commit hay)."""
+    try:
+        commit = git(raiz, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}").strip()
+    except OSError:
+        raise RuntimeError("no encuentro Git: --commit lo necesita")
+    except RuntimeError:
+        raise RuntimeError(f"«{ref}» no es un commit, una rama ni una etiqueta de este repositorio "
+                           "(o la carpeta no es un repositorio de Git)")
+    prefijo = git(raiz, "rev-parse", "--show-prefix").strip()     # el curso puede ser una subcarpeta
+    arriba = git(raiz, "rev-parse", "--show-toplevel").strip()
+    tar = git(arriba, "archive", "--format=tar", commit, *([prefijo] if prefijo else []), binario=True)
+    with tarfile.open(fileobj=io.BytesIO(tar)) as t:
+        if hasattr(tarfile, "tar_filter"):
+            t.extractall(destino, filter="tar")                 # conserva los permisos de ejecución
+        else:
+            t.extractall(destino)
+    cambios = 0
+    if commit == git(raiz, "rev-parse", "HEAD").strip():
+        cambios = len([l for l in git(raiz, "status", "--porcelain", "--", ".").splitlines() if l.strip()])
+    descripcion = git(raiz, "log", "-1", "--format=%h %s", commit).strip()
+    return Path(destino) / prefijo, (descripcion if ref == "HEAD" else f"{ref}, {descripcion}"), cambios
+
+
 def main():
+    ref, sys.argv[1:] = opcion_commit(sys.argv[1:])
     usadas, _, rutas = revisar(__doc__, opciones=("--sin-docker", "--versiones"))
     if "--versiones" in usadas:
         if not terminal.hay_docker():
@@ -377,6 +445,34 @@ def main():
         print(terminal.versiones(), end="")
         return
     raiz = Path(".")
+    temporal = None
+    if ref:
+        temporal = Path(tempfile.mkdtemp(prefix="kit-commit-"))
+        try:
+            copia, descripcion, cambios = sacar_commit(raiz, ref, temporal)
+        except RuntimeError as e:
+            shutil.rmtree(temporal, ignore_errors=True)
+            print(f"❌ --commit: {e}", file=sys.stderr)
+            sys.exit(2)
+        faltan = [r for r in rutas if not (copia / Path(r).resolve().relative_to(raiz.resolve())).exists()]
+        if faltan:
+            shutil.rmtree(temporal, ignore_errors=True)
+            print(f"❌ No está en ese commit: {', '.join(faltan)}. No se ha revisado nada.", file=sys.stderr)
+            sys.exit(2)
+        rutas = [str(copia / Path(r).resolve().relative_to(raiz.resolve())) for r in rutas]
+        print(f"Se verifica el commit {descripcion}, en una copia como la de un clon.")
+        if cambios:
+            print(f"⚠️  Tienes {cambios} cambio(s) sin commit, que no entran en la verificación.")
+        print()
+        raiz = copia
+    try:
+        verificar(raiz, rutas, usadas)
+    finally:
+        if temporal:
+            shutil.rmtree(temporal, ignore_errors=True)
+
+
+def verificar(raiz, rutas, usadas):
     con_docker = False if "--sin-docker" in usadas else terminal.hay_docker()
     informe = Informe()
     verificador = Verificador(raiz, informe, con_docker)

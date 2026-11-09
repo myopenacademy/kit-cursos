@@ -5,8 +5,9 @@ CON DOCKER (la verificación completa): un contenedor de la imagen de servicios/
 26.04.1, Git 2.56.0 con sus traducciones, bash 3.2.57 además de la de Ubuntu, español y hora de Madrid), SIN RED
 (--network none), con el nombre de máquina «ordenador» y la persona «alumno». La imagen se llama
 kit-terminal:<huella del Dockerfile> y se construye la primera vez que hace falta (necesita internet esa vez).
-Los ficheros de la carpeta del ejemplo se copian a /home/alumno con una fecha fija (15 de enero de 2026, 10:00),
-para que «ls -l» no cambie de una verificación a otra.
+Los ficheros de la carpeta del ejemplo se copian a /home/alumno con una fecha fija (15 de enero de 2026, 10:00)
+y con permisos fijos, como los da Git al clonar con umask 022 (ficheros 644, o 755 si son ejecutables; carpetas
+755), para que «ls -l» no cambie de una verificación a otra ni de una máquina a otra. Sin Docker, igual.
 
 SIN DOCKER (la verificación parcial): una bash del equipo, en una carpeta temporal que hace de carpeta personal,
 con el español, la hora de Madrid y la misma configuración de Git (nombre, correo y rama main). La red NO se puede
@@ -228,6 +229,25 @@ def _teclear(orden_de_la_shell, ordenes, **opciones):
     return "\n".join(final) + "\n"
 
 
+# Los permisos de los ficheros copiados, como los que da Git en una máquina con umask 022 (la más común): Git solo
+# guarda si un fichero es ejecutable, y el resto depende de la umask de quien clona (con 002, rw-rw-r--). Así, un
+# «ls -l» da lo mismo en cualquier máquina, desde el disco o desde --commit (git archive pone 664 y 775).
+NORMALIZAR_PERMISOS = ("find {casa} -mindepth 1 -type d -exec chmod 755 {{}} + && "
+                       "find {casa} -mindepth 1 -type f -perm -u=x -exec chmod 755 {{}} + && "
+                       "find {casa} -mindepth 1 -type f ! -perm -u=x -exec chmod 644 {{}} +")
+
+
+def normalizar_permisos(casa):
+    """Lo mismo que NORMALIZAR_PERMISOS, para la terminal sin Docker: carpetas 755, ficheros 644 o 755."""
+    for ruta in Path(casa).rglob("*"):
+        if ruta.is_symlink():
+            continue
+        if ruta.is_dir():
+            ruta.chmod(0o755)
+        elif ruta.is_file():
+            ruta.chmod(0o755 if ruta.stat().st_mode & 0o100 else 0o644)
+
+
 def _copiables(carpeta, excluir):
     return [f for f in sorted(carpeta.iterdir()) if f.name not in excluir and f.name not in {"target", "build"}]
 
@@ -247,7 +267,8 @@ class Contenedor:
             for f in _copiables(self.carpeta, self.excluir):
                 _docker("cp", str(f), f"{self.nombre}:{CASA}/{f.name}")
             _docker("exec", "-u", "0", self.nombre, "bash", "-c",
-                    f"chown -R {USUARIO}:{USUARIO} {CASA} && find {CASA} -mindepth 1 -not -name '.*' "
+                    f"chown -R {USUARIO}:{USUARIO} {CASA} && {NORMALIZAR_PERMISOS.format(casa=CASA)} && "
+                    f"find {CASA} -mindepth 1 -not -name '.*' "
                     f"-exec touch -h -d '{FECHA_FICHEROS}' {{}} +")
         except Exception:
             self.__exit__(None, None, None)
@@ -283,6 +304,7 @@ class Local:
         self.casa = Path(tempfile.mkdtemp(prefix="kit-terminal-"))
         for f in _copiables(self.carpeta, self.excluir):
             (shutil.copytree if f.is_dir() else shutil.copy2)(f, self.casa / f.name)
+        normalizar_permisos(self.casa)
         configuracion = Path(tempfile.mkdtemp(prefix="kit-git-")) / "gitconfig"
         configuracion.write_text(CONFIG_GIT, encoding="utf-8")
         # El reloj de Git, delante del git del equipo (como en la imagen)

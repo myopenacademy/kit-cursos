@@ -19,6 +19,8 @@ HERRAMIENTAS = PRUEBAS.parent
 sys.path.insert(0, str(HERRAMIENTAS / "lenguajes"))
 sys.path.insert(0, str(HERRAMIENTAS / "servicios"))
 import bash  # noqa: E402
+sys.path.insert(0, str(HERRAMIENTAS / "nucleo"))
+import verificar_codigo  # noqa: E402
 import terminal  # noqa: E402
 
 BUENO = PRUEBAS / "cursos" / "bueno"
@@ -264,6 +266,126 @@ class Datos(Base):
 
 
 @unittest.skipUnless(HAY_DOCKER, "hace falta Docker")
+class Commit(Base):
+    """--commit: se verifica la versión de Git en una copia como la de un clon, no el disco."""
+    sin_docker = True
+
+    def git(self, *args, carpeta=None):
+        return subprocess.run(["git", "-C", str(carpeta or self.raiz), *args], check=True, capture_output=True, text=True,
+                              env={"GIT_AUTHOR_NAME": "Prueba", "GIT_AUTHOR_EMAIL": "p@ejemplo.org",
+                                   "GIT_COMMITTER_NAME": "Prueba", "GIT_COMMITTER_EMAIL": "p@ejemplo.org",
+                                   "HOME": str(self.tmp), "PATH": "/usr/bin:/bin"}).stdout
+
+    def commit(self, mensaje="curso", carpeta=None):
+        if not ((carpeta or self.raiz) / ".git").exists():
+            self.git("init", "-q", "-b", "main", carpeta=carpeta)
+        self.git("add", "-A", carpeta=carpeta)
+        self.git("commit", "-q", "-m", mensaje, carpeta=carpeta)
+
+    def test_opcion_commit(self):
+        existe = {"fase-01"}.__contains__
+        casos = {
+            ("--commit",): ("HEAD", []),
+            ("--commit", "v1.0.0"): ("v1.0.0", []),
+            ("--commit=v1.0.0", "fase-01"): ("v1.0.0", ["fase-01"]),
+            ("--commit", "fase-01"): ("HEAD", ["fase-01"]),            # una ruta que existe no es la referencia
+            ("--commit", "--sin-docker"): ("HEAD", ["--sin-docker"]),
+            ("fase-01",): (None, ["fase-01"]),
+        }
+        for argumentos, esperado in casos.items():
+            with self.subTest(argumentos=argumentos):
+                self.assertEqual(verificar_codigo.opcion_commit(list(argumentos), existe), esperado)
+
+    def test_verifica_el_commit_y_no_el_disco(self):
+        self.commit()
+        self.cambiar(MODULO, "Clientes de Madrid: 2", "Clientes de Madrid: 3")     # roto en el disco, sin commit
+        self.assertEqual(self.ejecutar(), 1, self.salida)
+        self.assertEqual(self.ejecutar("--commit"), 0, self.salida)
+        self.assertIn("Se verifica el commit", self.salida)
+        self.assertIn("1 cambio(s) sin commit", self.salida)
+
+    def test_una_referencia_anterior(self):
+        self.commit("bueno")
+        self.git("tag", "v1.0.0")
+        self.cambiar(MODULO, "Clientes de Madrid: 2", "Clientes de Madrid: 3")
+        self.commit("roto")
+        self.assertEqual(self.ejecutar("--commit"), 1, self.salida)
+        self.assertIn("la salida de contar.sh no es la del texto", self.salida)
+        self.assertEqual(self.ejecutar("--commit", "v1.0.0"), 0, self.salida)
+        self.assertIn("v1.0.0, ", self.salida)
+        self.assertNotIn("sin commit", self.salida)
+
+    def test_con_una_carpeta(self):
+        self.commit()
+        self.assertEqual(self.ejecutar("--commit", "fase-01-primeros-pasos"), 0, self.salida)
+        self.assertIn("1 scripts ejecutados", self.salida)
+
+    def test_lo_que_no_tiene_commit_no_entra(self):
+        self.commit()
+        nuevo = self.raiz / "fase-01-primeros-pasos" / "nuevo.md"
+        nuevo.write_text("# Nuevo\n", encoding="utf-8")
+        self.assertEqual(self.ejecutar("--commit", "fase-01-primeros-pasos/nuevo.md"), 2, self.salida)
+        self.assertIn("No está en ese commit", self.salida)
+
+    def test_referencia_que_no_existe(self):
+        self.commit()
+        self.assertEqual(self.ejecutar("--commit", "v9.9.9"), 2, self.salida)
+        self.assertIn("«v9.9.9» no es un commit", self.salida)
+
+    def test_sin_git(self):
+        self.assertEqual(self.ejecutar("--commit"), 2, self.salida)
+        self.assertIn("--commit", self.salida)
+
+    def test_la_copia_es_como_un_clon(self):
+        """Saltos de línea según .gitattributes, el permiso de ejecución, sin carpetas vacías; y el curso puede
+        ser una subcarpeta de su repositorio (como bueno dentro del kit)."""
+        repositorio = self.tmp / "repositorio"
+        curso = repositorio / "cursos" / "bueno"
+        shutil.copytree(self.raiz, curso)
+        script = curso / CONTAR
+        script.write_bytes(script.read_bytes().replace(b"\n", b"\r\n"))
+        script.chmod(0o755)
+        (curso / EJEMPLOS / "vacia").mkdir()
+        self.commit(carpeta=repositorio)
+        destino = self.tmp / "copia"
+        copia, descripcion, cambios = verificar_codigo.sacar_commit(curso, "HEAD", destino)
+        self.assertEqual(copia, destino / "cursos" / "bueno")
+        self.assertNotIn(b"\r\n", (copia / CONTAR).read_bytes())             # * text=auto eol=lf
+        self.assertTrue((copia / CONTAR).stat().st_mode & 0o100)
+        self.assertFalse((copia / EJEMPLOS / "vacia").exists())
+        self.assertIn("curso", descripcion)
+        self.assertEqual(cambios, 0)
+
+
+class Permisos(unittest.TestCase):
+    """Los ficheros que van a la terminal, con permisos fijos (como un clon con umask 022), venga de donde venga
+    la carpeta: ficheros 644 (755 si son ejecutables) y carpetas 755."""
+
+    def comprobar(self, con_docker):
+        with tempfile.TemporaryDirectory() as tmp:
+            carpeta = Path(tmp)
+            (carpeta / "datos.txt").write_text("x\n", encoding="utf-8")
+            (carpeta / "datos.txt").chmod(0o664)                    # umask 002, o git archive
+            (carpeta / "script.sh").write_text("echo hola\n", encoding="utf-8")
+            (carpeta / "script.sh").chmod(0o775)
+            (carpeta / "Descargas").mkdir()
+            (carpeta / "Descargas").chmod(0o775)
+            (carpeta / "Descargas" / "solo-lectura.txt").write_text("x\n", encoding="utf-8")
+            (carpeta / "Descargas" / "solo-lectura.txt").chmod(0o444)
+            with terminal.terminal(carpeta, con_docker=con_docker) as t:
+                codigo, salida, _ = t.ejecutar(["bash", "-c", "stat -c '%a %n' datos.txt script.sh Descargas Descargas/*"])
+        self.assertEqual(codigo, 0)
+        self.assertEqual(salida.split("\n")[:4], ["644 datos.txt", "755 script.sh", "755 Descargas",
+                                                   "644 Descargas/solo-lectura.txt"])
+
+    def test_sin_docker(self):
+        self.comprobar(False)
+
+    @unittest.skipUnless(HAY_DOCKER, "sin Docker")
+    def test_con_docker(self):
+        self.comprobar(True)
+
+
 class ConDocker(SinDocker):
     """Las mismas pruebas en la terminal del kit, y lo que solo se ve con ella."""
     sin_docker = False
