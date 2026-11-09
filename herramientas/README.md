@@ -159,6 +159,8 @@ Para que los identificadores de los commits salgan siempre iguales y `git log` p
 
 **Sin paginador.** En la terminal, `GIT_PAGER` y `PAGER` son `cat`: con una salida que no cabe en pantalla, `git log` o `man` se quedarían esperando una tecla (en el equipo del alumno, `less` la pide). Con una que cabe, se ve igual.
 
+**Lo que coreutils no traduce.** La traducción al español de las coreutils de GNU que trae Ubuntu (`language-pack-es-base`) es de coreutils 8.23 (2014: «Project-Id-Version: GNU coreutils 8.23-pre1»), así que los mensajes que han cambiado desde entonces salen en inglés, en parte: `mkdir: cannot create directory ‘docs’: El archivo ya existe` (el final, «El archivo ya existe», viene del sistema). Es igual en cualquier sistema con las GNU en español; el curso lo muestra tal cual, con una nota general.
+
 **Lo que Git no traduce**, aunque el sistema esté en español (es así en cualquier Git, también en el de Ubuntu): las fechas (`Date:   Thu Jan 15 10:00:00 2026 +0100`) y el resumen de cambios (`1 file changed, 1 insertion(+)`). El curso las muestra tal cual.
 
 #### Sin Docker, la verificación parcial
