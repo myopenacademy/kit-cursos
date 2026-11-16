@@ -319,6 +319,7 @@ class Datos(Base):
         carpeta = self.raiz / EJEMPLOS / nombre
         carpeta.mkdir()
         for f, texto in ficheros.items():
+            (carpeta / f).parent.mkdir(parents=True, exist_ok=True)
             (carpeta / f).write_text(texto, encoding="utf-8")
         mostrar = mostrar or next(f for f in ficheros if not f.endswith(".txt"))
         vallas = "````" if mostrar.endswith(".md") else "```"
@@ -372,6 +373,40 @@ class Datos(Base):
     def test_markdown_bueno(self):
         self.carpeta("2.9-md", {"README.md": "# Mi proyecto\n\nVer [arriba](#mi-proyecto).\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\n"
                                               "```bash\nls | wc -l\n```\n"})
+        self.assertEqual(self.ejecutar(), 0, self.salida)
+
+    PLANTILLA = ".github/ISSUE_TEMPLATE/error.md"
+
+    def test_cabecera_yaml_de_una_plantilla_de_issue(self):
+        self.carpeta("2.9-issue", {self.PLANTILLA: "---\nname: Informe de error\nabout: Algo no funciona\n"
+                                                   "title: \"[Error] \"\nlabels: [error]\n---\n\n## Qué pasa\n\n| A | B |\n|---|---|\n"})
+        self.assertEqual(self.ejecutar(), 0, self.salida)
+
+    def test_cabecera_yaml_no_valida_con_su_linea(self):
+        self.carpeta("2.9-issue", {self.PLANTILLA: "---\nname: Informe de error\n  about: Algo no funciona\n---\n\n## Qué pasa\n"})
+        self.assertError(".github/ISSUE_TEMPLATE/error.md:3:", "cabecera YAML no válida")
+
+    def test_cabecera_yaml_sin_cerrar_o_sin_claves(self):
+        self.carpeta("2.9-issue", {self.PLANTILLA: "---\nname: Informe de error\n\n## Qué pasa\n"})
+        self.assertError("error.md:1:", "no se cierra")
+        (self.raiz / EJEMPLOS / "2.9-issue" / self.PLANTILLA).write_text("---\n- error\n---\n", encoding="utf-8")
+        self.cambiar(MODULO, "name: Informe de error\n\n## Qué pasa", "- error\n---")
+        self.assertError("error.md:1:", "debe tener claves y valores")
+
+    def test_la_cabecera_no_se_lee_como_markdown(self):
+        self.carpeta("2.9-issue", {self.PLANTILLA: "---\nname: Informe de error\nabout: \"[x](no-existe.md) | a |\"\n---\n\nTexto.\n"})
+        self.assertEqual(self.ejecutar(), 0, self.salida)
+
+    def test_la_terminal_copia_la_carpeta_github(self):
+        carpeta = self.raiz / EJEMPLOS / "2.9-issue"
+        (carpeta / ".github" / "ISSUE_TEMPLATE").mkdir(parents=True)
+        (carpeta / self.PLANTILLA).write_text("---\nname: Error\nabout: Algo falla\n---\n", encoding="utf-8")
+        (carpeta / "sesion.txt").write_text("ls .github/ISSUE_TEMPLATE\nhead -2 .github/ISSUE_TEMPLATE/error.md\n", encoding="utf-8")
+        self.cambiar(MODULO, "## 3. Errores típicos",
+                     "### 2.9. Prueba\n\n**En tu terminal** (`sesion.txt`):\n\n```text\n$ ls .github/ISSUE_TEMPLATE\nerror.md\n"
+                     "$ head -2 .github/ISSUE_TEMPLATE/error.md\n---\nname: Error\n```\n\n"
+                     "📁 **Código:** [`codigo/01-ficheros-json/ejemplos/2.9-issue/`](codigo/01-ficheros-json/ejemplos/2.9-issue/)\n\n"
+                     "## 3. Errores típicos")
         self.assertEqual(self.ejecutar(), 0, self.salida)
 
     def test_conversion_con_los_mismos_datos(self):

@@ -941,6 +941,33 @@ class LineaDeOrdenes(unittest.TestCase):
             self.assertIn("❌", r.stdout)
 
 
+class RepositorioAnidado(ConGit):
+    """Una carpeta .git dentro de codigo/: error, en el disco y si Git la guarda como submódulo."""
+    CARPETA = "fase-01-primeros-pasos/codigo/01-ficheros-json/ejemplos/2.3-ver-un-fichero"
+
+    def test_una_carpeta_git_en_codigo_es_error(self):
+        subprocess.run(["git", "init", "-q", str(self.raiz / self.CARPETA)], check=True)
+        self.assertError(f"{self.CARPETA}/:0:", "un repositorio de Git dentro de codigo/")
+
+    def test_un_submodulo_guardado_por_git_es_error(self):
+        anidado = self.raiz / self.CARPETA / "club"
+        anidado.mkdir()
+        git = ["git", "-c", "user.name=p", "-c", "user.email=p@example.com", "-C"]
+        subprocess.run(["git", "init", "-q", str(anidado)], check=True)
+        (anidado / "a.txt").write_text("a\n")
+        subprocess.run(git + [str(anidado), "add", "-A"], check=True)
+        subprocess.run(git + [str(anidado), "commit", "-qm", "a"], check=True)
+        self.git("init", "-q", "-b", "main")
+        self.git("add", "-A")
+        shutil.rmtree(anidado / ".git")                 # como en un clon: la carpeta, sin su .git
+        self.assertError(f"{self.CARPETA}/club/:0:", "submódulo")
+
+    def test_github_no_es_un_repositorio(self):
+        self.escribir(f"{self.CARPETA}/.github/ISSUE_TEMPLATE/error.md", "---\nname: Error\nabout: Algo falla\n---\n")
+        self.comprobar()
+        self.assertFalse(self.hay(self.errores, "repositorio de Git"), self.errores)
+
+
 class Env(ConGit):
     """Los .env de codigo/: solo .env.example, y sin secretos con pinta de reales."""
     CARPETA = "fase-01-primeros-pasos/codigo/01-ficheros-json/ejemplos/2.3-ver-un-fichero"

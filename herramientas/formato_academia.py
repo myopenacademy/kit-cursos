@@ -23,7 +23,7 @@ un AVISO (se instala, pero conviene corregirlo). Cada línea dice el fichero, la
 
 De codigo/ solo mira lo que no viaja con Git, con avisos (con Git, lo que guarda Git; sin Git, el disco):
 ficheros de texto con CRLF o que no saldrían con LF en un clon en Windows, carpetas vacías, scripts que una
-sesión lanza con ./ sin permiso de ejecución, y permisos que un clon no tendría. Y los .env: un .env real
+sesión lanza con ./ sin permiso de ejecución, y permisos que un clon no tendría. Una carpeta .git (un repositorio) dentro de codigo/ es un ERROR: Git no guarda su contenido. Y los .env: un .env real
 (.env, .env.local… cualquiera salvo .env.example) es un ERROR, porque la academia solo admite .env.example; y un
 valor de .env.example con pinta de secreto real (una clave de GitHub, AWS, Stripe…, una clave privada, un JWT,
 una contraseña en una URL, o una clave larga y aleatoria en una variable SECRET, TOKEN, PASSWORD, KEY…) es un
@@ -1130,6 +1130,7 @@ class Curso:
     def comprobar_codigo_en_git(self):
         """Saltos de línea, carpetas vacías y permisos de los ficheros de codigo/ (FORMATO.md, apartado 7)."""
         salida = self.git("ls-files", "--eol", "-z", "--cached", "--others", "--exclude-standard")
+        anidados = set()                                        # repositorios que Git guarda como submódulo
         if salida is None:                                      # sin Git: solo el disco
             presentes = [p.relative_to(self.raiz).as_posix() for p in sorted(self.raiz.rglob("*"))
                          if p.is_file() and en_codigo(p.relative_to(self.raiz).as_posix())]
@@ -1142,11 +1143,27 @@ class Curso:
             for entrada in filter(None, (self.git("ls-files", "-s", "-z") or "").split("\0")):
                 datos, _, rel = entrada.partition("\t")
                 modos[rel] = datos.split()[0] == "100755"
+                if datos.split()[0] == "160000" and en_codigo(rel + "/x"):
+                    anidados.add(rel)
+        self.comprobar_repositorios_anidados(anidados)
         self.comprobar_carpetas_vacias(set(presentes))
         self.comprobar_env(presentes)
         if os.name != "nt":                                     # en Windows el disco no tiene esos permisos
             lanzados = self.comprobar_lanzados_con_punto(presentes, modos)
             self.comprobar_permisos(presentes, modos, lanzados, salida is not None)
+
+    def comprobar_repositorios_anidados(self, anidados):
+        """Una carpeta .git dentro de codigo/ (FORMATO.md, apartado 7): Git no guarda su contenido, así que en un clon
+        (y en la academia) el ejemplo llega vacío o como un submódulo. Error: los repositorios se crean en la sesión."""
+        for p in self.raiz.rglob(".git"):
+            rel = p.relative_to(self.raiz).as_posix()
+            if en_codigo(rel) and ".git" not in Path(rel).parts[:-1]:
+                anidados.add(Path(rel).parent.as_posix())
+        for carpeta in sorted(anidados):
+            self.informe.error(carpeta + "/", 0, "un repositorio de Git dentro de codigo/ (una carpeta .git, o un "
+                                                 "submódulo): Git no guarda su contenido, así que no llega a un clon ni "
+                                                 "a la academia. Quita la carpeta .git y crea el repositorio dentro de "
+                                                 "la sesión (git init) (FORMATO.md, apartado 7)")
 
     def comprobar_env(self, presentes):
         """Los .env de codigo/ (FORMATO.md, apartado 7): un .env real, error (la academia solo admite .env.example y

@@ -4,6 +4,10 @@ Los .md que el curso enseña como ejemplo o solución (un README, unos apuntes):
 a un fichero o carpeta que exista y, si llevan ancla, a un encabezado que exista (como en GitHub); que sus tablas
 tengan la fila separadora y el mismo número de columnas en cada fila; y que sus bloques de código estén cerrados.
 Los enlaces a internet no se comprueban (la verificación es sin red). Usa el Markdown de formato_academia.py.
+
+Un .md que empieza por una cabecera YAML entre «---» (como las plantillas de issue de GitHub,
+.github/ISSUE_TEMPLATE/*.md, o el frontmatter de Jekyll): la cabecera, que debe cerrarse con otra «---» y ser
+YAML válido con claves y valores (con formato_yaml, PyYAML), y el resto, como Markdown.
 """
 import re
 import sys
@@ -12,6 +16,7 @@ from urllib.parse import unquote
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from formato_academia import ENLACE, Markdown   # noqa: E402
+import formato_yaml                             # noqa: E402
 
 EXTENSIONES = {".md", ".markdown"}
 SEPARADORA = re.compile(r"^\s*\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)*\|?\s*$")
@@ -28,9 +33,40 @@ def columnas(linea):
     return len(celdas.split("|"))
 
 
+def cabecera(lineas):
+    """Si el fichero empieza por «---», el índice de la línea que la cierra («---» o «...»); -1 si no se cierra;
+    None si no tiene cabecera."""
+    if not lineas or lineas[0].rstrip() != "---":
+        return None
+    return next((i for i in range(1, len(lineas)) if lineas[i].rstrip() in ("---", "...")), -1)
+
+
+def errores_de_cabecera(lineas, fin):
+    if fin == -1:
+        return [(1, "Markdown: la cabecera YAML que empieza en la línea 1 con «---» no se cierra con otra «---»")]
+    if formato_yaml.yaml is None:
+        raise formato_yaml.SinPyYAML("falta PyYAML para comprobar las cabeceras YAML de los .md (en Ubuntu, "
+                                     "python3-yaml; con pip, pyyaml)")
+    try:
+        datos = formato_yaml.yaml.safe_load("\n".join(lineas[1:fin]))
+    except formato_yaml.yaml.YAMLError as e:
+        marca = getattr(e, "problem_mark", None)
+        problema = getattr(e, "problem", None) or str(e).split("\n")[0]
+        return [((marca.line + 2) if marca else 1, f"cabecera YAML no válida: {problema}"
+                 + (f" (columna {marca.column + 1})" if marca else ""))]
+    if not isinstance(datos, dict):
+        return [(1, "la cabecera YAML entre «---» debe tener claves y valores (name: …, about: …)")]
+    return []
+
+
 def errores(fichero, carpeta=None):
     md = Markdown(fichero, fichero.name)
     problemas = []
+    fin = cabecera(md.lineas)
+    if fin is not None:
+        problemas += errores_de_cabecera(md.lineas, fin)
+        for i in range(len(md.lineas) if fin == -1 else fin + 1):
+            md.en_codigo[i] = True          # la cabecera no es Markdown: ni enlaces ni tablas
     if md.sin_cerrar is not None:
         problemas.append((md.sin_cerrar + 1, "Markdown: bloque de código sin cerrar"))
     # Enlaces
