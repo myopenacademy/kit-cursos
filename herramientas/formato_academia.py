@@ -14,6 +14,8 @@ Revisa, sin ejecutar nada del curso:
   - Enlaces del mismo curso y a otros cursos (con sus anclas), imágenes, diagramas Mermaid y HTML.
   - Listas de tareas de Markdown (- [ ], - [x]) fuera de los bloques de código, que la academia todavía no
     dibuja (aviso).
+  - Correos fuera del código: <ana@example.com> o <mailto:…>, que CommonMark y GitHub convierten en un enlace
+    mailto:, y los enlaces [texto](mailto:…), que la academia no admite (aviso).
   - Los huecos [RELLENAR: …] de las plantillas que queden sin rellenar.
 
 Lo que FORMATO.md dice con «debe» es un ERROR (el curso no se instala) y lo que dice con «conviene»,
@@ -93,6 +95,13 @@ ENLACE = re.compile(r"(!?)\[((?:[^\[\]]|\[[^\]]*\])*)\]\(\s*<?([^)\s>]*)>?(?:\s+
 ETIQUETA = re.compile(r"<(/?)([a-zA-Z][a-zA-Z0-9-]*)(?=[\s/>])([^>]*)>")
 # Un elemento de una lista de tareas de GitHub: «- [ ] …», «* [x] …», «1. [X] …» (también dentro de una cita)
 TAREA = re.compile(r"^[ \t]*(?:>[ \t]*)*(?:[-*+]|[0-9]{1,9}[.)])[ \t]+\[[ xX]\](?:[ \t]|$)")
+# Un enlace automático de correo de CommonMark: <ana@example.com> (la forma exacta de la especificación 0.31.2)
+# o <mailto:…> (un esquema no distingue mayúsculas). Con «\<» delante no es enlace.
+CORREO_AUTOMATICO = re.compile(
+    r"(?<!\\)<(?:[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?"
+    r"(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*|[mM][aA][iI][lL][tT][oO]:[^\s<>]*)>")
+AVISO_CORREO = ("la academia no admite enlaces mailto:; escribe el correo en código "
+                "(`Ana García <ana@example.com>`) (FORMATO.md, apartado 10.7)")
 DETALLES = re.compile(r"<details\b[^>]*>|</details\s*>|<summary>(.*?)</summary>")
 RELLENAR = re.compile(r"\[RELLENAR\b")
 ENTIDAD = re.compile(r"&(#?[a-zA-Z0-9]+);")
@@ -1334,6 +1343,9 @@ class Curso:
                     self.informe.aviso(md.rel, i + 1, "lista de tareas (- [ ] / - [x]): la academia todavía no las dibuja "
                                                       "(se ve «[ ]» como texto); fuera de un bloque de código, usa una "
                                                       "lista normal")
+                for m in CORREO_AUTOMATICO.finditer(linea):
+                    self.informe.aviso(md.rel, i + 1, f"{m.group(0)} fuera de código: CommonMark y GitHub lo "
+                                                      f"convierten en un enlace mailto:, y {AVISO_CORREO}")
             for inicio, fin, lenguaje in md.bloques:
                 if lenguaje == "mermaid":
                     self.comprobar_mermaid(md, inicio, fin)
@@ -1357,7 +1369,10 @@ class Curso:
                 inf.error(md.rel, i + 1, f"la imagen {destino} no tiene texto alternativo: ![descripción]({destino})")
             if Path(destino).suffix.lower() not in IMAGENES:
                 inf.error(md.rel, i + 1, f"imagen {destino}: solo se admiten PNG, JPG o SVG")
-        if not destino or destino.startswith("mailto:"):
+        if destino.lower().startswith("mailto:"):
+            self.informe.aviso(md.rel, i + 1, f"enlace a {destino}: {AVISO_CORREO}")
+            return
+        if not destino:
             return
         if re.match(r"^https?://", destino):
             self.comprobar_enlace_externo(md, i, destino)

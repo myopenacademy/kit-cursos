@@ -589,6 +589,28 @@ class ListasDeTareas(Base):
         self.assertFalse(self.hay(self.avisos, "lista de tareas"), self.avisos)
 
 
+class Correos(Base):
+    """La academia no admite enlaces mailto:, y <ana@example.com> fuera de código lo es: aviso."""
+
+    def test_correo_entre_angulos_avisa(self):
+        self.cambiar(MODULO, "- Usa nombres de clave claros.",
+                     "- Escribe a Ana García <ana@example.com>.\n- O a <MAILTO:luis@example.com>.\n"
+                     "- O [a Raúl](mailto:raul@example.com).")
+        self.comprobar()
+        avisos = [a for a in self.avisos if "mailto:" in a]
+        self.assertEqual(len(avisos), 3, self.avisos)
+        self.assertTrue(self.hay(avisos, "<ana@example.com> fuera de código"), avisos)
+        self.assertEqual(self.errores, [])
+
+    def test_en_codigo_escapado_o_sin_angulos_no_avisa(self):
+        self.cambiar(MODULO, "- Usa nombres de clave claros.",
+                     "- `Ana García <ana@example.com>` en línea.\n- Escapado: \\<ana@example.com>.\n"
+                     "- Con espacio, no es correo: <ana @example.com>.\n\n"
+                     "```text\nAuthor: Ana García <ana@example.com>\n```")
+        self.comprobar()
+        self.assertFalse(self.hay(self.avisos, "mailto:"), self.avisos)
+
+
 class Glosario(Base):
     def test_cualquier_curso_puede_tener_su_glosario(self):
         self.escribir("glosario.md", "# Glosario\n\n## J\n\n### JSON\n\nUn formato de datos.\n")
