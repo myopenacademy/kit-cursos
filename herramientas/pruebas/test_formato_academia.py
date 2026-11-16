@@ -904,5 +904,58 @@ class LineaDeOrdenes(unittest.TestCase):
             self.assertIn("❌", r.stdout)
 
 
+class Env(ConGit):
+    """Los .env de codigo/: solo .env.example, y sin secretos con pinta de reales."""
+    CARPETA = "fase-01-primeros-pasos/codigo/01-ficheros-json/ejemplos/2.3-ver-un-fichero"
+
+    def test_un_env_real_es_error(self):
+        for nombre in (".env", ".env.local", ".env.production", ".ENV"):
+            with self.subTest(nombre=nombre):
+                self.escribir(f"{self.CARPETA}/{nombre}", "CLAVE=x\n")
+                self.assertError(f"{self.CARPETA}/{nombre}:0:", "la academia solo admite .env.example")
+                (self.raiz / self.CARPETA / nombre).unlink()
+
+    def test_env_example_con_valores_de_ejemplo_no_dice_nada(self):
+        self.escribir(f"{self.CARPETA}/.env.example",
+                      "# Copia este fichero a .env\nPUERTO=8080\nDEBUG=true\nAPI_KEY=\nSECRET_KEY=cambia-esto\n"
+                      "DB_URL=postgres://app:tu-clave@localhost/app\nexport JWT_SECRET=\"<pon-aqui-tu-secreto>\"\n")
+        self.comprobar()
+        self.assertEqual([e for e in self.errores + self.avisos if ".env" in e], [])
+
+    def test_env_example_con_secretos_avisa_sin_decir_el_valor(self):
+        token = "ghp_" + "a1B2" * 9
+        self.escribir(f"{self.CARPETA}/.env.example",
+                      f"PUERTO=8080\nGITHUB_TOKEN={token}\nDB_URL=postgres://app:S3cr3tPass99@db/app\n"
+                      "SECRET_KEY='9f8a7b6c5d4e3f2a1b0c9d8e'\nAWS_ACCESS_KEY_ID=AKIAQWERTYUIOPASDFGH\n"
+                      "CORREO_CLAVE_API=7d2Kq9xLm4Pz8Rt1\n")
+        self.comprobar()
+        avisos = [a for a in self.avisos if ".env.example" in a]
+        self.assertEqual(len(avisos), 5, avisos)
+        self.assertTrue(self.hay(avisos, ".env.example:2:", "GITHUB_TOKEN", "un token de GitHub"))
+        self.assertTrue(self.hay(avisos, ".env.example:3:", "DB_URL", "una URL con contraseña"))
+        self.assertTrue(self.hay(avisos, ".env.example:4:", "SECRET_KEY", "clave larga y aleatoria"))
+        self.assertTrue(self.hay(avisos, ".env.example:5:", "una clave de acceso de AWS"))
+        self.assertTrue(self.hay(avisos, ".env.example:6:", "CORREO_CLAVE_API"))     # nombres en español
+        self.assertFalse(any(token in a or "S3cr3tPass99" in a for a in avisos))
+        self.assertFalse(self.hay(self.errores, ".env"))
+
+    def test_env_example_con_mayusculas_es_error(self):
+        self.escribir(f"{self.CARPETA}/.env.EXAMPLE", "A=1\n")
+        self.assertError(f"{self.CARPETA}/.env.EXAMPLE:0:", "en minúsculas")
+
+    def test_env_que_git_ignora_avisa(self):
+        self.escribir(".gitignore", ".env\n")
+        self.escribir(f"{self.CARPETA}/.env", "CLAVE=x\n")
+        self.git("init", "-q", "-b", "main")
+        self.comprobar()
+        self.assertFalse(self.hay(self.errores, ".env"), self.errores)
+        self.assertTrue(self.hay(self.avisos, f"{self.CARPETA}/.env:0:", "que Git ignora"), self.avisos)
+
+    def test_fuera_de_codigo_no_se_mira(self):
+        self.escribir(".env.example", "GITHUB_TOKEN=ghp_" + "a1B2" * 9 + "\n")
+        self.comprobar()
+        self.assertFalse(self.hay(self.errores + self.avisos, ".env"))
+
+
 if __name__ == "__main__":
     unittest.main()

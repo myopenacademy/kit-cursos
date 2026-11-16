@@ -21,7 +21,11 @@ un AVISO (se instala, pero conviene corregirlo). Cada línea dice el fichero, la
 
 De codigo/ solo mira lo que no viaja con Git, con avisos (con Git, lo que guarda Git; sin Git, el disco):
 ficheros de texto con CRLF o que no saldrían con LF en un clon en Windows, carpetas vacías, scripts que una
-sesión lanza con ./ sin permiso de ejecución, y permisos que un clon no tendría. El código lo verifican las
+sesión lanza con ./ sin permiso de ejecución, y permisos que un clon no tendría. Y los .env: un .env real
+(.env, .env.local… cualquiera salvo .env.example) es un ERROR, porque la academia solo admite .env.example; y un
+valor de .env.example con pinta de secreto real (una clave de GitHub, AWS, Stripe…, una clave privada, un JWT,
+una contraseña en una URL, o una clave larga y aleatoria en una variable SECRET, TOKEN, PASSWORD, KEY…) es un
+AVISO, que dice la línea y la variable, nunca el valor. El código lo verifican las
 demás herramientas del kit (verificar_codigo.py --commit, como un clon). No dibuja los diagramas
 (comprobar_mermaid.py).
 
@@ -203,6 +207,47 @@ class Markdown:
                 self._anclas.add(base if n == 0 else f"{base}-{n}")
                 vistas[base] = n + 1
         return self._anclas
+
+
+ENV_EJEMPLO = ".env.example"
+ENV_LINEA = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$")
+# Valores que se ven falsos: no avisan aunque la variable se llame SECRET o TOKEN
+FALSO = re.compile(r"cambia|cámbia|tu[_-]|tus[_-]|aqu[ií]|ejemplo|example|changeme|change[_-]?me|placeholder|dummy|"
+                   r"fake|falso|secreto[_-]?de|xxx|\*\*\*|\.\.\.|…|<[^>]*>|\$\{|^\$|rellenar|todo|replace|your[_-]",
+                   re.IGNORECASE)
+# Formatos de claves reales conocidas (a 16 de noviembre de 2026)
+SECRETOS = [
+    (re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY"), "una clave privada"),
+    (re.compile(r"\bAKIA[0-9A-Z]{16}\b"), "una clave de acceso de AWS"),
+    (re.compile(r"\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36}\b|\bgithub_pat_[A-Za-z0-9_]{22,}"), "un token de GitHub"),
+    (re.compile(r"\bglpat-[A-Za-z0-9_-]{20}\b"), "un token de GitLab"),
+    (re.compile(r"\bxox[abposr]-[A-Za-z0-9-]{10,}"), "un token de Slack"),
+    (re.compile(r"\b[sr]k_(?:live|test)_[A-Za-z0-9]{16,}"), "una clave de Stripe"),
+    (re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b"), "una clave de Google"),
+    (re.compile(r"\bsk-(?:ant-|proj-)?[A-Za-z0-9_-]{32,}"), "una clave de API de IA"),
+    (re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"), "un JWT"),
+]
+URL_CON_CLAVE = re.compile(r"^[a-z][a-z0-9+.-]*://[^/:@\s]+:([^@\s]+)@", re.IGNORECASE)
+VARIABLE_SECRETA = re.compile(r"SECRET|TOKEN|PASSWORD|PASSWD|PASS\b|PWD|API_?KEY|PRIVATE|CREDENTIAL|_KEY\b|^KEY\b|"
+                              r"CONTRASE[ÑN]A|CLAVE|SECRETO|PRIVAD",
+                              re.IGNORECASE)
+
+
+def secreto_real(variable, valor):
+    """Qué parece el valor de una variable de un .env.example si tiene pinta de secreto real, o None."""
+    if not valor or FALSO.search(valor):
+        return None
+    for patron, que in SECRETOS:
+        if patron.search(valor):
+            return que
+    url = URL_CON_CLAVE.match(valor)
+    if url and not FALSO.search(url.group(1)):
+        return "una URL con contraseña"
+    # Una clave larga y aleatoria (letras y cifras mezcladas, sin espacios) en una variable de secretos
+    if (VARIABLE_SECRETA.search(variable) and len(valor) >= 16 and " " not in valor
+            and re.search(r"[0-9]", valor) and re.search(r"[A-Za-z]", valor) and len(set(valor)) >= 10):
+        return "una clave larga y aleatoria"
+    return None
 
 
 def en_codigo(rel):
@@ -1084,9 +1129,57 @@ class Curso:
                 datos, _, rel = entrada.partition("\t")
                 modos[rel] = datos.split()[0] == "100755"
         self.comprobar_carpetas_vacias(set(presentes))
+        self.comprobar_env(presentes)
         if os.name != "nt":                                     # en Windows el disco no tiene esos permisos
             lanzados = self.comprobar_lanzados_con_punto(presentes, modos)
             self.comprobar_permisos(presentes, modos, lanzados, salida is not None)
+
+    def comprobar_env(self, presentes):
+        """Los .env de codigo/ (FORMATO.md, apartado 7): un .env real, error (la academia solo admite .env.example y
+        excluye los demás; y puede llevar secretos); uno que Git ignora, aviso (no llega a un clon ni a la academia,
+        pero está en el disco). En .env.example, aviso por cada valor con pinta de secreto real."""
+        guardados = set(presentes)
+        en_disco = {p.relative_to(self.raiz).as_posix() for p in self.raiz.rglob(".env*")
+                    if p.is_file() and en_codigo(p.relative_to(self.raiz).as_posix())}
+        for rel in sorted(guardados | en_disco):
+            nombre = Path(rel).name.lower()
+            if nombre != ".env" and not nombre.startswith(".env."):
+                continue
+            if nombre == ENV_EJEMPLO:
+                if Path(rel).name != ENV_EJEMPLO:
+                    self.informe.error(rel, 0, f"se llama «{Path(rel).name}»: la academia solo admite «{ENV_EJEMPLO}», "
+                                               "en minúsculas")
+                else:
+                    self.comprobar_env_ejemplo(rel)
+            elif rel in guardados:
+                self.informe.error(rel, 0, f"un {Path(rel).name} real en codigo/: la academia solo admite {ENV_EJEMPLO} "
+                                           "(excluye los demás) y puede llevar secretos. Renómbralo a .env.example, con "
+                                           "valores de ejemplo, o, si el ejemplo necesita el .env, créalo en la sesión "
+                                           "(cp .env.example .env)")
+            else:
+                self.informe.aviso(rel, 0, f"un {Path(rel).name} en codigo/ que Git ignora: no llega a un clon ni a la "
+                                           f"academia, pero está en tu disco; si el ejemplo lo necesita, créalo en la "
+                                           f"sesión desde {ENV_EJEMPLO}")
+
+    def comprobar_env_ejemplo(self, rel):
+        try:
+            lineas = (self.raiz / rel).read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeDecodeError):
+            return
+        for n, linea in enumerate(lineas, 1):
+            m = ENV_LINEA.match(linea)
+            if not m:
+                continue
+            variable, valor = m.group(1), m.group(2).strip()
+            if len(valor) >= 2 and valor[0] == valor[-1] and valor[0] in "'\"":
+                valor = valor[1:-1]
+            elif " #" in valor:
+                valor = valor.split(" #", 1)[0].rstrip()
+            que = secreto_real(variable, valor)
+            if que:
+                self.informe.aviso(rel, n, f"{variable} tiene pinta de secreto real ({que}): en un .env.example van "
+                                           "valores de ejemplo que se vean falsos (cambia-esto, tu-clave-aqui, vacío…), "
+                                           "nunca uno de verdad; si lo era, anúlalo donde se creó")
 
     def comprobar_saltos_de_linea(self, salida):
         """Con CRLF, bash falla ($'\\r': orden no encontrada) y grep, cut o read ven un \\r al final de cada línea.
