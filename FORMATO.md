@@ -424,7 +424,7 @@ Las listas de tareas de Markdown (`- [ ] Pendiente`, `- [x] Hecho`), que dibuja 
 
 ### 10.7. Correos
 
-Las direcciones de correo, **siempre en código** (`` `Ana García <ana@example.com>` ``). Entre `<` y `>` fuera de código, CommonMark y GitHub las convierten en un enlace `mailto:`, que la academia no admite. Tampoco se usan enlaces `[texto](mailto:…)`. Es un **aviso**. Los correos de ejemplo usan dominios reservados para documentación (`example.com`).
+Las direcciones de correo, **siempre en código** (`` `Ana García <ana@example.com>` ``). Entre `<` y `>` fuera de código, CommonMark y GitHub las convierten en un enlace `mailto:`, que la academia no admite. También un correo suelto (`ana@example.com`): GitHub lo enlaza, aunque la academia lo deja como texto (una dirección de SSH como `git@github.com:usuario/repo.git` no cuenta, pero va en código igualmente). Tampoco se usan enlaces `[texto](mailto:…)`. Es un **aviso**. Los correos de ejemplo usan dominios reservados para documentación (`example.com`).
 
 ## 11. Versiones del curso
 
@@ -469,7 +469,7 @@ La comprobación del kit (`formato_academia.py`) revisa que un curso cumple este
 - Retos, etapas, glosario y proyecto.
 - Enlaces del mismo curso y entre cursos (con sus anclas), imágenes, diagramas y HTML.
 - Listas de tareas fuera de los bloques de código (apartado 10.6), con un aviso.
-- Correos entre `<` y `>` fuera del código y enlaces `mailto:` (apartado 10.7), con un aviso.
+- Correos fuera del código (entre `<` y `>` o sueltos) y enlaces `mailto:` (apartado 10.7), con un aviso.
 - Ficheros obligatorios.
 - Lo de `codigo/` que no viaja con Git (apartado 7), con avisos: un fichero de texto con CRLF en lo que guarda Git (o en el disco, si el curso no está en Git) o que no saldría con LF en un clon; carpetas vacías; scripts que una sesión lanza con `./` sin permiso de ejecución en Git; y permisos del disco que un clon no tendría.
 - Los `.env` de `codigo/` (apartado 7): un `.env` real (cualquiera salvo `.env.example`) que Git guarda es un error, y uno que Git ignora, un aviso; en `.env.example`, un aviso por cada valor con pinta de secreto real, con la línea y la variable (nunca el valor).

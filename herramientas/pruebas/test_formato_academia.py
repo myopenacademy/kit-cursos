@@ -610,6 +610,21 @@ class Correos(Base):
         self.comprobar()
         self.assertFalse(self.hay(self.avisos, "mailto:"), self.avisos)
 
+    def test_correo_suelto_avisa(self):
+        self.cambiar(MODULO, "- Usa nombres de clave claros.",
+                     "- Escribe a ana@example.com.\n- O a (luis.vega+club@correo.example.com).\n- Prueba ssh -T git@github.com")
+        self.comprobar()
+        avisos = [a for a in self.avisos if "GitHub lo convierte" in a]
+        self.assertEqual(len(avisos), 3, self.avisos)
+        self.assertEqual(self.errores, [])
+
+    def test_ssh_urls_enlaces_y_codigo_no_son_correo_suelto(self):
+        self.cambiar(MODULO, "- Usa nombres de clave claros.",
+                     "- El remoto git@github.com:ana/club.git, por SSH.\n- https://ana@example.com/x no.\n"
+                     "- [Su web](https://ana@example.com/) no.\n- `ana@example.com` en línea.\n- No es correo: a@b, a@b.com_ ni a@b.com-")
+        self.comprobar()
+        self.assertFalse(self.hay(self.avisos, "mailto:"), self.avisos)
+
 
 class Glosario(Base):
     def test_cualquier_curso_puede_tener_su_glosario(self):

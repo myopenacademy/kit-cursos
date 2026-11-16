@@ -15,7 +15,7 @@ Revisa, sin ejecutar nada del curso:
   - Listas de tareas de Markdown (- [ ], - [x]) fuera de los bloques de código, que la academia todavía no
     dibuja (aviso).
   - Correos fuera del código: <ana@example.com> o <mailto:…>, que CommonMark y GitHub convierten en un enlace
-    mailto:, y los enlaces [texto](mailto:…), que la academia no admite (aviso).
+    mailto:, los correos sueltos (ana@example.com), que GitHub también enlaza, y los enlaces [texto](mailto:…), que la academia no admite (aviso).
   - Los huecos [RELLENAR: …] de las plantillas que queden sin rellenar.
 
 Lo que FORMATO.md dice con «debe» es un ERROR (el curso no se instala) y lo que dice con «conviene»,
@@ -100,6 +100,11 @@ TAREA = re.compile(r"^[ \t]*(?:>[ \t]*)*(?:[-*+]|[0-9]{1,9}[.)])[ \t]+\[[ xX]\](
 CORREO_AUTOMATICO = re.compile(
     r"(?<!\\)<(?:[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?"
     r"(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*|[mM][aA][iI][lL][tT][oO]:[^\s<>]*)>")
+# Un correo suelto, que GitHub enlaza (enlaces automáticos de GFM): ana@example.com. No cuenta seguido de «:»
+# (git@github.com:usuario/repo.git es una dirección de SSH), ni detrás de «/» o «:» (parte de una URL), ni dentro
+# de <…>, que ya avisa CORREO_AUTOMATICO.
+CORREO_SUELTO = re.compile(r"(?<![A-Za-z0-9.+_@<:/-])[A-Za-z0-9.+_-]+@(?:[A-Za-z0-9_-]+\.)+[A-Za-z0-9_-]*[A-Za-z0-9]"
+                           r"(?![A-Za-z0-9_@:-]|\.[A-Za-z0-9_-])")
 AVISO_CORREO = ("la academia no admite enlaces mailto:; escribe el correo en código "
                 "(`Ana García <ana@example.com>`) (FORMATO.md, apartado 10.7)")
 DETALLES = re.compile(r"<details\b[^>]*>|</details\s*>|<summary>(.*?)</summary>")
@@ -1343,6 +1348,10 @@ class Curso:
                     self.informe.aviso(md.rel, i + 1, "lista de tareas (- [ ] / - [x]): la academia todavía no las dibuja "
                                                       "(se ve «[ ]» como texto); fuera de un bloque de código, usa una "
                                                       "lista normal")
+                sin_destinos = ENLACE.sub(lambda m: m.group(1) + "[" + m.group(2) + "]" + " " * (len(m.group(0)) - len(m.group(2)) - 2 - len(m.group(1))), linea)
+                for m in CORREO_SUELTO.finditer(sin_destinos):
+                    self.informe.aviso(md.rel, i + 1, f"{m.group(0)} fuera de código: GitHub lo convierte en un enlace "
+                                                      f"mailto: (la academia lo deja como texto), y {AVISO_CORREO}")
                 for m in CORREO_AUTOMATICO.finditer(linea):
                     self.informe.aviso(md.rel, i + 1, f"{m.group(0)} fuera de código: CommonMark y GitHub lo "
                                                       f"convierten en un enlace mailto:, y {AVISO_CORREO}")
