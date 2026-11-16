@@ -1,0 +1,5 @@
+# Falsos positivos de gitleaks: secretos inventados de la prueba de .env.example
+# (herramientas/pruebas/test_formato_academia.py), que existen para que el kit avise de ellos.
+ceb5c803ec33b585ddad4e727212173e8802606a:herramientas/pruebas/test_formato_academia.py:generic-api-key:929
+ceb5c803ec33b585ddad4e727212173e8802606a:herramientas/pruebas/test_formato_academia.py:generic-api-key:930
+ceb5c803ec33b585ddad4e727212173e8802606a:herramientas/pruebas/test_formato_academia.py:aws-access-token:929

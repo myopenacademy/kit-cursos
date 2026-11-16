@@ -990,8 +990,8 @@ class Env(ConGit):
         token = "ghp_" + "a1B2" * 9
         self.escribir(f"{self.CARPETA}/.env.example",
                       f"PUERTO=8080\nGITHUB_TOKEN={token}\nDB_URL=postgres://app:S3cr3tPass99@db/app\n"
-                      "SECRET_KEY='9f8a7b6c5d4e3f2a1b0c9d8e'\nAWS_ACCESS_KEY_ID=AKIAQWERTYUIOPASDFGH\n"
-                      "CORREO_CLAVE_API=7d2Kq9xLm4Pz8Rt1\n")
+                      "SECRET_KEY='9f8a7b6c5d4e3f2a1b0c9d8e'\nAWS_ACCESS_KEY_ID=AKIAQWERTYUIOPASDFGH\n"  # gitleaks:allow (inventados)
+                      "CORREO_CLAVE_API=7d2Kq9xLm4Pz8Rt1\n")  # gitleaks:allow (inventado)
         self.comprobar()
         avisos = [a for a in self.avisos if ".env.example" in a]
         self.assertEqual(len(avisos), 5, avisos)

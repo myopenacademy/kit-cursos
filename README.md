@@ -2,6 +2,8 @@
 
 El formato y las herramientas para crear cursos para **MyOpenAcademy**, una academia de programación libre, gratuita y de código abierto que funciona como un juego con DLC: la academia es el juego y cada curso es una expansión que se instala, se actualiza sin perder el progreso y que cualquiera puede crear.
 
+**Versión del kit: 1.0.0** · **versión del formato: 1** ([`CHANGELOG.md`](CHANGELOG.md)).
+
 ## Qué hay aquí
 
 | Qué | Para qué |
@@ -63,6 +65,20 @@ Cursos/
 
 Busca los huecos que te queden con `grep -rn RELLENAR .`.
 
+## Contribuir
+
+Cómo proponer cambios al formato o a las herramientas: [`CONTRIBUTING.md`](CONTRIBUTING.md). Qué cambia en cada versión: [`CHANGELOG.md`](CHANGELOG.md).
+
+## Cómo se ha hecho
+
+El kit se ha escrito con ayuda de IA (Claude Code), y el autor lo ha revisado y aprobado. [`CLAUDE.md`](CLAUDE.md) (las reglas de trabajo), [`PLAN.md`](PLAN.md) (el plan) y [`ESTADO.md`](ESTADO.md) (cada tarea, con sus decisiones y su porqué) son el registro de ese trabajo y se publican tal cual. Algunos enlaces de esos ficheros llevan a la planificación común del proyecto, fuera de este repositorio.
+
 ## Licencia
 
-MIT ([`LICENSE`](LICENSE)). Las plantillas de los cursos llevan su propia licencia, CC BY-SA 4.0 para el texto y MIT para el código.
+Todo el kit, también `FORMATO.md` y la documentación, con licencia MIT ([`LICENSE`](LICENSE)), a nombre de Santiago (santi-cast). Las plantillas de los cursos llevan su propia licencia, la de los cursos: CC BY-SA 4.0 para el texto y MIT para el código.
+
+Lo que usan las herramientas, y no va en el kit (a 16 de noviembre de 2026):
+
+- **PyYAML** (MIT), para comprobar YAML.
+- **Mermaid** y **mermaid-cli** (MIT), que `npx` descarga en su caché para `comprobar_mermaid.py`.
+- **La terminal del kit**: su `Dockerfile` descarga y compila en tu máquina Ubuntu, Git, bash y las coreutils de GNU (licencias GPL). El kit no publica la imagen: solo el `Dockerfile`.
