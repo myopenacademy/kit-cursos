@@ -8,6 +8,10 @@ Los enlaces a internet no se comprueban (la verificación es sin red). Usa el Ma
 Un .md que empieza por una cabecera YAML entre «---» (como las plantillas de issue de GitHub,
 .github/ISSUE_TEMPLATE/*.md, o el frontmatter de Jekyll): la cabecera, que debe cerrarse con otra «---» y ser
 YAML válido con claves y valores (con formato_yaml, PyYAML), y el resto, como Markdown.
+
+Las etiquetas de Liquid de Jekyll ({{ … }} y {% … %}) son texto: Jekyll las sustituye antes de leer el Markdown y
+el kit no ejecuta Jekyll. Así que no se cuentan sus «|» (los filtros, {{ x | upcase }}) como columnas de una tabla,
+y no se comprueba un enlace cuyo destino lleva Liquid ([Ver]({{ ruta.url }})).
 """
 import re
 import sys
@@ -19,6 +23,8 @@ from formato_academia import ENLACE, Markdown   # noqa: E402
 import formato_yaml                             # noqa: E402
 
 EXTENSIONES = {".md", ".markdown"}
+LIQUID_VALOR = re.compile(r"\{\{.*?\}\}")         # {{ ruta.nombre }}: escribe un valor
+LIQUID_ETIQUETA = re.compile(r"\{%.*?%\}")        # {% for … %}: no escribe nada
 SEPARADORA = re.compile(r"^\s*\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)*\|?\s*$")
 
 
@@ -26,8 +32,13 @@ def es_mio(fichero):
     return fichero.suffix.lower() in EXTENSIONES
 
 
+def sin_liquid(linea):
+    """La línea como la deja Jekyll, más o menos: cada {{ … }}, un valor («x»), y cada {% … %}, nada."""
+    return LIQUID_ETIQUETA.sub("", LIQUID_VALOR.sub("x", linea))
+
+
 def columnas(linea):
-    celdas = re.sub(r"\\\|", "", linea.strip())
+    celdas = re.sub(r"\\\|", "", sin_liquid(linea).strip())
     celdas = celdas[1:] if celdas.startswith("|") else celdas
     celdas = celdas[:-1] if celdas.endswith("|") else celdas
     return len(celdas.split("|"))
@@ -74,7 +85,7 @@ def errores(fichero, carpeta=None):
         linea = md.texto_sin_codigo(i)
         for m in ENLACE.finditer(linea):
             destino = m.group(3)
-            if not destino or re.match(r"^[a-z]+:", destino):
+            if not destino or re.match(r"^[a-z]+:", destino) or "{{" in destino or "{%" in destino:
                 continue
             ruta, _, seccion = destino.partition("#")
             objetivo = (fichero.parent / unquote(ruta)).resolve() if ruta else fichero.resolve()
@@ -85,12 +96,12 @@ def errores(fichero, carpeta=None):
     # Tablas: una fila con «|» seguida de la separadora empieza una tabla, que sigue mientras haya «|»
     i = 0
     while i < len(md.lineas) - 1:
-        if not md.en_codigo[i] and "|" in md.lineas[i] and SEPARADORA.match(md.lineas[i + 1]) and "-" in md.lineas[i + 1]:
+        if not md.en_codigo[i] and "|" in sin_liquid(md.lineas[i]) and SEPARADORA.match(md.lineas[i + 1]) and "-" in md.lineas[i + 1]:
             n = columnas(md.lineas[i])
             if columnas(md.lineas[i + 1]) != n:
                 problemas.append((i + 2, f"Markdown: la fila separadora de la tabla tiene {columnas(md.lineas[i + 1])} columnas y la cabecera {n}"))
             j = i + 2
-            while j < len(md.lineas) and "|" in md.lineas[j] and md.lineas[j].strip() and not md.en_codigo[j]:
+            while j < len(md.lineas) and "|" in sin_liquid(md.lineas[j]) and md.lineas[j].strip() and not md.en_codigo[j]:
                 if columnas(md.lineas[j]) != n:
                     problemas.append((j + 1, f"Markdown: la fila de la tabla tiene {columnas(md.lineas[j])} columnas y la cabecera {n}"))
                 j += 1

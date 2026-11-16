@@ -409,6 +409,23 @@ class Datos(Base):
                      "## 3. Errores típicos")
         self.assertEqual(self.ejecutar(), 0, self.salida)
 
+    JEKYLL = ("---\nlayout: default\ntitle: Rutas del club\n---\n\n# {{ page.title }}\n\n| Ruta | Km | Enlace |\n|---|---|---|\n"
+              "{% for ruta in site.data.rutas %}| {{ ruta.nombre | upcase }} | {{ ruta.km }} | [Ver]({{ ruta.url | relative_url }}) |\n"
+              "{% endfor %}\n\n- [Inicio]({{site.baseurl}}/index.html)\n- [Contacto](contacto.md)\n")
+
+    def test_jekyll_liquid_es_texto(self):
+        self.carpeta("2.9-web", {"index.md": self.JEKYLL, "contacto.md": "# Contacto\n",
+                                 "_data/rutas.json": '[{"nombre": "La Pedriza", "km": 12, "url": "/pedriza.html"}]\n'},
+                     mostrar="index.md")
+        self.assertEqual(self.ejecutar(), 0, self.salida)
+
+    def test_jekyll_sigue_comprobando_tablas_enlaces_y_data(self):
+        roto = self.JEKYLL.replace("(contacto.md)", "(no-existe.md)").replace("| {{ ruta.km }} |", "| {{ ruta.km }} | de más |")
+        self.carpeta("2.9-web", {"index.md": roto, "_data/rutas.json": '[{"km": 12,}]\n'}, mostrar="index.md")
+        self.assertError("2.9-web/index.md:14:", "no existe no-existe.md")
+        self.assertError("2.9-web/index.md:10:", "la fila de la tabla tiene 4 columnas y la cabecera 3")
+        self.assertError("2.9-web/_data/rutas.json:1:", "JSON no válido")
+
     def test_conversion_con_los_mismos_datos(self):
         self.carpeta("2.9-conv", {"pedido.json": '{"id": 1, "total": 25.5}\n', "pedido.yaml": "id: 1\ntotal: 25.5\n"})
         self.assertEqual(self.ejecutar(), 0, self.salida)
