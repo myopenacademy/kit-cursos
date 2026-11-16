@@ -19,6 +19,7 @@ Todo documentado en `herramientas/README.md`, con «Por dónde empezar».
 
 ## Siguiente paso
 
+- **Uso en local primero** (decisión del autor, 16 de noviembre de 2026): el autor usa el pack base en su máquina antes de publicar. La etiqueta `v1.0.0` y el push, solo cuando lo ordene. Si en ese uso sale algo del kit, se arregla antes y entra en la 1.0.0.
 - **Publicar con el pack base 1.0, cuando lo diga el autor** (el curso inicial tiene su 1.0.0 en `e335ce8`, verificada con el kit `65a922c`). Preparado todo lo del apartado 8.6; falta: poner la fecha a la 1.0.0 en `CHANGELOG.md`, la etiqueta `v1.0.0`, el remoto (`myopenacademy/kit-cursos`), el push y la *release* con una nota corta (la de `CHANGELOG.md`). Antes del push, volver a pasar gitleaks sobre todo el historial y las pruebas.
 
 ## Lo hecho, tarea a tarea, y sus decisiones
