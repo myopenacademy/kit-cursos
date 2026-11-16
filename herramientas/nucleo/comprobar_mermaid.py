@@ -8,7 +8,7 @@ Un diagrama Mermaid mal escrito no da ningún aviso al escribirlo: simplemente G
 Esta herramienta extrae cada bloque ```mermaid y lo dibuja con mermaid-cli en DOS versiones de la
 biblioteca Mermaid, fijadas las dos (mermaid-cli solo pide un rango, así que sin fijarla npx instalaría la
 última que encaje):
-  - Mermaid 12.2.0 (con mermaid-cli 12.2.0): la que usa la academia para dibujar los diagramas;
+  - Mermaid 12.3.0 (con mermaid-cli 12.2.0): la que usa la academia para dibujar los diagramas;
   - Mermaid 10.9.8 (con mermaid-cli 10.9.1): la antigua, la del curso de Java, por GitHub y los
     visores de Markdown, donde también se leen los cursos.
 Un diagrama tiene que funcionar en las dos. También se comprueban los bloques ```mermaid que están dentro
@@ -50,9 +50,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from argumentos import revisar   # noqa: E402
 from formato_academia import Markdown   # noqa: E402
 
-# (mermaid-cli, biblioteca mermaid). La primera, la de la academia (frontend/package.json de Code Academy,
-# visto el 8 de noviembre de 2026); la segunda, la antigua del curso de Java.
-VERSIONES = [("12.2.0", "12.2.0"), ("10.9.1", "10.9.8")]
+# (mermaid-cli, biblioteca mermaid). La primera, la de la academia (desde su commit 4b688f0, 16 de noviembre de
+# 2026; mermaid-cli 12.2.0, la última, pide ^12.2.0); la segunda, la antigua del curso de Java.
+VERSIONES = [("12.2.0", "12.3.0"), ("10.9.1", "10.9.8")]
 BLOQUE = re.compile(r"^[ \t]*```mermaid[ \t]*\n(.*?)^[ \t]*```", re.S | re.M)
 IGNORADAS = {".verificacion", "node_modules", ".git", "herramientas"}
 ENLACE_CODIGO = re.compile(r"^📁 \*\*Código:\*\* \[[^\]]*\]\(([^)\s]+)\)")

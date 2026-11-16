@@ -273,14 +273,14 @@ python3 ../kit-cursos/herramientas/nucleo/comprobar_mermaid.py fase-01-…/04-�
 
 Con `--imagenes`, guarda además cada diagrama como PNG para revisarlo a ojo. Cada fallo dice el fichero, la línea donde empieza el bloque, la versión y el error de Mermaid. Revisa también los `.md` de `codigo/` (como el README de un ejemplo, que el alumno abre en GitHub o en su editor). Se salta lo que está mal a propósito: los `.md` de una carpeta de `codigo/` con `debe-fallar.txt` (en ella o en una de sus carpetas de arriba, dentro de `codigo/`) y los diagramas del bloque de un módulo cuyo «📁 Código» lleva a una de esas carpetas, también los anidados (el README roto de un reto, mostrado en un bloque ` ````markdown `). Ignora `.verificacion/`, `herramientas/` y `node_modules/` dentro de lo que revisa. Si falta Node o Chrome, termina con 1 y lo dice.
 
-Dibuja cada diagrama con **dos versiones de la biblioteca Mermaid**, fijadas las dos (a 8 de noviembre de 2026):
+Dibuja cada diagrama con **dos versiones de la biblioteca Mermaid**, fijadas las dos (a 16 de noviembre de 2026):
 
 | Biblioteca Mermaid | Con mermaid-cli | Por qué |
 |---|---|---|
-| **12.2.0** | 12.2.0 | Es la que usa **la academia** para dibujar los diagramas (`frontend/package.json` de Code Academy). |
+| **12.3.0** | 12.2.0 (la última a 16 de noviembre de 2026; admite `^12.2.0`) | Es la que usa **la academia** para dibujar los diagramas (`frontend/package.json` de Code Academy, desde su commit `4b688f0`). |
 | **10.9.8** | 10.9.1 | La antigua, la del curso de Java: por **GitHub** y los visores de Markdown, donde también se leen los cursos. |
 
-- **Las dos se fijan**: mermaid-cli no fija la versión de la biblioteca que lleva dentro, solo un rango (`^12.2.0`), así que sin fijarla `npx` instalaría la última que encaje (el 8 de noviembre de 2026 ya existía la 12.3.0) y se comprobaría con una versión distinta de la de la academia sin que nadie se diera cuenta. Por eso la herramienta pide a `npx` los dos paquetes con su versión exacta. La primera vez, `npx` los descarga en su caché, sin tocar el repositorio.
+- **Las dos se fijan**: mermaid-cli no fija la versión de la biblioteca que lleva dentro, solo un rango (`^12.2.0`), así que sin fijarla `npx` instalaría la última que encaje y se comprobaría con una versión distinta de la de la academia sin que nadie se diera cuenta. Por eso la herramienta pide a `npx` los dos paquetes con su versión exacta. La primera vez, `npx` los descarga en su caché, sin tocar el repositorio.
 - **La versión del kit tiene que coincidir con la de la academia.** Cuando la academia suba su `mermaid` en `frontend/package.json`, se sube a la vez la de `VERSIONES` en `comprobar_mermaid.py` (con el mermaid-cli que la admita, comprobado con `npm view @mermaid-js/mermaid-cli@<versión> dependencies.mermaid`) y esta tabla.
 
 ## `nucleo/reemplazar.py`

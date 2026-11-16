@@ -45,7 +45,7 @@ class ComprobarMermaid(unittest.TestCase):
         self.escribir("malo.md", "flowchart LR\n    A -->")
         r = self.ejecutar("malo.md", cwd=self.tmp)
         self.assertEqual(r.returncode, 1)
-        self.assertIn("malo.md:5: Mermaid 12.2.0", r.stdout)
+        self.assertIn("malo.md:5: Mermaid 12.3.0", r.stdout)
         self.assertIn("malo.md:5: Mermaid 10.9.8", r.stdout)
         self.assertIn("Parse error", r.stdout)
 
@@ -59,7 +59,7 @@ class ComprobarMermaid(unittest.TestCase):
         self.escribir("fase-01/codigo/01-x/ejemplos/2.1-a/README.md", "flowchart LR\n    A -->")
         r = self.ejecutar(cwd=self.tmp)
         self.assertEqual(r.returncode, 1, r.stdout)
-        self.assertIn("2.1-a/README.md:5: Mermaid 12.2.0", r.stdout)
+        self.assertIn("2.1-a/README.md:5: Mermaid 12.3.0", r.stdout)
 
     def test_se_salta_lo_que_esta_mal_a_proposito(self):
         # Un README roto en una carpeta con debe-fallar.txt, y el módulo que lo muestra en un bloque
