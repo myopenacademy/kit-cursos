@@ -43,7 +43,7 @@ En el disco de quien escribe puede funcionar lo que en un clon falla: carpetas v
 | Herramienta | Qué hace | Necesita |
 |---|---|---|
 | [`formato_academia.py`](#formato_academiapy) | Comprueba que el curso cumple `FORMATO.md` y se puede instalar en la academia | Python 3.11 o posterior, sin librerías adicionales. Git, solo para comparar con la última versión publicada y mirar los saltos de línea que guarda (si no está, no compara y mira el disco) |
-| [`nucleo/verificar_codigo.py`](#nucleoverificar_codigopy) | Comprueba que el código de los módulos coincide con `codigo/` y funciona: scripts de bash, sesiones de terminal (también de Git) y ficheros JSON, YAML, XML, CSV, TSV, TOML, INI, SVG y Markdown, y que un CSV y su JSON dicen lo mismo | Python 3.11 o posterior; **PyYAML** para los YAML (en Ubuntu, `python3-yaml`; con pip, `pyyaml`: la única librería de fuera de Python que usa el kit, y solo para eso); **Docker** para la verificación completa (sin él, verifica de forma parcial y avisa) |
+| [`nucleo/verificar_codigo.py`](#nucleoverificar_codigopy) | Comprueba que el código de los módulos coincide con `codigo/` y funciona: scripts de bash, sesiones de terminal (también de Git, y de `curl` con un servidor HTTP local) y ficheros JSON, YAML, XML, CSV, TSV, TOML, INI, SVG y Markdown, y que un CSV y su JSON dicen lo mismo | Python 3.11 o posterior; **PyYAML** para los YAML (en Ubuntu, `python3-yaml`; con pip, `pyyaml`: la única librería de fuera de Python que usa el kit, y solo para eso); **Docker** para la verificación completa (sin él, verifica de forma parcial y avisa) |
 | [`nucleo/declarar_ejercicios.py`](#nucleodeclarar_ejerciciospy) | Declara en `curso.json` los ejercicios de un módulo o una fase, conservando sus identificadores, y los pone disponibles | Python 3.11 o posterior |
 | [`nucleo/generar_indice.py`](#nucleogenerar_indicepy) | Genera `00-indice.md` desde `curso.json` | Python 3.11 o posterior |
 | [`nucleo/generar_chuleta_global.py`](#nucleogenerar_chuleta_globalpy) | Genera `99-chuleta-global.md` con la chuleta de cada módulo | Python 3.11 o posterior |
@@ -57,10 +57,10 @@ Las carpetas:
 | `herramientas/` | `formato_academia.py`, la parte pública: un solo fichero, sin dependencias |
 | `nucleo/` | Las herramientas comunes a todos los cursos, sacadas del curso de Java original, y `argumentos.py` (la revisión común de sus argumentos) |
 | `lenguajes/` | Un comprobador por lenguaje o formato, que usa `verificar_codigo.py`: `bash.py` y `formato_json.py`, `formato_yaml.py`, `formato_xml.py`, `formato_csv.py` (también TSV y la comparación con su JSON), `formato_markdown.py`, `formato_toml.py`, `formato_ini.py` y `formato_svg.py` |
-| `servicios/` | Lo que necesitan los comprobadores para ejecutar: `terminal.py` y la imagen de [la terminal del kit](#la-terminal-del-kit) (`terminal/`) |
+| `servicios/` | Lo que necesitan los comprobadores para ejecutar: `terminal.py`, la imagen de [la terminal del kit](#la-terminal-del-kit) (`terminal/`) y [el servidor HTTP local](#el-servidor-http-local-curl) (`servidor_http.py`) |
 | `pruebas/` | [Las pruebas](#las-pruebas) de las herramientas y un curso de ejemplo pequeño |
 
-Aún falta `curl` con un servidor local (`PLAN.md` del kit, tarea 4), que se hará cuando el curso inicial diga qué necesitan sus ejercicios. No hay un `comprobar_enlaces.py` aparte: los enlaces y las anclas los comprueba `formato_academia.py`.
+No hay un `comprobar_enlaces.py` aparte: los enlaces y las anclas los comprueba `formato_academia.py`.
 
 ## Lo común a todas
 
@@ -123,6 +123,7 @@ python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --sin-docker      
 - **Un script de bash** (`.sh`) se ejecuta con `bash fichero.sh` en una copia de su carpeta, con `args.txt` y `entrada.txt`, y tiene que terminar con 0; su salida, la de «**Salida:**». Con `termina-con-error.txt`, tiene que terminar con otro código, y su salida de error, la de «**Salida de error:**».
 - **Una sesión** («**En tu terminal** (`sesion.txt`):», su bloque ` ```text ` y su «📁 Código»): se teclea cada orden de `sesion.txt` en una bash con terminal de 100 columnas, con el indicador `$ `, en una carpeta personal con los demás ficheros de la carpeta; la pantalla final tiene que ser la del bloque. Como en Java, `@ctrl-c 3` tras una orden que no termina sola pulsa Ctrl+C a los 3 segundos. Las sesiones de **Git** son sesiones como las demás, con [el reloj de Git](#el-reloj-de-git). Los `sesion*.txt` de la carpeta no se copian a la terminal (un `ls` no los enseña).
 - **Sesiones encadenadas** (`sesion-1.txt`, `sesion-2.txt`…, `FORMATO.md` 7.1): las de un ejemplo que el alumno hace una detrás de otra. Se teclean todas, en orden, en la misma terminal (el mismo contenedor): cada una encuentra los ficheros y el reloj de Git como los dejó la anterior, pero **arranca en una bash nueva** en la carpeta del ejemplo, sin el `cd` ni las variables de la anterior (el alumno puede cerrar la terminal entre una y otra, y así una sesión que depende sin decirlo de un `cd` anterior falla). Cada bloque se compara con la pantalla de la suya. Si una falla, el error lo dice en su bloque, y las de detrás dicen «no se ha podido teclear: va encadenada detrás de `sesion-2.txt`, que falla». Error si la numeración tiene saltos o ceros delante; aviso por cada sesión encadenada que ningún bloque muestra (se teclea igual). Las sueltas (`sesion.txt`, `sesion-<nombre>.txt`) siguen empezando desde cero. En `formato_academia.py`, el `chmod` de un script en cualquier sesión de la serie vale para las demás.
+- **`curl`**: si la carpeta tiene un `servidor.json`, la sesión o el script tienen [un servidor HTTP en `localhost`](#el-servidor-http-local-curl) que responde lo que dice.
 - **`salida-variable.txt`**: lo que encaja con cada expresión regular se sustituye por `…` en las dos salidas antes de compararlas.
 - **Los ficheros de datos** de cada carpeta enlazada se comprueban con Python (no necesitan Docker), cada error con su línea:
   - **JSON** (`formato_json.py`): que se lee.
@@ -185,6 +186,23 @@ Para que los identificadores de los commits salgan siempre iguales y `git log` p
 **Lo que coreutils no traduce.** La traducción al español de las coreutils de GNU que trae Ubuntu (`language-pack-es-base`) es de coreutils 8.23 (2014: «Project-Id-Version: GNU coreutils 8.23-pre1»), así que los mensajes que han cambiado desde entonces salen en inglés, en parte: `mkdir: cannot create directory ‘docs’: El archivo ya existe` (el final, «El archivo ya existe», viene del sistema). Es igual en cualquier sistema con las GNU en español; el curso lo muestra tal cual, con una nota general.
 
 **Lo que Git no traduce**, aunque el sistema esté en español (es así en cualquier Git, también en el de Ubuntu): las fechas (`Date:   Thu Jan 15 10:00:00 2026 +0100`) y el resumen de cambios (`1 file changed, 1 insertion(+)`). El curso las muestra tal cual.
+
+#### El servidor HTTP local (`curl`)
+
+`servicios/servidor_http.py`, solo con la biblioteca de Python. Si la carpeta de una sesión o un script tiene un **`servidor.json`** (su formato, en [`FORMATO.md` 7.1](../FORMATO.md#71-ficheros-de-verificación-y-salidas-en-el-texto)), la terminal lo arranca **antes** de la sesión o el script y lo para **después** (para unas sesiones encadenadas, uno para toda la serie, como una API que sigue ahí). Es genérico: cada ejemplo describe sus rutas (método, ruta, código de estado, cabeceras y cuerpo) y el servidor responde eso, siempre igual.
+
+- **Con Docker**, dentro del contenedor, sin red: solo `localhost`, en `127.0.0.1` y `::1` a la vez (así `curl localhost` conecta a la primera, sin un intento fallido que se vería con `-v`). Corre como `nobody`, desde `/opt/kit-servidor/`, fuera de la carpeta personal. `servidor.json` no se copia a la carpeta personal.
+- **Sin Docker**, en el equipo, en el puerto que diga el `servidor.json` (8080 si no dice otro): si está ocupado, la sesión falla con «el puerto 8080 ya está en uso». `localhost` queda fuera de los proxies muertos.
+- **Respuestas deterministas**: `HTTP/1.1`, las cabeceras de la ruta, `Content-Type` y `Content-Length`; ni `Date` ni `Server`. 404 y 405 propios, `HEAD` como `GET`, y lo que envía la petición se ignora.
+- **`curl` no está fijado** en la imagen (es el de Ubuntu: 8.18.0, a 16 de noviembre de 2026). Su salida con `-i` o `-s` no depende de la versión; con `-v`, sí: no se verifica (`FORMATO.md` 7.1).
+- Cada `servidor.json` de una carpeta enlazada se comprueba aunque ninguna sesión lo use; cada error, con su línea.
+
+Para probar un `servidor.json` a mano:
+
+```bash
+python3 ../kit-cursos/herramientas/servicios/servidor_http.py servidor.json --comprobar   # solo comprueba
+python3 ../kit-cursos/herramientas/servicios/servidor_http.py servidor.json               # escucha hasta Ctrl+C
+```
 
 #### Sin Docker, la verificación parcial
 

@@ -3,7 +3,7 @@
 
 Sale de herramientas/verificar_codigo.py del curso de Java: es su núcleo, sin nada de Java, con las mismas
 convenciones (FORMATO.md, apartado 7.1). Cada lenguaje o formato tiene su comprobador en herramientas/lenguajes/.
-Hoy: bash, las sesiones de terminal, y JSON, YAML, XML, CSV y Markdown. Git y curl, cuando los pida el curso.
+Hoy: bash, las sesiones de terminal (también con Git y con curl), y JSON, YAML, XML, CSV, TOML, INI, SVG y Markdown.
 
 Para cada bloque de código de un módulo seguido de una línea «📁 **Código:**» con el enlace a su carpeta:
   1. El bloque debe ser idéntico a uno de los ficheros de esa carpeta (sin contar los espacios al final de las
@@ -36,6 +36,10 @@ que siempre tienen que ser válidas. Si una carpeta tiene un .json y un .yaml co
 conversión), tienen que cargar los mismos datos; y si tiene un .csv (o .tsv) y un .json con el mismo nombre, los
 mismos datos con las reglas de FORMATO.md, apartado 7.1 (cada fila, un objeto con las claves de la cabecera;
 cada campo, según el tipo de su valor en el JSON).
+EL SERVIDOR HTTP LOCAL: si la carpeta de una sesión o un script tiene un servidor.json, la terminal arranca antes
+un servidor HTTP en localhost con las rutas que describe (servicios/servidor_http.py; FORMATO.md, apartado 7.1),
+para que curl tenga a quién preguntar sin internet, y lo para después. El servidor.json de cada carpeta enlazada
+se comprueba aunque ninguna sesión lo use, y no se copia a la terminal.
 Antes de comparar, lo que encaja con cada expresión regular del salida-variable.txt de la carpeta se sustituye
 por «…», en la salida real y en la del texto.
 Además: error por cada fichero enlazado que Git ignora (.gitignore: no llegaría a un clon del curso), y aviso por
@@ -87,6 +91,7 @@ for carpeta in (AQUI, AQUI.parent, AQUI.parent / "servicios", AQUI.parent / "len
 from argumentos import revisar                                                     # noqa: E402
 from formato_academia import CARPETAS_IGNORADAS, FICHEROS_DE_TRABAJO, Informe, Markdown   # noqa: E402
 import terminal                                                                    # noqa: E402
+import servidor_http                                                               # noqa: E402
 import bash as lenguaje_bash                                                       # noqa: E402
 import formato_csv, formato_ini, formato_json, formato_markdown, formato_svg, formato_toml, formato_xml, formato_yaml  # noqa: E402,E401
 
@@ -97,7 +102,7 @@ SESION = re.compile(r"^\*\*En tu terminal\*\* \(`([^`]+)`\):\s*$")
 SALIDA, SALIDA_DE_ERROR = "**Salida:**", "**Salida de error:**"
 ENCADENADA = re.compile(r"sesion-(\d+)\.txt")
 DE_VERIFICACION = {"entrada.txt", "args.txt", "termina-con-error.txt", "debe-fallar.txt", "separador.txt",
-                   "codificacion.txt", "salida-variable.txt"}
+                   "codificacion.txt", "salida-variable.txt", servidor_http.NOMBRE}
 
 
 def es_de_verificacion(nombre):
@@ -390,6 +395,12 @@ class Verificador:
         vistos, sin_pyyaml = set(), None
         for carpeta in sorted(self.enlazadas):
             debe_fallar = (carpeta / "debe-fallar.txt").is_file()
+            if (carpeta / servidor_http.NOMBRE).is_file():
+                try:
+                    servidor_http.cargar(carpeta / servidor_http.NOMBRE)
+                except servidor_http.ServidorMal as e:
+                    for linea, mensaje in e.problemas:
+                        self.informe.error(self.rel(carpeta / servidor_http.NOMBRE), linea, mensaje)
             de_datos = [(f, fmt) for f in sorted(carpeta.rglob("*")) if f.is_file() and not es_de_verificacion(f.name)
                         for fmt in FORMATOS if fmt.es_mio(f)]
             if debe_fallar and not any(not getattr(fmt, "SIEMPRE", False) for _, fmt in de_datos):

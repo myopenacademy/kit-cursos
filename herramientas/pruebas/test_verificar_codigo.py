@@ -23,6 +23,7 @@ import bash  # noqa: E402
 sys.path.insert(0, str(HERRAMIENTAS / "nucleo"))
 import verificar_codigo  # noqa: E402
 import terminal  # noqa: E402
+import servidor_http  # noqa: E402
 
 BUENO = PRUEBAS / "cursos" / "bueno"
 SCRIPT = HERRAMIENTAS / "nucleo" / "verificar_codigo.py"
@@ -107,7 +108,7 @@ class SinDocker(Base):
 
     def test_el_curso_bueno_pasa_y_avisa_de_que_es_parcial(self):
         self.assertEqual(self.ejecutar(), 0, self.salida)
-        self.assertIn("1 scripts ejecutados, 1 sesiones", self.salida)
+        self.assertIn("1 scripts ejecutados, 2 sesiones", self.salida)
         self.assertIn("Sin Docker: verificación parcial", self.salida)
 
     def test_bloque_distinto_de_su_fichero(self):
@@ -197,8 +198,8 @@ class Encadenadas(Base):
     """Las sesiones encadenadas (sesion-1.txt, sesion-2.txt…): en orden, en la misma terminal, cada una en una bash
     nueva. Sin Docker (ConDockerEncadenadas repite las mismas pruebas con Docker)."""
     sin_docker = True
-    CARPETA = f"{EJEMPLOS}/2.4-copias"
-    ENLACE = "📁 **Código:** [`codigo/01-ficheros-json/ejemplos/2.4-copias/`](codigo/01-ficheros-json/ejemplos/2.4-copias/)"
+    CARPETA = f"{EJEMPLOS}/2.5-copias"
+    ENLACE = "📁 **Código:** [`codigo/01-ficheros-json/ejemplos/2.5-copias/`](codigo/01-ficheros-json/ejemplos/2.5-copias/)"
     SERIE = [("mkdir copias\ncp notas.txt copias/\n", "$ mkdir copias\n$ cp notas.txt copias/\n"),
              ("ls\nls copias\n", "$ ls\ncopias  notas.txt\n$ ls copias\nnotas.txt\n"),
              ("rm -r copias\nls\n", "$ rm -r copias\n$ ls\nnotas.txt\n")]
@@ -237,7 +238,7 @@ class Encadenadas(Base):
     def test_la_serie_pasa_y_cada_una_ve_lo_que_dejo_la_anterior(self):
         self.serie(self.SERIE)
         self.assertEqual(self.ejecutar(), 0, self.salida)
-        self.assertIn("4 sesiones", self.salida)
+        self.assertIn("5 sesiones", self.salida)
 
     def test_desde_cero_no_pasaria(self):
         # Lo que hacía antes el kit: la sesión 2, sola, no vería la carpeta copias
@@ -532,6 +533,150 @@ class Datos(Base):
     def test_debe_fallar_con_solo_imagenes(self):
         self.carpeta("2.9-roto", {"logo.svg": '<svg xmlns="http://www.w3.org/2000/svg"/>\n', "debe-fallar.txt": "x\n"})
         self.assertError("debe-fallar.txt", "sin ficheros de datos")
+
+
+class ServidorHTTP(unittest.TestCase):
+    """servicios/servidor_http.py: el servidor.json y las respuestas, sin arrancar nada."""
+
+    def cargar(self, datos):
+        carpeta = Path(tempfile.mkdtemp(prefix="servidor-"))
+        self.addCleanup(shutil.rmtree, carpeta)
+        fichero = carpeta / "servidor.json"
+        fichero.write_text(datos if isinstance(datos, str) else json.dumps(datos, indent=2), encoding="utf-8")
+        return servidor_http.cargar(fichero)
+
+    def problemas(self, datos):
+        with self.assertRaises(servidor_http.ServidorMal) as e:
+            self.cargar(datos)
+        return e.exception.problemas
+
+    def test_el_puerto_por_defecto(self):
+        self.assertEqual(self.cargar({"rutas": [{"metodo": "GET", "ruta": "/", "estado": 200}]})["puerto"], 8080)
+
+    def test_lo_que_esta_mal_con_su_linea(self):
+        casos = [
+            ({"rutas": []}, 'falta "rutas"'),
+            ({"rutas": [{"metodo": "GET", "ruta": "/", "estado": 200}], "puerto": 80}, "entre 1024 y 65535"),
+            ({"rutas": [{"metodo": "GET", "ruta": "/", "estado": 200}], "rutass": 1}, "clave desconocida «rutass»"),
+            ({"rutas": [{"metodo": "get", "ruta": "/", "estado": 200}]}, '"metodo" tiene que ser uno de'),
+            ({"rutas": [{"metodo": "GET", "ruta": "libros", "estado": 200}]}, "empezar por «/»"),
+            ({"rutas": [{"metodo": "GET", "ruta": "/", "estado": 299}]}, "código de estado de HTTP"),
+            ({"rutas": [{"metodo": "GET", "ruta": "/", "estado": "200"}]}, "código de estado de HTTP"),
+            ({"rutas": [{"metodo": "GET", "ruta": "/"}]}, 'falta "estado"'),
+            ({"rutas": [{"metodo": "GET", "ruta": "/", "estado": 200, "cuerpo": 1, "body": 1}]}, "clave desconocida «body»"),
+            ({"rutas": [{"metodo": "GET", "ruta": "/", "estado": 200, "cabeceras": {"Content-Length": "3"}}]},
+             "Content-Length lo pone el servidor"),
+            ({"rutas": [{"metodo": "GET", "ruta": "/", "estado": 200, "cabeceras": {"X-Num": 3}}]}, "tiene que ser un texto"),
+        ]
+        for datos, trozo in casos:
+            with self.subTest(trozo=trozo):
+                self.assertTrue(any(trozo in m for _, m in self.problemas(datos)), self.problemas(datos))
+        repetida = {"rutas": [{"metodo": "GET", "ruta": "/a", "estado": 200}, {"metodo": "GET", "ruta": "/a", "estado": 404}]}
+        self.assertEqual(self.problemas(repetida), [(9, "ruta 2: GET /a repite la ruta 1")])
+        self.assertEqual(self.problemas('{"rutas": [\n  {"metodo": "GET",}\n]}')[0][0], 2)    # JSON mal: su línea
+
+    RUTAS = {"rutas": [
+        {"metodo": "GET", "ruta": "/libros", "estado": 200, "cuerpo": [{"id": 1, "titulo": "Niebla"}]},
+        {"metodo": "GET", "ruta": "/libros?autor=unamuno", "estado": 200, "cuerpo": []},
+        {"metodo": "POST", "ruta": "/libros", "estado": 201, "cabeceras": {"Location": "/libros/2"}, "cuerpo": {"id": 2}},
+        {"metodo": "GET", "ruta": "/estado", "estado": 200, "cuerpo": "Todo en orden\n"},
+        {"metodo": "DELETE", "ruta": "/libros/1", "estado": 204},
+        {"metodo": "GET", "ruta": "/xml", "estado": 200, "cabeceras": {"Content-Type": "application/xml"}, "cuerpo": "<a/>\n"},
+    ]}
+
+    def responder(self, metodo, objetivo):
+        return servidor_http.respuesta(self.cargar(self.RUTAS), metodo, objetivo)
+
+    def test_json_con_sangria_y_salto_final(self):
+        estado, cabeceras, cuerpo = self.responder("GET", "/libros")
+        self.assertEqual(estado, 200)
+        self.assertEqual(cabeceras, [("Content-Type", "application/json"), ("Content-Length", str(len(cuerpo)))])
+        self.assertEqual(cuerpo.decode(), '[\n  {\n    "id": 1,\n    "titulo": "Niebla"\n  }\n]\n')
+
+    def test_texto_cabeceras_propias_y_sin_cuerpo(self):
+        self.assertEqual(self.responder("GET", "/estado")[1][0], ("Content-Type", "text/plain; charset=utf-8"))
+        self.assertEqual(self.responder("GET", "/xml")[1][0], ("Content-Type", "application/xml"))
+        self.assertEqual(self.responder("POST", "/libros")[1][:2], [("Content-Type", "application/json"), ("Location", "/libros/2")])
+        self.assertEqual(self.responder("DELETE", "/libros/1"), (204, [("Content-Length", "0")], b""))
+
+    def test_consultas(self):
+        self.assertEqual(self.responder("GET", "/libros?autor=unamuno")[2], b"[]\n")
+        self.assertIn(b"Niebla", self.responder("GET", "/libros?autor=otro")[2])
+
+    def test_head_404_y_405(self):
+        self.assertEqual(self.responder("HEAD", "/libros")[0], 200)
+        estado, _, cuerpo = self.responder("GET", "/nada")
+        self.assertEqual((estado, json.loads(cuerpo)), (404, {"error": "No existe la ruta /nada"}))
+        estado, cabeceras, cuerpo = self.responder("PUT", "/libros")
+        self.assertEqual((estado, json.loads(cuerpo)), (405, {"error": "La ruta /libros no admite PUT"}))
+        self.assertIn(("Allow", "GET, POST, HEAD"), cabeceras)
+
+
+class Servidor(Base):
+    """El servidor HTTP local en las sesiones y los scripts (servidor.json). Sin Docker, en el equipo (puerto
+    8080); ConDockerServidor repite las mismas pruebas en la terminal del kit."""
+    sin_docker = True
+    CARPETA = f"{EJEMPLOS}/2.4-preguntar-a-una-api"
+
+    def test_el_ejemplo_pasa_y_el_servidor_json_no_se_copia(self):
+        self.assertEqual(self.ejecutar(MODULO), 0, self.salida)
+        self.assertIn("2 sesiones", self.salida)
+
+    def test_una_respuesta_distinta_falla(self):
+        self.cambiar(f"{self.CARPETA}/servidor.json", '"puntos": 120}', '"puntos": 121}')
+        self.assertError(MODULO, "la pantalla de sesion.txt no es la del texto")
+
+    def test_un_servidor_json_mal_da_error_con_su_linea(self):
+        self.cambiar(f"{self.CARPETA}/servidor.json", '"estado": 200,\n      "cabeceras"', '"estado": 2000,\n      "cabeceras"')
+        self.assertError(f"{self.CARPETA}/servidor.json:11:", '"estado" tiene que ser un código de estado de HTTP')
+        self.assertIn("el servidor HTTP local no arranca", self.salida)
+
+    def test_un_script_con_curl(self):
+        carpeta = self.raiz / self.CARPETA
+        script = '#!/bin/bash\n# Guarda los clientes de la API en un fichero\ncurl -s -o clientes.json http://localhost:8080/clientes\ngrep -c nombre clientes.json\n'
+        (carpeta / "guardar.sh").write_text(script, encoding="utf-8")
+        self.cambiar(MODULO, "$ ls\nclientes.json\n", "$ ls\nclientes.json  guardar.sh\n")   # la sesión también lo ve
+        enlace = f"📁 **Código:** [`{self.CARPETA[len('fase-01-primeros-pasos/'):]}/`]({self.CARPETA[len('fase-01-primeros-pasos/'):]}/)"
+        with open(self.raiz / MODULO, "a", encoding="utf-8") as f:
+            f.write(f"\n```bash\n{script}```\n\n{enlace}\n\n**Salida:**\n\n```text\n2\n```\n")
+        self.assertEqual(self.ejecutar(MODULO), 0, self.salida)
+        self.assertIn("2 scripts ejecutados", self.salida)
+
+    def test_en_una_serie_el_servidor_sigue(self):
+        carpeta = self.raiz / self.CARPETA
+        (carpeta / "sesion.txt").rename(carpeta / "sesion-1.txt")
+        (carpeta / "sesion-2.txt").write_text("curl -s localhost:8080/clientes/1\n", encoding="utf-8")
+        self.cambiar(MODULO, "(`sesion.txt`):\n\n```text\n$ curl -i", "(`sesion-1.txt`):\n\n```text\n$ curl -i")
+        enlace = "📁 **Código:** [`codigo/01-ficheros-json/ejemplos/2.4-preguntar-a-una-api/`](codigo/01-ficheros-json/ejemplos/2.4-preguntar-a-una-api/)"
+        with open(self.raiz / MODULO, "a", encoding="utf-8") as f:
+            f.write('\n**En tu terminal** (`sesion-2.txt`):\n\n```text\n$ curl -s localhost:8080/clientes/1\n'
+                    f'{{\n  "nombre": "Ana",\n  "puntos": 120\n}}\n```\n\n{enlace}\n')
+        self.assertEqual(self.ejecutar(MODULO), 0, self.salida)
+
+    def test_el_puerto_ocupado(self):
+        import socket
+        with socket.socket(socket.AF_INET6) as ocupado:
+            ocupado.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+            try:
+                ocupado.bind(("::", 8080))
+            except OSError:
+                self.skipTest("el puerto 8080 ya está ocupado en este equipo")
+            ocupado.listen()
+            self.assertError(MODULO, "el servidor HTTP local no arranca", "el puerto 8080 ya está en uso")
+
+
+@unittest.skipUnless(HAY_DOCKER, "sin Docker")
+class ConDockerServidor(Servidor):
+    sin_docker = False
+
+    def test_el_puerto_ocupado(self):
+        self.skipTest("con Docker, el puerto es el del contenedor: no lo ocupa nada del equipo")
+
+    def test_puerto_en_uso_dentro_de_la_sesion(self):
+        with terminal.Contenedor(self.raiz / self.CARPETA) as t:
+            pantalla = t.sesion([("python3 -m http.server 8080 2>&1 | tail -1", None), ("ps -eo user,args | grep -c servidor_htt[p]", None)])
+        self.assertIn("Address already in use", pantalla)
+        self.assertIn("\n1\n", pantalla)
 
 
 @unittest.skipUnless(HAY_DOCKER, "hace falta Docker")

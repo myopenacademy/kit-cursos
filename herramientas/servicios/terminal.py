@@ -30,10 +30,17 @@ carpeta temporal), como las hace el alumno: los ficheros y el reloj de Git sigue
 sesión arranca en una bash NUEVA en la carpeta personal, sin la carpeta actual ni las variables de la anterior
 (el alumno puede cerrar la terminal entre una y otra: una sesión que depende de un cd anterior tiene que hacerlo
 ella). Devuelve la pantalla de cada una por separado.
+
+EL SERVIDOR HTTP LOCAL (servidor_http.py): si la carpeta del ejemplo tiene un servidor.json, se arranca antes de
+la sesión o el script, con las rutas que describe, y se para después (en unas sesiones encadenadas, uno para toda
+la serie, como una API que sigue ahí). Con Docker, dentro del contenedor (sin red: solo localhost), como «nobody»
+y fuera de la carpeta personal; sin Docker, en el equipo, en el puerto que diga (si está ocupado, falla). El
+servidor.json no se copia a la carpeta personal (es del kit, como los sesion*.txt).
 """
 import fcntl
 import hashlib
 import os
+import signal
 import re
 import select
 import shutil
@@ -47,6 +54,9 @@ import uuid
 from pathlib import Path
 
 DOCKERFILE = Path(__file__).resolve().parent / "terminal" / "Dockerfile"
+SERVIDOR_HTTP = Path(__file__).resolve().parent / "servidor_http.py"
+SERVIDOR_JSON = "servidor.json"
+CARPETA_SERVIDOR = "/opt/kit-servidor"
 USUARIO = "alumno"
 CASA = f"/home/{USUARIO}"
 FECHA_FICHEROS = "2026-01-15 10:00:00"
@@ -283,6 +293,10 @@ def normalizar_permisos(casa):
             ruta.chmod(0o755 if ruta.stat().st_mode & 0o100 else 0o644)
 
 
+def _error_del_servidor(salida):
+    return ErrorDeTerminal("el servidor HTTP local no arranca:\n    " + salida.strip().replace("\n", "\n    "))
+
+
 def _copiables(carpeta, excluir):
     return [f for f in sorted(carpeta.iterdir()) if f.name not in excluir and f.name not in {"target", "build"}]
 
@@ -292,7 +306,7 @@ class Contenedor:
     completa = True
 
     def __init__(self, carpeta, excluir=()):
-        self.carpeta, self.excluir = Path(carpeta), set(excluir)
+        self.carpeta, self.excluir = Path(carpeta), set(excluir) | {SERVIDOR_JSON}
 
     def __enter__(self):
         self.nombre = f"kit-terminal-{uuid.uuid4().hex[:10]}"
@@ -305,13 +319,24 @@ class Contenedor:
                     f"chown -R {USUARIO}:{USUARIO} {CASA} && {NORMALIZAR_PERMISOS.format(casa=CASA)} && "
                     f"find {CASA} -mindepth 1 -not -name '.*' "
                     f"-exec touch -h -d '{FECHA_FICHEROS}' {{}} +")
+            if (self.carpeta / SERVIDOR_JSON).is_file():
+                self._arrancar_servidor()
         except Exception:
             self.__exit__(None, None, None)
             raise
         return self
 
+    def _arrancar_servidor(self):
+        _docker("exec", "-u", "0", self.nombre, "mkdir", "-p", CARPETA_SERVIDOR)
+        _docker("cp", str(SERVIDOR_HTTP), f"{self.nombre}:{CARPETA_SERVIDOR}/servidor_http.py")
+        _docker("cp", str(self.carpeta / SERVIDOR_JSON), f"{self.nombre}:{CARPETA_SERVIDOR}/{SERVIDOR_JSON}")
+        r = _docker("exec", "-u", "nobody", "-w", CARPETA_SERVIDOR, self.nombre, "python3", "servidor_http.py",
+                    SERVIDOR_JSON, "--fondo", comprobar=False)
+        if r.returncode != 0:
+            raise _error_del_servidor((r.stdout + r.stderr).decode("utf-8", "replace"))
+
     def __exit__(self, *_):
-        _docker("rm", "-f", self.nombre, comprobar=False)
+        _docker("rm", "-f", self.nombre, comprobar=False)      # para también el servidor HTTP, si lo hay
 
     def ejecutar(self, orden, entrada=None, espera=ESPERA_SCRIPT):
         """Ejecuta la orden (lista) en la carpeta personal: (código, salida, salida de error)."""
@@ -338,7 +363,8 @@ class Local:
     completa = False
 
     def __init__(self, carpeta, excluir=()):
-        self.carpeta, self.excluir = Path(carpeta), set(excluir)
+        self.carpeta, self.excluir = Path(carpeta), set(excluir) | {SERVIDOR_JSON}
+        self.servidor = None
 
     def __enter__(self):
         self.casa = Path(tempfile.mkdtemp(prefix="kit-terminal-"))
@@ -358,13 +384,26 @@ class Local:
             "TERM": "xterm-256color", "PS1": "$ ", "PS2": "> ", "COLUMNS": str(ANCHO), "GIT_PAGER": "cat", "PAGER": "cat",
             "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_SYSTEM": str(configuracion),
             **{v: PROXY_MUERTO for v in ("http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "all_proxy")},
-            "no_proxy": "", "NO_PROXY": "",
+            "no_proxy": "localhost,127.0.0.1,::1", "NO_PROXY": "localhost,127.0.0.1,::1",   # el servidor local
         }
         self.entorno.pop("GIT_CONFIG_NOSYSTEM")            # la de sistema es la del kit (GIT_CONFIG_SYSTEM)
         self._config = configuracion
+        if (self.carpeta / SERVIDOR_JSON).is_file():
+            r = subprocess.run([sys.executable, str(SERVIDOR_HTTP), SERVIDOR_JSON, "--fondo"], cwd=self.carpeta,
+                               capture_output=True, text=True)
+            if r.returncode != 0:
+                self.__exit__()
+                raise _error_del_servidor(r.stdout + r.stderr)
+            self.servidor = int(r.stdout.strip())
         return self
 
     def __exit__(self, *_):
+        if self.servidor:
+            try:
+                os.kill(self.servidor, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+            self.servidor = None
         shutil.rmtree(self.casa, ignore_errors=True)
         shutil.rmtree(self._config.parent, ignore_errors=True)
 
