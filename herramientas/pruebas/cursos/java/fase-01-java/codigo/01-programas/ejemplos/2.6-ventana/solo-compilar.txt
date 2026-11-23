@@ -1,0 +1,1 @@
+Abre una ventana, que no se puede mostrar sin pantalla: solo se compila.

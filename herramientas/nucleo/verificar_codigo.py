@@ -3,7 +3,8 @@
 
 Sale de herramientas/verificar_codigo.py del curso de Java: es su núcleo, sin nada de Java, con las mismas
 convenciones (FORMATO.md, apartado 7.1). Cada lenguaje o formato tiene su comprobador en herramientas/lenguajes/.
-Hoy: bash, las sesiones de terminal (también con Git y con curl), y JSON, YAML, XML, CSV, TOML, INI, SVG y Markdown.
+Hoy: bash, Java (lenguajes/java.py, desde el kit 1.1.0), las sesiones de terminal (también con Git y con curl), y
+JSON, YAML, XML, CSV, TOML, INI, SVG y Markdown.
 
 Para cada bloque de código de un módulo seguido de una línea «📁 **Código:**» con el enlace a su carpeta:
   1. El bloque debe ser idéntico a uno de los ficheros de esa carpeta (sin contar los espacios al final de las
@@ -40,6 +41,13 @@ EL SERVIDOR HTTP LOCAL: si la carpeta de una sesión o un script tiene un servid
 un servidor HTTP en localhost con las rutas que describe (servicios/servidor_http.py; FORMATO.md, apartado 7.1),
 para que curl tenga a quién preguntar sin internet, y lo para después. El servidor.json de cada carpeta enlazada
 se comprueba aunque ninguna sesión lo use, y no se copia a la terminal.
+JAVA (lenguajes/java.py, que lo explica entero; FORMATO.md, apartado 7.1, «Los de Java»): cada .java con main que
+muestra un bloque se ejecuta (un programa suelto con «java Fichero.java»; uno de un proyecto de Maven o Gradle, con su
+classpath, tras construir el proyecto una vez) con entrada.txt, args.txt y opciones-java.txt, y su «**Salida:**»,
+«**Salida de error:**» (con termina-con-error.txt) o «**Sesión en la terminal:**» debe ser la del texto; tras una
+clase de pruebas de Maven, «**Salida de las pruebas:**» es el resumen de Surefire; con solo-compilar.txt, solo se
+compila (o, junto al pom.xml, solo se construye). Con Docker, en la imagen de Java del kit (Temurin, Maven y Gradle
+fijados), sin red: Maven y Gradle sin conexión, con la caché que llena --preparar-java.
 Antes de comparar, lo que encaja con cada expresión regular del salida-variable.txt de la carpeta se sustituye
 por «…», en la salida real y en la del texto.
 Además: error por cada fichero enlazado que Git ignora (.gitignore: no llegaría a un clon del curso), y aviso por
@@ -50,8 +58,17 @@ Dónde se ejecuta (servicios/terminal.py):
     3.2.57, en español y con la hora de Madrid, siempre los mismos. La primera vez se construye la imagen
     (unos minutos, con internet).
   - SIN DOCKER (o con --sin-docker), la verificación parcial: la bash del equipo, sin poder cortar la red, con
-    sus versiones y sin bash 3.2 (solo la búsqueda de lo que no existe en ella). Lo dice al final: para cerrar
-    una fase, verifica con Docker.
+    sus versiones y sin bash 3.2 (solo la búsqueda de lo que no existe en ella); para Java, el JDK, Maven y Gradle
+    del equipo (del PATH), también sin conexión y con sus cachés. Lo dice al final: para cerrar una fase,
+    verifica con Docker.
+
+LA RED, SOLO CON --preparar-java [carpeta]: es la única vez que hay red. Construye, con internet, cada proyecto de
+Maven o Gradle de las carpetas enlazadas por los módulos (de todo el curso o de la carpeta o el módulo que se diga)
+para descargar sus dependencias y plugins a la caché: con Docker, al volumen kit-java-cache (o el de la variable de
+entorno KIT_JAVA_CACHE), que la verificación monta en la imagen de Java; sin Docker, a las cachés del equipo
+(~/.m2/repository, o la de KIT_JAVA_M2, y ~/.gradle, o la de GRADLE_USER_HOME). Después, la verificación ya no
+necesita red; si falta una dependencia, el error dice que hay que volver a prepararla. Hazlo la primera vez y cada
+vez que cambie una dependencia. No verifica nada: termina con 0 si todos los proyectos se han preparado.
 
 Qué se verifica:
   - SIN --commit, los ficheros del disco, tal como están: lo normal mientras se escribe un módulo.
@@ -71,6 +88,7 @@ Uso, desde la raíz del curso (con el kit en la carpeta hermana ../kit-cursos/):
     python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --commit v1.0.0         # una etiqueta (o --commit=v1.0.0)
     python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --sin-docker            # sin Docker
     python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --versiones             # qué lleva la imagen
+    python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --preparar-java         # la caché de Java (con red)
     python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --help
 Termina con 0 si todo coincide y funciona (aunque haya avisos), con 1 si hay algún error y con 2 si los
 argumentos están mal.
@@ -93,6 +111,7 @@ from formato_academia import CARPETAS_IGNORADAS, FICHEROS_DE_TRABAJO, Informe, M
 import terminal                                                                    # noqa: E402
 import servidor_http                                                               # noqa: E402
 import bash as lenguaje_bash                                                       # noqa: E402
+import java as lenguaje_java                                                       # noqa: E402
 import formato_csv, formato_ini, formato_json, formato_markdown, formato_svg, formato_toml, formato_xml, formato_yaml  # noqa: E402,E401
 
 FORMATOS = [formato_json, formato_yaml, formato_xml, formato_csv, formato_markdown, formato_toml, formato_ini, formato_svg]
@@ -103,7 +122,7 @@ FORMATOS = [formato_json, formato_yaml, formato_xml, formato_csv, formato_markdo
 #   DE_VERIFICACION            opcional: los nombres de sus ficheros de verificación, que se suman a los comunes
 #                              (son para el kit: no se comparan con los bloques ni son ficheros de datos)
 # y el método recibe (md, línea del enlace «📁 Código», fichero, carpeta enlazada).
-EJECUTORES = [(lenguaje_bash, "verificar_script")]
+EJECUTORES = [(lenguaje_bash, "verificar_script"), (lenguaje_java, "verificar_java")]
 
 ENLACE_CODIGO = re.compile(r"^📁 \*\*Código:\*\* \[[^\]]*\]\(([^)\s]+)\)")
 SESION = re.compile(r"^\*\*En tu terminal\*\* \(`([^`]+)`\):\s*$")
@@ -159,6 +178,12 @@ class Verificador:
         self.compatibilidad_revisada = set()
         self.cadenas = {}               # carpeta → {nombre: pantalla, o el error con el que no se ha podido teclear}
         self.sesiones_mostradas = set() # sesiones encadenadas que muestra algún bloque
+        self.java = None                # el ejecutor de Java (lenguajes/java.py), cuando hace falta
+
+    def cerrar(self):
+        """Al terminar: para lo que siga abierto (los proyectos de Java)."""
+        if self.java:
+            self.java.cerrar()
 
     def rel(self, ruta):
         try:
@@ -293,6 +318,11 @@ class Verificador:
                                                   f"(código {codigo32} frente a {codigo}; "
                                                   f"{primera_diferencia(normalizar(out), normalizar(out32), 'con bash 3.2', 'con bash 5')})")
 
+    def verificar_java(self, md, i, fichero, carpeta):
+        if self.java is None:
+            self.java = lenguaje_java.Java(self)
+        self.java.verificar(md, i, fichero, carpeta)
+
     def compatibilidad_3_2(self, fichero):
         if fichero in self.compatibilidad_revisada:
             return
@@ -386,7 +416,8 @@ class Verificador:
                 hojas += [c for c in codigo.glob("*/ejercicios/*") if c.is_dir()]
                 hojas += [c for c in codigo.glob("retos/*") if c.is_dir()]
                 for hoja in sorted(hojas):
-                    if hoja.resolve() not in self.enlazadas:
+                    # Enlazada, o con una subcarpeta enlazada (en un proyecto de Java, src/main/java/es/x/)
+                    if not any(e == hoja.resolve() or hoja.resolve() in e.parents for e in self.enlazadas):
                         self.informe.aviso(self.rel(hoja) + "/", 0, "carpeta de código que ningún módulo enlaza")
         for carpeta in sorted(self.enlazadas):
             for sesion in sorted(carpeta.iterdir()):
@@ -397,6 +428,9 @@ class Verificador:
                 if script.resolve() not in self.mostrados:
                     self.informe.aviso(self.rel(script), 0, "script que ningún bloque del módulo muestra")
                     self.compatibilidad_3_2(script)
+            for fuente in sorted(carpeta.rglob("*.java")):
+                if fuente.resolve() not in self.mostrados and not {"target", "build"} & set(fuente.relative_to(carpeta).parts):
+                    self.informe.aviso(self.rel(fuente), 0, "fichero de Java que ningún bloque del módulo muestra")
         self.revisar_datos()
         self.revisar_ignorados()
 
@@ -533,7 +567,7 @@ def sacar_commit(raiz, ref, destino):
 
 def main():
     ref, sys.argv[1:] = opcion_commit(sys.argv[1:])
-    usadas, _, rutas = revisar(__doc__, opciones=("--sin-docker", "--versiones"))
+    usadas, _, rutas = revisar(__doc__, opciones=("--sin-docker", "--versiones", "--preparar-java"))
     if "--versiones" in usadas:
         if not terminal.hay_docker():
             print("❌ Sin Docker no hay imagen de la terminal del kit.", file=sys.stderr)
@@ -562,10 +596,48 @@ def main():
         print()
         raiz = copia
     try:
-        verificar(raiz, rutas, usadas)
+        (preparar_java if "--preparar-java" in usadas else verificar)(raiz, rutas, usadas)
     finally:
         if temporal:
             shutil.rmtree(temporal, ignore_errors=True)
+
+
+def carpetas_enlazadas(raiz, rutas):
+    """Las carpetas que enlazan los «📁 Código» de los módulos (las que existen)."""
+    carpetas = set()
+    for ruta in ficheros_md(raiz, rutas):
+        md = Markdown(ruta, str(ruta))
+        for i, linea in enumerate(md.lineas):
+            m = ENLACE_CODIGO.match(linea.strip()) if not md.en_codigo[i] else None
+            if m and (ruta.parent / m.group(1)).resolve().is_dir():
+                carpetas.add((ruta.parent / m.group(1)).resolve())
+    return carpetas
+
+
+def preparar_java(raiz, rutas, usadas):
+    """--preparar-java: la única vez que hay red. Prepara la caché de cada proyecto de Maven o Gradle enlazado."""
+    con_docker = False if "--sin-docker" in usadas else terminal.hay_docker()
+    proyectos = lenguaje_java.proyectos_de(carpetas_enlazadas(raiz, rutas))
+    if not proyectos:
+        print("No hay proyectos de Maven ni de Gradle en las carpetas enlazadas: no hay nada que preparar.")
+        return
+    donde = (f"el volumen de Docker {lenguaje_java.volumen()}" if con_docker else
+             f"las cachés del equipo ({lenguaje_java.repositorio_maven_local()} y {lenguaje_java.gradle_local()})")
+    print(f"Preparando {len(proyectos)} proyecto(s) de Java en {donde}, con red…", flush=True)
+    fallos = 0
+    for tipo, proyecto in proyectos:
+        nombre = "Maven" if tipo == "maven" else "Gradle"
+        rel = proyecto.resolve().relative_to(raiz.resolve()).as_posix() + "/"
+        error = lenguaje_java.preparar(tipo, proyecto, con_docker)
+        if error:
+            fallos += 1
+            print(f"{rel}: ERROR: no se ha podido preparar ({nombre}): {error}")
+        else:
+            print(f"✅ Preparado ({nombre}): {rel}", flush=True)
+    if fallos:
+        print(f"❌ {fallos} proyecto(s) sin preparar.")
+        sys.exit(1)
+    print("✅ Caché de Java preparada: ya se puede verificar sin red.")
 
 
 def verificar(raiz, rutas, usadas):
@@ -579,19 +651,26 @@ def verificar(raiz, rutas, usadas):
             print(f"❌ No se puede preparar la terminal del kit:\n{e}", file=sys.stderr)
             sys.exit(1)
     mds = ficheros_md(raiz, rutas)
-    for md in mds:
-        verificador.verificar_md(Markdown(md, verificador.rel(md)))
+    try:
+        for md in mds:
+            verificador.verificar_md(Markdown(md, verificador.rel(md)))
+    finally:
+        verificador.cerrar()
     carpetas = [Path(r) for r in rutas if Path(r).is_dir()] or [raiz]
     verificador.revisar_codigo(carpetas if not any(Path(r).is_file() for r in rutas) else [])
     c = verificador.cuentas
+    java = c.get("java", 0)
     resumen = (f"{len(mds)} ficheros revisados: {c['bloques']} bloques con su fichero, {c['scripts']} scripts "
-               f"ejecutados, {c['sesiones']} sesiones de terminal y {c['datos']} ficheros de datos"
+               f"ejecutados, " + (f"{java} programas de Java, " if java else "")
+               + f"{c['sesiones']} sesiones de terminal y {c['datos']} ficheros de datos"
                + (f" ({c['comparaciones']} CSV comparados con su JSON)." if c["comparaciones"] else "."))
     if con_docker:
         resumen += " En la terminal del kit (Docker, sin red): verificación completa."
     else:
         resumen += ("\n⚠️  Sin Docker: verificación parcial (la bash del equipo, sin cortar la red, con sus versiones y "
-                    "sin bash 3.2). Para cerrar una fase, verifica con Docker.")
+                    "sin bash 3.2"
+                    + ("; para Java, el JDK, Maven y Gradle del equipo, con sus versiones" if java else "")
+                    + "). Para cerrar una fase, verifica con Docker.")
     for f, l, m in sorted(informe.errores, key=lambda e: (e[0], e[1])):
         print(f"{f}:{l}: ERROR: {m}" if l else f"{f}: ERROR: {m}")
     for f, l, m in sorted(informe.avisos, key=lambda e: (e[0], e[1])):

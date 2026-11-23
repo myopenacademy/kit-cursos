@@ -1,0 +1,2 @@
+# La hora cambia en cada ejecución
+\d{2}:\d{2}:\d{2}

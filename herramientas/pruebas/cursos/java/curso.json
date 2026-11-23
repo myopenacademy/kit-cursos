@@ -1,0 +1,68 @@
+{
+  "formato": 1,
+  "tipo": "curso",
+  "id": "ejemplo-java",
+  "titulo": "Curso de ejemplo de Java",
+  "descripcion": "Un curso pequeño de Java que cumple FORMATO.md, para las pruebas del ejecutor de Java del kit.",
+  "version": "1.0.0",
+  "idioma": "es",
+  "repositorio": "https://github.com/myopenacademy/curso-ejemplo-java",
+  "conviene_saber_antes": [
+    "inicial"
+  ],
+  "fases": [
+    {
+      "id": "ejemplo-java.fase.java",
+      "carpeta": "fase-01-java",
+      "titulo": "Java",
+      "retos": "fase-01-java/retos.md",
+      "modulos": [
+        {
+          "id": "ejemplo-java.programas",
+          "fichero": "fase-01-java/01-programas.md",
+          "titulo": "Programas de Java",
+          "ejercicios": [
+            {
+              "id": "ejemplo-java.programas.tabla",
+              "titulo": "La tabla del 3"
+            }
+          ]
+        },
+        {
+          "id": "ejemplo-java.maven",
+          "fichero": "fase-01-java/02-maven.md",
+          "titulo": "Un proyecto de Maven",
+          "ejercicios": [
+            {
+              "id": "ejemplo-java.maven.carpeta-de-una-prueba",
+              "titulo": "La carpeta de una prueba"
+            }
+          ]
+        },
+        {
+          "id": "ejemplo-java.gradle",
+          "fichero": "fase-01-java/03-gradle.md",
+          "titulo": "Un proyecto de Gradle",
+          "ejercicios": [
+            {
+              "id": "ejemplo-java.gradle.las-comillas",
+              "titulo": "Las comillas de Kotlin"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "proyecto": {
+    "tipo": "etapas",
+    "titulo": "Mi tienda",
+    "etapas": [
+      {
+        "id": "ejemplo-java.etapa.precios",
+        "fichero": "proyecto/01-precios.md",
+        "titulo": "Los precios"
+      }
+    ]
+  },
+  "equivalencias": []
+}

@@ -54,6 +54,7 @@ import uuid
 from pathlib import Path
 
 DOCKERFILE = Path(__file__).resolve().parent / "terminal" / "Dockerfile"
+CARPETA_JAVA = Path(__file__).resolve().parent / "java"     # la imagen de Java, encima de esta (servicios/java/)
 SERVIDOR_HTTP = Path(__file__).resolve().parent / "servidor_http.py"
 SERVIDOR_JSON = "servidor.json"
 CARPETA_SERVIDOR = "/opt/kit-servidor"
@@ -103,6 +104,22 @@ def imagen():
         print(f"Construyendo la imagen {nombre} (la primera vez tarda unos minutos y necesita internet)…",
               file=sys.stderr, flush=True)
         _docker("build", "-q", "-t", nombre, str(DOCKERFILE.parent))
+    return nombre
+
+
+def imagen_java():
+    """El nombre de la imagen de Java (servicios/java/Dockerfile, construida encima de la de la terminal),
+    construyéndola si todavía no existe. Su huella sale de los ficheros de servicios/java/ y del nombre de la imagen
+    de la terminal: si cambia cualquiera de los dos, es otra imagen."""
+    base = imagen()
+    huella = hashlib.sha256(base.encode())
+    for fichero in sorted(f for f in CARPETA_JAVA.iterdir() if f.is_file()):
+        huella.update(fichero.name.encode() + b"\0" + fichero.read_bytes())
+    nombre = f"kit-java:{huella.hexdigest()[:12]}"
+    if _docker("image", "inspect", nombre, comprobar=False).returncode != 0:
+        print(f"Construyendo la imagen {nombre} (la primera vez tarda unos minutos y necesita internet)…",
+              file=sys.stderr, flush=True)
+        _docker("build", "-q", "--build-arg", f"BASE={base}", "-t", nombre, str(CARPETA_JAVA))
     return nombre
 
 
@@ -302,16 +319,19 @@ def _copiables(carpeta, excluir):
 
 
 class Contenedor:
-    """La terminal con Docker: `with Contenedor(carpeta) as t: t.ejecutar(...)`."""
+    """La terminal con Docker: `with Contenedor(carpeta) as t: t.ejecutar(...)`.
+    Para otra imagen (la de Java, imagen_java()), `imagen`; con `opciones`, más opciones de «docker run» (un volumen);
+    y con `red=True`, con red (solo para «verificar_codigo.py --preparar-java»: verificar es siempre sin red)."""
     completa = True
 
-    def __init__(self, carpeta, excluir=()):
+    def __init__(self, carpeta, excluir=(), imagen=None, opciones=(), red=False):
         self.carpeta, self.excluir = Path(carpeta), set(excluir) | {SERVIDOR_JSON}
+        self.imagen, self.opciones, self.red = imagen, list(opciones), red
 
     def __enter__(self):
         self.nombre = f"kit-terminal-{uuid.uuid4().hex[:10]}"
-        _docker("run", "-d", "--rm", "--network", "none", "--hostname", "ordenador", "--name", self.nombre,
-                imagen(), "sleep", "infinity")
+        _docker("run", "-d", "--rm", *([] if self.red else ["--network", "none"]), "--hostname", "ordenador",
+                "--name", self.nombre, *self.opciones, self.imagen or imagen(), "sleep", "infinity")
         try:
             for f in _copiables(self.carpeta, self.excluir):
                 _docker("cp", str(f), f"{self.nombre}:{CASA}/{f.name}")
@@ -338,11 +358,14 @@ class Contenedor:
     def __exit__(self, *_):
         _docker("rm", "-f", self.nombre, comprobar=False)      # para también el servidor HTTP, si lo hay
 
-    def ejecutar(self, orden, entrada=None, espera=ESPERA_SCRIPT):
-        """Ejecuta la orden (lista) en la carpeta personal: (código, salida, salida de error)."""
+    def ejecutar(self, orden, entrada=None, espera=ESPERA_SCRIPT, directorio=None, entorno=None):
+        """Ejecuta la orden (lista) en la carpeta personal (o en su subcarpeta `directorio`, relativa a ella), con las
+        variables de `entorno` además de las de siempre: (código, salida, salida de error)."""
+        donde = f"{CASA}/{directorio}" if directorio not in (None, "", ".") else CASA
+        variables = [a for k, v in (entorno or {}).items() for a in ("-e", f"{k}={v}")]
         try:
-            r = subprocess.run(["docker", "exec", "-i", "-w", CASA, *ENTORNO_PERSONA, self.nombre, *orden], input=entrada,
-                               capture_output=True, timeout=espera)
+            r = subprocess.run(["docker", "exec", "-i", "-w", donde, *ENTORNO_PERSONA, *variables, self.nombre, *orden],
+                               input=entrada, capture_output=True, timeout=espera)
         except subprocess.TimeoutExpired:
             raise ErrorDeTerminal(f"«{' '.join(orden)}» no termina en {espera} segundos")
         return r.returncode, r.stdout.decode("utf-8", "replace"), r.stderr.decode("utf-8", "replace")
@@ -407,9 +430,11 @@ class Local:
         shutil.rmtree(self.casa, ignore_errors=True)
         shutil.rmtree(self._config.parent, ignore_errors=True)
 
-    def ejecutar(self, orden, entrada=None, espera=ESPERA_SCRIPT):
+    def ejecutar(self, orden, entrada=None, espera=ESPERA_SCRIPT, directorio=None, entorno=None):
+        donde = self.casa / directorio if directorio not in (None, "", ".") else self.casa
         try:
-            r = subprocess.run(orden, input=entrada, capture_output=True, timeout=espera, cwd=self.casa, env=self.entorno)
+            r = subprocess.run(orden, input=entrada, capture_output=True, timeout=espera, cwd=donde,
+                               env={**self.entorno, **(entorno or {})})
         except subprocess.TimeoutExpired:
             raise ErrorDeTerminal(f"«{' '.join(orden)}» no termina en {espera} segundos")
         return r.returncode, r.stdout.decode("utf-8", "replace"), r.stderr.decode("utf-8", "replace")
