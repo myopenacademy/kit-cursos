@@ -2,7 +2,7 @@
 
 Los cambios del kit de cursos de MyOpenAcademy, versión a versión. Las versiones siguen [versionado semántico](https://semver.org/lang/es/): la del kit es independiente de la del formato (`FORMATO.md`), que lleva su propio número.
 
-## 1.0.0 — pendiente de publicar
+## 1.0.0 — 23 de noviembre de 2026
 
 La primera versión, publicada junto con la academia y el curso inicial (pack base 1.0). Preparada el 16 de noviembre de 2026.
 
