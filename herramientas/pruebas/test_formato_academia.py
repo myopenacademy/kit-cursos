@@ -630,6 +630,17 @@ class Html(Base):
         self.cambiar(MODULO, "- Usa nombres de clave claros.", "- Escribe `git switch <rama>` para cambiar.")
         self.assertSinErrores()
 
+    def test_comillas_invertidas_sueltas_como_commonmark(self):
+        # 13.02 del curso de Java: el «``» que no se cierra es texto, y `<template>` sigue siendo código
+        # (como lo lee la academia, con commonmark-java). Un tramo de comillas no empieza a mitad de otro.
+        self.cambiar(MODULO, "- Usa nombres de clave claros.",
+                     "- `fila.innerHTML = `<td>${p.name}</td>``: un molde (`<template>`) y `textContent`.")
+        self.assertSinErrores()
+
+    def test_html_detras_de_comillas_que_no_se_cierran(self):
+        self.cambiar(MODULO, "- Usa nombres de clave claros.", "- Un `` sin cerrar y <script>alert(1)</script>.")
+        self.assertError(MODULO, "<script> no se admite")
+
 
 class ListasDeTareas(Base):
     """La academia todavía no dibuja las listas de tareas de Markdown (- [ ] / - [x]): aviso fuera del código."""
