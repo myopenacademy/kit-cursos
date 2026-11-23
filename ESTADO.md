@@ -4,7 +4,7 @@
 
 ## Dónde estamos
 
-**16 de noviembre de 2026.** El kit mínimo para el curso inicial está hecho entero: tareas 1 a 5 de `PLAN.md`, también el paso 4 de la tarea 4 (`curl` con un servidor HTTP local genérico: cada ejemplo describe sus rutas en su `servidor.json`). Hecha también la comparación de un CSV con su JSON (reto 3 de la fase 4 del curso), `codificacion.txt`, TSV, TOML, INI y SVG, Mermaid en `codigo/`, el aviso de las listas de tareas, la comprobación de los `.env` de `codigo/` y el aviso de los correos fuera de código, `.github/` y la cabecera YAML de los `.md` de `codigo/`, el error por un repositorio de Git en `codigo/` y Liquid de Jekyll como texto. 358 pruebas (`python3 -m unittest discover -s herramientas/pruebas`). El curso inicial tiene aprobadas sus fases 1 a 4, verificadas con las herramientas del kit, y está con la 5 (Git). La academia usa los cursos de ejemplo del kit (`94d93c8`).
+**23 de noviembre de 2026: publicado** (`v1.0.0`, ver «Siguiente paso»). **16 de noviembre de 2026.** El kit mínimo para el curso inicial está hecho entero: tareas 1 a 5 de `PLAN.md`, también el paso 4 de la tarea 4 (`curl` con un servidor HTTP local genérico: cada ejemplo describe sus rutas en su `servidor.json`). Hecha también la comparación de un CSV con su JSON (reto 3 de la fase 4 del curso), `codificacion.txt`, TSV, TOML, INI y SVG, Mermaid en `codigo/`, el aviso de las listas de tareas, la comprobación de los `.env` de `codigo/` y el aviso de los correos fuera de código, `.github/` y la cabecera YAML de los `.md` de `codigo/`, el error por un repositorio de Git en `codigo/` y Liquid de Jekyll como texto. 358 pruebas (`python3 -m unittest discover -s herramientas/pruebas`). El curso inicial tiene aprobadas sus fases 1 a 4, verificadas con las herramientas del kit, y está con la 5 (Git). La academia usa los cursos de ejemplo del kit (`94d93c8`).
 
 | Herramienta | Qué hace |
 |---|---|
@@ -19,8 +19,8 @@ Todo documentado en `herramientas/README.md`, con «Por dónde empezar».
 
 ## Siguiente paso
 
-- **Uso en local primero** (decisión del autor, 16 de noviembre de 2026): el autor usa el pack base en su máquina antes de publicar. La etiqueta `v1.0.0` y el push, solo cuando lo ordene. Si en ese uso sale algo del kit, se arregla antes y entra en la 1.0.0.
-- **Publicar con el pack base 1.0, cuando lo diga el autor** (el curso inicial tiene su 1.0.0 en `e335ce8`, verificada con el kit `65a922c`). Preparado todo lo del apartado 8.6; falta: poner la fecha a la 1.0.0 en `CHANGELOG.md`, la etiqueta `v1.0.0`, el remoto (`myopenacademy/kit-cursos`), el push y la *release* con una nota corta (la de `CHANGELOG.md`). Antes del push, volver a pasar gitleaks sobre todo el historial y las pruebas.
+- **Publicado el 23 de noviembre de 2026** en <https://github.com/myopenacademy/kit-cursos> (público): etiqueta `v1.0.0` sobre `f041ccb` y *release* «Kit de cursos 1.0.0» con la nota de `CHANGELOG.md`. `FORMATO.md` se abre en <https://github.com/myopenacademy/kit-cursos/blob/main/FORMATO.md> (comprobado: 200). El curso inicial ya puede publicar (enlaza a ese `FORMATO.md`).
+- Las etiquetas solo se mueven si cambia el producto; los commits que solo tocan `ESTADO.md` van con el push de `main` (regla del autor, 23 de noviembre de 2026). Un cambio del kit, a partir de ahora, sale en una versión nueva (1.0.1, 1.1.0…) con su entrada en `CHANGELOG.md`.
 
 ## Lo hecho, tarea a tarea, y sus decisiones
 
@@ -96,6 +96,7 @@ Si algo bloquea, dilo al autor: él pasa la información de una sesión a otra.
 
 | Fecha | Qué |
 |---|---|
+| 2026-11-23 | **Publicada la 1.0.0** (orden del autor): fecha en `CHANGELOG.md` (`f041ccb`); gitleaks 8.30.1 sobre los 43 commits, sin hallazgos (en el disco, solo los secretos inventados de la prueba de `.env.example` dentro de un `.pyc` ignorado); 358 pruebas, OK (1 saltada), con el 8080 libre (con la academia en local fallaban 37, ver «Para más adelante»). Repositorio `myopenacademy/kit-cursos` público, `main` y etiqueta `v1.0.0` sobre `f041ccb`, *release* «Kit de cursos 1.0.0» marcada como la última. |
 | 2026-11-08 | Repositorio creado; `FORMATO.md` versión 1 movido desde la raíz. |
 | 2026-11-08 | Decisiones 1 a 3 del apartado 4 de `PLAN.md`. Ajustes de `FORMATO.md` dentro de la versión 1 (apartados 3.2, 7, 13 y 15). |
 | 2026-11-08 | Aviso 3 del curso inicial en `FORMATO.md` (fase del proyecto final sin retos) y su lista de comprobaciones en la tarea 4 de `PLAN.md`. |
@@ -137,6 +138,8 @@ Si algo bloquea, dilo al autor: él pasa la información de una sesión a otra.
 **9 de noviembre de 2026:** la academia ha importado la fase 1 del curso inicial (commit c2bfba8 de su repositorio). **`FORMATO.md` no cambia**: todo lo que no encajó es de la academia y lo arreglará su importador nuevo. Los identificadores con punto (`inicial.que-es-programar`) se aceptan tal cual, así que el apartado 3.3 se queda como está. Los cursos se instalan con una ruta relativa (`../Cursos/curso-inicial`), como dice el plan común.
 
 ## Para más adelante
+
+- **Pruebas que no dependan del puerto 8080** (pedido del autor, 23 de noviembre de 2026; no bloqueaba la 1.0): las de `verificar_codigo.py` sin Docker arrancan el servidor HTTP local en el 8080 del equipo, y fallan (37) si otro programa lo ocupa, como la academia en local. Por ejemplo, que las pruebas usen un puerto libre que elija el sistema. La herramienta ya avisa bien de «puerto en uso»; lo frágil son las pruebas.
 
 - **Prueba de fiabilidad con el curso de Java:** cuando se adapte ese curso, después del pack base 1.0 (decisión del autor).
 
