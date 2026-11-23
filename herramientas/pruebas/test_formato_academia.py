@@ -147,6 +147,65 @@ class CursoJson(Base):
         self.assertError("la fase «ejemplo.fase.otra» no existe")
 
 
+class RutaMinima(Base):
+    """El campo opcional «ruta_minima» de curso.json (FORMATO.md 3.2, revisión 1.1)."""
+
+    def poner(self, ruta, plantilla="# Ruta mínima\n\n{{resumen}}\n\n{{modulos}}\n", generada=True):
+        d = self.json(); d["ruta_minima"] = ruta; self.guardar_json(d)
+        if plantilla is not None:
+            self.escribir("RUTA-MINIMA.plantilla.md", plantilla)
+        if generada:
+            self.escribir("RUTA-MINIMA.md", "# Ruta mínima\n")
+
+    def test_ruta_minima_buena(self):
+        self.poner({"modulos": ["ejemplo.ficheros-json"], "etapas": ["ejemplo.etapa.primer-catalogo"],
+                    "plantilla": "RUTA-MINIMA.plantilla.md"})
+        self.assertSinErrores()
+        self.assertFalse(self.hay(self.avisos, "ruta_minima"), self.avisos)
+
+    def test_modulo_que_no_existe(self):
+        self.poner({"modulos": ["ejemplo.no-existe"]})
+        self.assertError("«ruta_minima»", "el módulo «ejemplo.no-existe» no existe")
+
+    def test_modulo_repetido(self):
+        self.poner({"modulos": ["ejemplo.ficheros-json", "ejemplo.ficheros-json"]})
+        self.assertError("«ruta_minima»", "«ejemplo.ficheros-json» está dos veces")
+
+    def test_sin_modulos(self):
+        self.poner({"modulos": []})
+        self.assertError("«ruta_minima»", "al menos un módulo")
+
+    def test_etapa_que_no_existe(self):
+        self.poner({"modulos": ["ejemplo.ficheros-json"], "etapas": ["ejemplo.etapa.otra"]})
+        self.assertError("«ruta_minima»", "la etapa «ejemplo.etapa.otra» no existe")
+
+    def test_plantilla_que_no_existe(self):
+        self.poner({"modulos": ["ejemplo.ficheros-json"], "plantilla": "OTRA.md"})
+        self.assertError("«ruta_minima»", "no existe «OTRA.md»")
+
+    def test_plantilla_sin_la_lista_de_modulos(self):
+        self.poner({"modulos": ["ejemplo.ficheros-json"], "plantilla": "RUTA-MINIMA.plantilla.md"},
+                   plantilla="# Ruta mínima\n\n{{resumen}}\n")
+        self.assertError("RUTA-MINIMA.plantilla.md", "falta {{modulos}}")
+
+    def test_plantilla_con_un_hueco_desconocido(self):
+        self.poner({"modulos": ["ejemplo.ficheros-json"], "plantilla": "RUTA-MINIMA.plantilla.md"},
+                   plantilla="{{modulos}}\n{{horas}}\n")
+        self.assertError("RUTA-MINIMA.plantilla.md:2:", "{{horas}} no existe")
+
+    def test_campo_desconocido_es_aviso(self):
+        self.poner({"modulos": ["ejemplo.ficheros-json"], "texto": "x"})
+        self.assertAviso("ruta mínima: campo desconocido «texto»")
+
+    def test_sin_ruta_minima_generada_es_aviso(self):
+        self.poner({"modulos": ["ejemplo.ficheros-json"]}, generada=False)
+        self.assertAviso("falta RUTA-MINIMA.md", "generar_ruta_minima.py")
+
+    def test_no_es_un_objeto(self):
+        self.poner(["ejemplo.ficheros-json"])
+        self.assertError("«ruta_minima» debe ser un objeto")
+
+
 class Titulos(Base):
     def test_titulo_de_modulo_con_formato_en_curso_json(self):
         d = self.json(); self.modulo(d)["titulo"] = "Ficheros `JSON`"; self.guardar_json(d)

@@ -73,7 +73,7 @@ FICHEROS_DE_TRABAJO = {"CLAUDE.md", "PLAN-CURSO.md", "ESTADO.md"}
 
 CAMPOS = {
     "curso": {"formato", "tipo", "id", "titulo", "descripcion", "version", "idioma", "repositorio",
-              "conviene_saber_antes", "partes", "fases", "proyecto", "equivalencias", "transicion"},
+              "conviene_saber_antes", "partes", "fases", "proyecto", "equivalencias", "transicion", "ruta_minima"},
     "parte": {"id", "titulo", "fases"},
     "fase": {"id", "carpeta", "titulo", "retos", "retos_disponibles", "modulos"},
     "módulo": {"id", "fichero", "titulo", "disponible", "ejercicios"},
@@ -81,7 +81,13 @@ CAMPOS = {
     "proyecto": {"tipo", "titulo", "etapas", "modulo"},
     "etapa": {"id", "fichero", "titulo"},
     "equivalencia": {"desde", "antes", "ahora", "motivo"},
+    "ruta mínima": {"modulos", "etapas", "plantilla"},
 }
+
+# Los huecos que admite la plantilla de RUTA-MINIMA.md («plantilla» de «ruta_minima», FORMATO.md 3.2): los
+# rellena generar_ruta_minima.py. {{modulos}} es obligatorio.
+HUECOS_RUTA_MINIMA = {"resumen", "modulos", "proyecto", "consultas"}
+HUECO = re.compile(r"\{\{([^{}]*)\}\}")
 
 ID_CURSO = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 SEMVER = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
@@ -527,6 +533,7 @@ class Curso:
                 anterior = int(m.group(1))
         self.comprobar_partes()
         self.comprobar_proyecto()
+        self.comprobar_ruta_minima()
         self.comprobar_equivalencias()
 
     def comprobar_fase(self, fase, n, carpetas):
@@ -715,6 +722,63 @@ class Curso:
                         self.etapas.append(fichero)
         else:
             self.error_json(linea, f"el proyecto: «tipo» debe ser \"etapas\" o \"modulo\" (es {json.dumps(tipo, ensure_ascii=False)})")
+
+    def comprobar_ruta_minima(self):
+        """El campo opcional «ruta_minima» (FORMATO.md 3.2): de él sale RUTA-MINIMA.md con generar_ruta_minima.py."""
+        ruta = self.datos.get("ruta_minima")
+        if ruta is None:
+            return
+        linea = self.linea_json('"ruta_minima"')
+        if not isinstance(ruta, dict):
+            self.error_json(linea, "«ruta_minima» debe ser un objeto { \"modulos\": [ … ], \"etapas\": [ … ], "
+                                   "\"plantilla\": … } (FORMATO.md, apartado 3.2)")
+            return
+        self.campos_desconocidos(ruta, "ruta mínima", "ruta mínima", linea)
+        modulos = {m.get("id") for f in self.fases for m in f.get("_modulos", [])}
+        proyecto = self.datos.get("proyecto")
+        etapas = proyecto.get("etapas") if isinstance(proyecto, dict) else None
+        etapas = {e.get("id") for e in etapas if isinstance(e, dict)} if isinstance(etapas, list) else set()
+        for clave, que, existentes, obligatorio in (("modulos", "el módulo", modulos, True),
+                                                    ("etapas", "la etapa", etapas, False)):
+            lista = self.lista(ruta, clave, "«ruta_minima»", linea, obligatorio=obligatorio)
+            if clave == "modulos" and not lista and isinstance(ruta.get("modulos"), list):
+                self.error_json(linea, "«ruta_minima»: «modulos» debe tener al menos un módulo")
+            vistos = set()
+            for ident in lista:
+                if not isinstance(ident, str):
+                    self.error_json(linea, f"«ruta_minima»: en «{clave}», {json.dumps(ident, ensure_ascii=False)} "
+                                           "no es un identificador")
+                    continue
+                if ident in vistos:
+                    self.error_json(linea, f"«ruta_minima»: «{ident}» está dos veces en «{clave}»")
+                elif ident not in existentes:
+                    self.error_json(linea, f"«ruta_minima»: {que} «{ident}» no existe en el curso")
+                vistos.add(ident)
+        plantilla = self.texto(ruta, "plantilla", "«ruta_minima»", linea, obligatorio=False)
+        if plantilla:
+            fichero = self.raiz / plantilla
+            if "/" in plantilla or "\\" in plantilla or not plantilla.endswith(".md"):
+                self.error_json(linea, f"«ruta_minima»: la plantilla «{plantilla}» debe ser un fichero .md de la raíz del curso")
+            elif not fichero.is_file():
+                self.error_json(linea, f"«ruta_minima»: no existe «{plantilla}» (la plantilla de RUTA-MINIMA.md)")
+            else:
+                self.comprobar_plantilla_ruta_minima(plantilla)
+        if not (self.raiz / "RUTA-MINIMA.md").is_file():
+            self.aviso_json(linea, "«ruta_minima»: falta RUTA-MINIMA.md; genéralo con generar_ruta_minima.py del kit "
+                                   "(FORMATO.md, apartado 4)")
+
+    def comprobar_plantilla_ruta_minima(self, plantilla):
+        admitidos = ", ".join("{{" + h + "}}" for h in sorted(HUECOS_RUTA_MINIMA))
+        hay_modulos = False
+        texto = (self.raiz / plantilla).read_text(encoding="utf-8")
+        for n, linea in enumerate(texto.splitlines(), 1):
+            for m in HUECO.finditer(linea):
+                if m.group(1) == "modulos":
+                    hay_modulos = True
+                elif m.group(1) not in HUECOS_RUTA_MINIMA:
+                    self.informe.error(plantilla, n, f"el hueco {m.group(0)} no existe (se admiten {admitidos})")
+        if not hay_modulos:
+            self.informe.error(plantilla, 1, "falta {{modulos}}, el hueco donde va la lista de módulos de la ruta mínima")
 
     def comprobar_equivalencias(self):
         linea = self.linea_json('"equivalencias"')

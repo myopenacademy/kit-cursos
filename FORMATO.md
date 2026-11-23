@@ -1,6 +1,6 @@
 # Formato de los cursos de MyOpenAcademy
 
-> **Versión del formato: 1** · aprobada por el autor el 8 de noviembre de 2026.
+> **Versión del formato: 1, revisión 1.1** · la versión 1, aprobada por el autor el 8 de noviembre de 2026; la revisión 1.1, del 23 de noviembre de 2026.
 > Forma parte del kit de cursos de MyOpenAcademy. Cómo se cambia: [apartado 15](#15-cambiar-este-formato).
 
 Este documento dice **cómo tiene que ser un curso para que MyOpenAcademy lo pueda instalar**. Está escrito para cualquiera que quiera crear un curso, no solo para el autor.
@@ -14,7 +14,7 @@ Para que eso funcione, la academia y los cursos solo comparten **este contrato**
 - **Manda la academia.** Este formato recoge lo que la academia necesita para instalar y mostrar un curso, y **todo curso lo cumple**. Si un curso necesita algo que la academia no sabe hacer, no se hace un apaño en el curso: primero se amplía la academia y este formato, y después lo usa el curso.
 - **La academia no sabe nada de ningún curso concreto** y **un curso no sabe nada del código de la academia**. Cada uno tiene su repositorio, sus versiones y su ritmo.
 - **Un curso se lee también sin la academia**, directamente en GitHub: todo es Markdown con enlaces que funcionan.
-- **El formato tiene versión** (el campo `formato` de [`curso.json`](#3-cursojson-la-identidad-del-curso)). Solo se cambia desde el proyecto del kit, y la academia sigue sabiendo leer las versiones anteriores.
+- **El formato tiene versión** (el campo `formato` de [`curso.json`](#3-cursojson-la-identidad-del-curso)). Solo se cambia desde el proyecto del kit, y la academia sigue sabiendo leer las versiones anteriores. Las ampliaciones compatibles no cambian la versión: son revisiones (apartado 15).
 
 En lo que sigue, **«debe»** es obligatorio (la comprobación falla si no se cumple) y **«conviene»** es una recomendación (la comprobación avisa, pero no falla).
 
@@ -31,7 +31,7 @@ curso-xxx/
 ├── 00-indice.md              ← índice completo; se genera desde curso.json
 ├── 99-chuleta-global.md      ← todas las chuletas; se genera
 ├── ROADMAP.md                ← ruta de aprendizaje del curso (conviene)
-├── RUTA-MINIMA.md            ← ruta mínima, si el curso la tiene (opcional)
+├── RUTA-MINIMA.md            ← ruta mínima, si el curso la tiene (opcional; se genera desde curso.json)
 ├── glosario.md               ← términos del curso (opcional; el común, en el curso inicial: apartado 9)
 ├── fase-01-nombre/
 │   ├── 01-nombre.md          ← un fichero por módulo
@@ -101,6 +101,11 @@ Es la **fuente de verdad** de la estructura del curso: qué fases, módulos, eje
       { "id": "java.etapa.consola", "fichero": "proyecto/01-version-consola.md", "titulo": "Versión de consola" }
     ]
   },
+  "ruta_minima": {
+    "modulos": ["java.polimorfismo"],
+    "etapas": ["java.etapa.consola"],
+    "plantilla": "RUTA-MINIMA.plantilla.md"
+  },
   "equivalencias": []
 }
 ```
@@ -109,7 +114,7 @@ Es la **fuente de verdad** de la estructura del curso: qué fases, módulos, eje
 
 | Campo | Qué es |
 |---|---|
-| `formato` | Versión de este documento que cumple el curso. Hoy, `1`. |
+| `formato` | Versión de este documento que cumple el curso. Hoy, `1`. Las revisiones (1.1, 1.2…) no van aquí: son ampliaciones compatibles que no lo cambian (apartado 15). |
 | `tipo` | Tipo de paquete. Hoy solo existe `"curso"`; el campo está para poder añadir otros en el futuro. |
 | `id` | Identificador del curso: corto, en minúsculas (`inicial`, `java`, `sql`). Es el prefijo de todos los demás identificadores. No cambia nunca. |
 | `titulo`, `descripcion` | Lo que muestra la academia en el catálogo. |
@@ -123,6 +128,7 @@ Es la **fuente de verdad** de la estructura del curso: qué fases, módulos, eje
 | `ejercicios` | Cada ejercicio con su `id` y su `titulo`: el texto exacto que sigue a «Ejercicio N · » en el módulo (apartado 5.4). |
 | `proyecto` | El proyecto para el portfolio del alumno (apartado 8). |
 | `equivalencias` | Qué fue de los identificadores que ya no existen (apartado 11.2). |
+| `ruta_minima` | Opcional (desde la revisión 1.1). La ruta mínima del curso, de la que sale `RUTA-MINIMA.md`. Un objeto con `modulos` (los `id` de sus módulos, en orden: al menos uno y sin repetir), `etapas` (opcional: los `id` de las etapas del proyecto que entran) y `plantilla` (opcional: un `.md` de la raíz del curso con su texto propio y estos huecos: `{{resumen}}`, `{{modulos}}`, que es obligatorio, `{{proyecto}}` y `{{consultas}}`; cualquier otro es un error). `RUTA-MINIMA.md` se genera desde aquí con `generar_ruta_minima.py` del kit y no se edita a mano; sin plantilla, el kit usa un texto genérico. La academia 1.0.0 ignora este campo sin error (comprobado el 23 de noviembre de 2026) y no instala la plantilla. |
 | `transicion` | Opcional. Reglas de este formato que el curso todavía no cumple y que, mientras tanto, la comprobación trata como avisos y no como errores. Solo para cursos escritos antes de este formato. Hoy solo admite `"preguntas-de-repaso"` (el curso de Java lleva `"transicion": ["preguntas-de-repaso"]` mientras las añade). |
 
 **Los títulos son texto plano.** Los del curso, las fases, los módulos, los ejercicios y los retos, tanto en `curso.json` como en sus encabezados, **no deben llevar formato Markdown**: ni negrita ni cursiva, ni código entre comillas invertidas, ni enlaces, ni HTML. La academia los muestra tal cual en menús, listas y seguimiento. Los nombres de órdenes, ficheros o código se escriben sin más: «Lee la salida de java -version», «Merge o rebase».
@@ -141,7 +147,7 @@ Es la **fuente de verdad** de la estructura del curso: qué fases, módulos, eje
 - **`LICENSE`**, **`CONTRIBUTING.md`** y **`CHANGELOG.md`**: obligatorios (apartados 11 y 12).
 - **`00-indice.md`**: el índice completo, con un encabezado `## Fase NN — Título` por fase y enlaces a todos los módulos, con su nivel y su tiempo. Se genera desde `curso.json`; no se edita a mano.
 - **`99-chuleta-global.md`**: la sección «Chuleta» de todos los módulos, reunida. Se genera.
-- **`ROADMAP.md`** (conviene) y **`RUTA-MINIMA.md`** (opcional): la ruta de aprendizaje del propio curso y, si la hay, la ruta mínima.
+- **`ROADMAP.md`** (conviene) y **`RUTA-MINIMA.md`** (opcional): la ruta de aprendizaje del propio curso y, si la hay, la ruta mínima. `RUTA-MINIMA.md` se genera desde `ruta_minima` de `curso.json` (apartado 3.2) con `generar_ruta_minima.py` del kit; no se edita a mano. Si `curso.json` tiene `ruta_minima` y falta `RUTA-MINIMA.md`, la comprobación avisa.
 
 ## 5. El módulo
 
@@ -306,7 +312,7 @@ Enunciado…
 
 ### 7.1. Ficheros de verificación y salidas en el texto
 
-Le dicen al kit cómo comprobar un ejemplo o una solución. Son los mismos del curso de Java original.
+Le dicen al kit cómo comprobar un ejemplo o una solución. Salen del curso de Java original: los generales, en la primera tabla, y los propios de Java, en la segunda. Los de otros lenguajes y servicios de ese curso (bases de datos, páginas, modelos de IA) se añadirán cuando un curso los pida.
 
 - **Los usa el kit para verificar**; la academia los trata como cualquier otro fichero de la carpeta.
 - **Van también en el ZIP que descarga el alumno**, así que su texto debe entenderse sin el kit, y el `README.md` del curso explica en una línea qué son.
@@ -324,6 +330,16 @@ Le dicen al kit cómo comprobar un ejemplo o una solución. Son los mismos del c
 | `salida-variable.txt` | Lo que cambia en cada ejecución (fechas, identificadores de commit, tiempos): una expresión regular de Python por línea (las vacías y las que empiezan por `#` no cuentan). Antes de comparar, lo que encaja se sustituye por `…` en la salida real y en la del texto, y el texto avisa de que la del alumno será distinta en esas partes. |
 | `sesion.txt` (o `sesion-<nombre>.txt`) | Las órdenes de una sesión de terminal, una por línea, como se teclean; las líneas vacías y las que empiezan por `#` no se teclean. Cada una empieza desde cero, con los ficheros de la carpeta. |
 | `sesion-1.txt`, `sesion-2.txt`… | **Sesiones encadenadas**: las de un ejemplo que el alumno hace una detrás de otra. Se teclean en ese orden en la misma terminal: cada una encuentra los ficheros (y los commits) como los dejó la anterior, pero arranca en una terminal nueva, en la carpeta del ejemplo, sin la carpeta actual ni las variables de la anterior (el alumno puede cerrarla entre una y otra; si una sesión necesita un `cd`, lo hace ella). Van de la 1 en adelante, sin saltos ni ceros delante, y conviven con las sueltas de la misma carpeta. |
+
+**Los de Java** (desde la revisión 1.1). Son los del curso de Java original y los comprueba el ejecutor de Java del kit, desde el kit 1.1.0. En ellos también valen `entrada.txt`, `args.txt`, `termina-con-error.txt` y `salida-variable.txt` de la tabla anterior; `entrada.txt` y `args.txt` pueden ir también en la raíz de su módulo, y en un proyecto Maven, `salida-variable.txt`, junto al `pom.xml`.
+
+| Fichero | Para qué |
+|---|---|
+| `opciones-java.txt` | Opciones de la JVM para ejecutar el programa, en una línea y separadas por espacios, como en la terminal (`--enable-preview --source 25`, `--enable-native-access=ALL-UNNAMED`). Junto al programa o en la raíz de su módulo. |
+| `solo-compilar.txt` | El programa **solo se compila**, no se ejecuta (una ventana que no se puede abrir sin pantalla, como un `JOptionPane`). Dentro, por qué. En un proyecto Maven va junto al `pom.xml`: el proyecto se construye (pruebas incluidas) y sus programas no se ejecutan (una aplicación de Spring Boot que se queda escuchando). |
+| `peticiones.txt` | Junto al `pom.xml` de una aplicación de **Spring Boot**: las órdenes `curl` a `http://localhost:8080`, una por línea (las que empiezan por `#` son comentarios). El kit arranca la aplicación en un puerto libre, lanza las órdenes con ese puerto, la para y compara la sesión con el bloque «**Con la aplicación arrancada:**», viendo el puerto como 8080, sin la cabecera `Date` ni las fechas y horas ISO. Sin ese bloque, la aplicación solo se construye. |
+| `servidor.txt` | Los programas de Java que se arrancan antes y se paran al terminar, uno por línea y en orden: junto a un `pom.xml` con `peticiones.txt`, las **API simuladas** que usa la aplicación (`../api-externa/ApiDelTiempo.java`; tras la ruta de un proyecto de Spring Boot, sus opciones, como `--server.port=8082`); en la carpeta de una página que usa `fetch`, el servidor que la sirve, que solo se compila. Cada uno escribe en su primera línea «Escuchando en http://localhost:PUERTO/». |
+| `acciones.txt` | **JavaFX**: lo que se hace en la ventana antes de la captura, una acción por línea (`escribir #id texto`, `pulsar #id`, `elegir #id n`, `responder Texto`, `esperar ms`), siempre en la ventana de delante, también en un diálogo. |
 
 **Conversiones.** Si una carpeta tiene ficheros de datos con el mismo nombre, el kit comprueba que dicen lo mismo:
 
@@ -366,6 +382,15 @@ Lo que se compara se escribe en el módulo **justo después del programa y de su
 | `**Salida:**` | La salida estándar real del programa o del script. |
 | `**Salida de error:**` | Su salida de error, en los que llevan `termina-con-error.txt`. |
 | ``**En tu terminal** (`sesion.txt`):`` | La pantalla de la sesión: cada orden de `sesion.txt` tecleada tras el indicador `$ ` en una carpeta con los ficheros de la del ejemplo (sin los `sesion*.txt`, que son del kit), y lo que contesta. Una sesión encadenada, con su nombre: ``**En tu terminal** (`sesion-2.txt`):``. |
+
+En los cursos de Java (desde la revisión 1.1), además:
+
+| En el texto | Qué es |
+|---|---|
+| `**Sesión en la terminal:**` | En lugar de «**Salida:**», la pantalla de un programa que lee del teclado: lo que escribe y cada línea de `entrada.txt`, como si la tecleara el alumno. |
+| `**Salida de las pruebas:**` | Tras una clase de pruebas de un proyecto Maven: el resumen de las pruebas, sin los tiempos ni las trazas. |
+| `**Con la aplicación arrancada:**` | Tras la clase principal de una aplicación de Spring Boot con `peticiones.txt`: cada orden con `$ ` y su respuesta. |
+| `**La ventana:**` | Tras el programa de JavaFX o Swing (y su «**Salida:**», si la hay), una imagen `![…](….png)` (no un bloque ` ```text `): la ventana dibujada sin pantalla (después de las acciones de `acciones.txt`, si las hay), idéntica byte a byte. |
 
 ## 8. El proyecto para el portfolio del alumno
 
@@ -464,7 +489,7 @@ Salvo que el curso diga otra cosa en su `LICENSE`, los cursos de MyOpenAcademy u
 
 La comprobación del kit (`formato_academia.py`) revisa que un curso cumple este formato **antes de instalarlo**. Cada error dice el fichero, la línea y qué falta (por ejemplo, «`fase-03-poo/04-polimorfismo.md:1165`: falta la solución del ejercicio 4»). Comprueba:
 
-- `curso.json`: campos, identificadores (forma, unicidad, que no desaparezca ninguno publicado sin equivalencia; para saberlo compara con la última versión etiquetada) y que cada fichero declarado existe (salvo el previsto de un módulo o unos retos no disponibles) y cada fichero de módulo está declarado.
+- `curso.json`: campos (también `ruta_minima` y los huecos de su plantilla), identificadores (forma, unicidad, que no desaparezca ninguno publicado sin equivalencia; para saberlo compara con la última versión etiquetada) y que cada fichero declarado existe (salvo el previsto de un módulo o unos retos no disponibles) y cada fichero de módulo está declarado.
 - Títulos en texto plano: los del curso, las fases, los módulos, los ejercicios y los retos (apartado 3.2).
 - Cada módulo: título, cabecera, secciones en orden, ejercicios con sus títulos iguales a `curso.json`, solución de cada ejercicio, preguntas de repaso.
 - Retos, etapas, glosario y proyecto.
@@ -492,8 +517,11 @@ Para que los cursos no dependan unos de otros, algunas cosas son de la academia:
 ## 15. Cambiar este formato
 
 - Se cambia **solo desde el proyecto del kit** (`Cursos/kit-cursos/`), nunca desde un curso ni desde la academia por su cuenta.
-- Cada cambio sube la versión del formato (el campo `formato`), se anota qué cursos hay que poner al día y la academia sigue sabiendo leer las versiones anteriores.
+- **Un cambio incompatible sube la versión del formato** (el campo `formato`): uno con el que la academia ya no podría instalar un curso o lo entendería mal. Se anota qué cursos hay que poner al día y la academia sigue sabiendo leer las versiones anteriores.
+- **Una ampliación compatible es una revisión** (1.1, 1.2…): un campo nuevo opcional o un fichero de verificación nuevo. Los cursos siguen con `"formato": 1` y la revisión se apunta en el registro de cambios de abajo. La academia ignora los campos que no conoce (comprobado con la academia 1.0.0 el 23 de noviembre de 2026), así que un curso que usa una revisión se sigue instalando en una academia anterior.
+- **Registro de cambios** (de la más nueva a la más antigua):
+  - Revisión 1.1 (kit 1.1.0, 23 de noviembre de 2026): campo opcional `ruta_minima` de `curso.json` (apartado 3.2) y ficheros de verificación de Java (apartado 7.1).
 - **Las versiones cuentan desde la primera publicación.** Hasta que se publique el primer curso, los ajustes se hacen dentro de la versión 1 y se anotan aquí:
   - 8 de noviembre de 2026: un módulo con `"disponible": false` puede llevar su `fichero` previsto, y una fase sus `retos` previstos con `"retos_disponibles": false` (apartado 3.2); ficheros de verificación `debe-fallar.txt` y `separador.txt`, y después todos los del curso de Java con las salidas en el texto (apartado 7.1); títulos del curso, las fases, los módulos, los ejercicios y los retos en texto plano (apartado 3.2); una fase que solo contiene el proyecto final no necesita retos (apartado 6); qué subapartados se numeran (apartado 5.1); «Conviene saber antes», solo enlaces, con ancla para precisar la sección (apartado 5.2); el HTML que admite de verdad la academia, y `<details open>` no (apartado 10.5); 9 de noviembre de 2026: los cursos de ejemplo viven en el kit y la academia guarda una copia (apartado 14), y cualquier curso puede tener su propio glosario además del común del curso inicial (apartado 9); saltos de línea LF en `codigo/` y `.gitattributes` con `* text=auto eol=lf` (apartados 2, 7 y 13); lo que no viaja con Git (carpetas vacías y permisos), sin `export-ignore` en `codigo/`, y verificar el commit para cerrar una fase (apartados 7 y 13); sesiones encadenadas, `sesion-1.txt`, `sesion-2.txt`… (apartado 7.1); `codificacion.txt`, CSV en UTF-8 sin BOM, `.tsv` con tabulador y la comparación de un CSV con su JSON (apartado 7.1); listas de tareas, de momento no (apartado 10.6); 16 de noviembre de 2026: servidor HTTP local para `curl`, con las rutas de cada ejemplo en su `servidor.json` (apartado 7.1), y en `codigo/` solo `.env.example`, sin secretos reales (apartados 7 y 13); los correos, siempre en código y sin enlaces `mailto:` (apartados 10.7 y 13), y el ejemplo de «puerto en uso» sin Python (apartado 7.1); carpetas ocultas como `.github/` en `codigo/`, nunca `.git`, y la cabecera YAML entre `---` de un `.md` (apartados 7 y 13). **A poner al día:** el curso de Java, al adaptarlo, tiene 88 títulos de ejercicio con formato (comillas invertidas o cursiva).
-- **La versión 1 se cierra al publicar el kit** (versión 1.0.0, con el pack base 1.0). Desde entonces, cada cambio de este formato sube su versión.
+- **La versión 1 se cierra al publicar el kit** (versión 1.0.0, con el pack base 1.0). Desde entonces, cada cambio de este formato sube su versión o, si es compatible, su revisión (arriba).
 - Si un curso necesita algo nuevo, primero se amplía la academia y este formato, y después lo usa el curso.
