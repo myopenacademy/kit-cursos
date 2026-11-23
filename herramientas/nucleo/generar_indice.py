@@ -10,6 +10,11 @@ sin enlace. Lo mismo los retos de cada fase y las etapas del proyecto.
 El índice lleva un encabezado «## Fase NN — Título» por fase, que es lo que lee la academia, y los
 títulos son los de curso.json.
 
+Si curso.json tiene «ruta_minima» (FORMATO.md, apartado 3.2), los módulos y las etapas de la ruta llevan 🧭,
+cada fase dice cuántas horas suyas entran en la ruta («🧭 ~6 h») y, tras la explicación del principio, una
+línea resume la ruta y enlaza a RUTA-MINIMA.md, si existe (la genera generar_ruta_minima.py). Sin
+«ruta_minima», el índice no cambia.
+
 Uso, desde la raíz del curso (con el kit en la carpeta hermana ../kit-cursos/):
     python3 ../kit-cursos/herramientas/nucleo/generar_indice.py              # escribe 00-indice.md
     python3 ../kit-cursos/herramientas/nucleo/generar_indice.py --comprobar  # solo dice si está al día
@@ -61,22 +66,35 @@ def numero(horas):
     return texto.replace(".", ",")
 
 
+def ruta_minima(curso):
+    """Los id de los módulos y de las etapas de la ruta mínima de curso.json (dos conjuntos vacíos si no la tiene)."""
+    ruta = curso.get("ruta_minima")
+    if not isinstance(ruta, dict):
+        return set(), set()
+    return set(ruta.get("modulos") or []), set(ruta.get("etapas") or [])
+
+
 def generar(raiz):
     curso = json.loads((raiz / "curso.json").read_text(encoding="utf-8"))
+    hay_ruta = isinstance(curso.get("ruta_minima"), dict)
+    en_ruta, etapas_ruta = ruta_minima(curso)
     fases = curso.get("fases", [])
     partes = curso.get("partes") or []
     proyecto = curso.get("proyecto") or {}
     modulos = [m for f in fases for m in f.get("modulos", [])]
     disponibles = [m for m in modulos if m.get("disponible", True)]
 
-    datos, total_horas, horas_por_fase = {}, 0.0, {}
+    datos, total_horas, horas_por_fase, horas_ruta_por_fase = {}, 0.0, {}, {}
     for fase in fases:
-        horas_fase = 0.0
+        horas_fase = horas_ruta = 0.0
         for m in fase.get("modulos", []):
             if m.get("disponible", True) and m.get("fichero"):
                 datos[m["id"]] = datos_del_modulo(raiz / m["fichero"])
                 horas_fase += datos[m["id"]][1] or 0
+                if m["id"] in en_ruta:
+                    horas_ruta += datos[m["id"]][1] or 0
         horas_por_fase[fase["id"]] = horas_fase
+        horas_ruta_por_fase[fase["id"]] = horas_ruta
         total_horas += horas_fase
 
     lineas = []
@@ -96,9 +114,19 @@ def generar(raiz):
     w("Cada módulo indica su nivel, si es **núcleo** (imprescindible) o **ampliación** (para profundizar más adelante) "
       "y un tiempo estimado de estudio, incluidos los ejercicios. Los **retos** del final de cada fase son opcionales.")
     w("")
+    if hay_ruta:
+        n_ruta = sum(m.get("id") in en_ruta for m in modulos)
+        horas_ruta = sum(horas_ruta_por_fase.values())
+        w(f"> **🧭 Ruta mínima:** los módulos marcados con 🧭 ({plural(n_ruta, 'módulo', 'módulos')}"
+          + (f", ~{numero(horas_ruta)} h" if horas_ruta else "")
+          + ") son lo imprescindible del curso."
+          + (" Cómo seguirla, en [RUTA-MINIMA.md](RUTA-MINIMA.md)." if (raiz / "RUTA-MINIMA.md").exists() else ""))
+        w("")
     enlaces = ["🏠 [Portada](README.md)"]
     if (raiz / "ROADMAP.md").exists():
         enlaces.append("🗺️ [Ruta de aprendizaje](ROADMAP.md)")
+    if hay_ruta and (raiz / "RUTA-MINIMA.md").exists():
+        enlaces.append("🧭 [Ruta mínima](RUTA-MINIMA.md)")
     if (raiz / "99-chuleta-global.md").exists():
         enlaces.append("📋 [Chuleta global](99-chuleta-global.md)")
     w(" · ".join(enlaces))
@@ -110,8 +138,10 @@ def generar(raiz):
         n = fase["carpeta"][5:7]
         encabezado = f"Fase {n} — {fase['titulo']}"
         horas = horas_por_fase[fase["id"]]
+        horas_ruta = horas_ruta_por_fase[fase["id"]]
         return (f"- [{encabezado}](#{ancla(encabezado)}) · {plural(len(fase.get('modulos', [])), 'módulo', 'módulos')}"
-                + (f" · ~{numero(horas)} h" if horas else ""))
+                + (f" · ~{numero(horas)} h" if horas else "")
+                + (f" · 🧭 ~{numero(horas_ruta)} h" if horas_ruta else ""))
 
     if partes:
         for parte in partes:
@@ -150,7 +180,7 @@ def generar(raiz):
         for m in fase.get("modulos", []):
             fichero = m.get("fichero") or ""
             nm = Path(fichero).name[:2] if fichero else "??"
-            marca = "🎯 " if m.get("id") == modulo_proyecto else ""
+            marca = ("🧭 " if m.get("id") in en_ruta else "") + ("🎯 " if m.get("id") == modulo_proyecto else "")
             if m.get("disponible", True):
                 nivel, h = datos.get(m["id"], (None, None))
                 w(f"| {n}.{nm} | {marca}[{m['titulo']}]({fichero}) | {nivel or '—'} | "
@@ -177,10 +207,11 @@ def generar(raiz):
         w("| Etapa | Qué se construye | Estado |")
         w("|---|---|---|")
         for i, etapa in enumerate(proyecto.get("etapas", []), 1):
+            marca = "🧭 " if etapa.get("id") in etapas_ruta else ""
             if (raiz / etapa["fichero"]).exists():
-                w(f"| ◆ {i} | [{etapa['titulo']}]({etapa['fichero']}) | ✅ Disponible |")
+                w(f"| ◆ {i} | {marca}[{etapa['titulo']}]({etapa['fichero']}) | ✅ Disponible |")
             else:
-                w(f"| ◆ {i} | {etapa['titulo']} | Pendiente |")
+                w(f"| ◆ {i} | {marca}{etapa['titulo']} | Pendiente |")
         w("")
 
     primero = next((m for m in modulos if m.get("disponible", True) and m.get("fichero")), None)

@@ -93,6 +93,62 @@ class GenerarIndice(unittest.TestCase):
         self.assertIn("🎯 [Ficheros JSON]", texto)
         self.assertNotIn("## Proyecto", texto)
 
+    def test_sin_ruta_minima_no_hay_marcas(self):
+        texto, _, _ = generar_indice.generar(self.raiz)
+        self.assertNotIn("🧭", texto)
+        self.assertNotIn("RUTA-MINIMA", texto)
+
+    def poner_ruta_minima(self, con_fichero=True):
+        self.cambiar_json(lambda d: d.update(ruta_minima={"modulos": ["ejemplo.ficheros-json", "ejemplo.ficheros-yaml"],
+                                                          "etapas": ["ejemplo.etapa.primer-catalogo"]}))
+        if con_fichero:
+            (self.raiz / "RUTA-MINIMA.md").write_text("# 🧭 Ruta mínima\n\n📚 [Índice](00-indice.md)\n", encoding="utf-8")
+
+    def test_ruta_minima_marca_sus_modulos_y_etapas(self):
+        self.poner_ruta_minima()
+        texto, _, _ = generar_indice.generar(self.raiz)
+        self.assertIn("| 01.01 | 🧭 [Ficheros JSON](fase-01-primeros-pasos/01-ficheros-json.md) | Básico · Núcleo | 2 h | ✅ Disponible |",
+                      texto)
+        self.assertIn("| 01.02 | 🧭 Ficheros YAML | — | — | Pendiente |", texto)
+        self.assertIn("| ◆ 1 | 🧭 [El primer catálogo](proyecto/01-primer-catalogo.md) | ✅ Disponible |", texto)
+
+    def test_ruta_minima_en_el_resumen_y_el_contenido(self):
+        self.poner_ruta_minima()
+        texto, _, _ = generar_indice.generar(self.raiz)
+        self.assertIn("incluidos los ejercicios. Los **retos** del final de cada fase son opcionales.\n\n"
+                      "> **🧭 Ruta mínima:** los módulos marcados con 🧭 (2 módulos, ~2 h) son lo imprescindible del curso. "
+                      "Cómo seguirla, en [RUTA-MINIMA.md](RUTA-MINIMA.md).\n\n"
+                      "🏠 [Portada](README.md) · 🗺️ [Ruta de aprendizaje](ROADMAP.md) · 🧭 [Ruta mínima](RUTA-MINIMA.md) · "
+                      "📋 [Chuleta global](99-chuleta-global.md)\n", texto)
+        self.assertIn("- [Fase 01 — Primeros pasos](#fase-01--primeros-pasos) · 2 módulos · ~2 h · 🧭 ~2 h\n", texto)
+
+    def test_sin_ruta_minima_md_no_la_enlaza(self):
+        self.poner_ruta_minima(con_fichero=False)
+        texto, _, _ = generar_indice.generar(self.raiz)
+        self.assertIn("> **🧭 Ruta mínima:** los módulos marcados con 🧭 (2 módulos, ~2 h) son lo imprescindible del curso.\n\n"
+                      "🏠 [Portada](README.md) · 🗺️ [Ruta de aprendizaje](ROADMAP.md) · 📋 [Chuleta global](99-chuleta-global.md)\n",
+                      texto)
+        self.assertNotIn("RUTA-MINIMA.md", texto)
+        self.assertIn("| 01.01 | 🧭 [Ficheros JSON]", texto)
+
+    def test_fase_sin_horas_en_la_ruta_no_lleva_brujula(self):
+        self.cambiar_json(lambda d: d.update(ruta_minima={"modulos": ["ejemplo.ficheros-yaml"]}))
+        texto, _, _ = generar_indice.generar(self.raiz)
+        self.assertIn("- [Fase 01 — Primeros pasos](#fase-01--primeros-pasos) · 2 módulos · ~2 h\n", texto)
+        self.assertIn("(1 módulo) son lo imprescindible", texto)
+        self.assertIn("| ◆ 1 | [El primer catálogo]", texto)
+
+    def test_el_indice_con_ruta_minima_cumple_el_formato(self):
+        for con_fichero in (True, False):
+            with self.subTest(con_fichero=con_fichero):
+                self.poner_ruta_minima(con_fichero)
+                if not con_fichero:
+                    (self.raiz / "RUTA-MINIMA.md").unlink()
+                self.ejecutar(str(self.raiz))
+                informe, _ = formato_academia.comprobar(self.raiz)
+                self.assertEqual([e for e in informe.errores if "00-indice.md" in e[0]], [])
+                self.assertEqual([a for a in informe.avisos if "00-indice.md" in a[0]], [])
+
     def test_sin_curso_json(self):
         (self.raiz / "curso.json").unlink()
         r = self.ejecutar(str(self.raiz))
