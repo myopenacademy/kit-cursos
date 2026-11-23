@@ -147,6 +147,63 @@ class CursoJson(Base):
         self.assertError("la fase «ejemplo.fase.otra» no existe")
 
 
+class Partes(Base):
+    """Las partes: cada una, un tramo de fases seguidas en el orden del curso, y una tras otra (revisión 1.1)."""
+
+    F1, F2, F3 = "ejemplo.fase.primeros-pasos", "ejemplo.fase.dos", "ejemplo.fase.tres"
+
+    def partes(self, *partes):
+        d = self.json()
+        for n, nombre in ((2, "dos"), (3, "tres")):
+            d["fases"].append({"id": f"ejemplo.fase.{nombre}", "carpeta": f"fase-0{n}-{nombre}", "titulo": f"Fase {nombre}",
+                              "modulos": [{"id": f"ejemplo.modulo-{nombre}", "fichero": f"fase-0{n}-{nombre}/01-modulo.md",
+                                           "titulo": f"Módulo {nombre}", "disponible": False}]})
+        d["partes"] = [{"id": f"ejemplo.parte.{letra}", "titulo": f"Parte {letra}", "fases": fases}
+                       for letra, fases in partes]
+        self.guardar_json(d)
+
+    def errores_de_partes(self):
+        self.comprobar()
+        return [e for e in self.errores if "parte" in e]
+
+    def test_tramos_seguidos_y_en_orden(self):
+        self.partes(("a", [self.F1, self.F2]), ("b", [self.F3]))
+        self.assertEqual(self.errores_de_partes(), [])
+
+    def test_una_sola_parte_con_todas_las_fases(self):
+        self.partes(("a", [self.F1, self.F2, self.F3]))
+        self.assertEqual(self.errores_de_partes(), [])
+
+    def test_parte_sin_fases(self):
+        self.partes(("a", [self.F1, self.F2, self.F3]), ("b", []))
+        self.assertError("curso.json:", "parte «ejemplo.parte.b»: no tiene fases (cada parte agrupa al menos una)")
+
+    def test_fases_desordenadas(self):
+        self.partes(("a", [self.F3, self.F1]), ("b", [self.F2]))
+        self.assertError("curso.json:", f"parte «ejemplo.parte.a»: sus fases no van en el orden del curso "
+                                         f"(«{self.F3}» va antes que «{self.F1}»)")
+
+    def test_fases_no_seguidas(self):
+        self.partes(("a", [self.F1, self.F3]), ("b", [self.F2]))
+        self.assertError("curso.json:", f"parte «ejemplo.parte.a»: sus fases no van seguidas "
+                                         f"(entre «{self.F1}» y «{self.F3}» está «{self.F2}», de la parte «ejemplo.parte.b»)")
+
+    def test_partes_al_reves(self):
+        self.partes(("b", [self.F3]), ("a", [self.F1, self.F2]))
+        self.assertError("curso.json:", "la parte «ejemplo.parte.b» va delante de «ejemplo.parte.a» en «partes», "
+                                         "pero sus fases van detrás")
+
+    def test_fase_en_ninguna_parte(self):
+        self.partes(("a", [self.F1, self.F2]))
+        self.assertError("curso.json:", f"la fase «{self.F3}» no está en ninguna parte "
+                                         "(si hay partes, cada fase va en una)")
+
+    def test_fase_en_dos_partes(self):
+        self.partes(("a", [self.F1, self.F2]), ("b", [self.F2, self.F3]))
+        self.assertError("curso.json:", f"parte «ejemplo.parte.b»: la fase «{self.F2}» ya está en la parte "
+                                         "«ejemplo.parte.a» (cada fase va en una sola)")
+
+
 class RutaMinima(Base):
     """El campo opcional «ruta_minima» de curso.json (FORMATO.md 3.2, revisión 1.1)."""
 

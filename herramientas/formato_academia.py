@@ -680,6 +680,41 @@ class Curso:
         for f in ids_fases:
             if f and f not in vistas:
                 self.error_json(self.linea_json(f), f"la fase «{f}» no está en ninguna parte (si hay partes, cada fase va en una)")
+        self.comprobar_tramos_de_partes(linea, ids_fases, vistas)
+
+    def comprobar_tramos_de_partes(self, linea, ids_fases, vistas):
+        """Cada parte, un tramo de fases seguidas en el orden del curso, y las partes, una tras otra (revisión 1.1)."""
+        posicion = {f: n for n, f in enumerate(ids_fases) if f}
+        anterior = None                                   # (id, primera posición) de la parte anterior con fases
+        for parte in self.lista(self.datos, "partes", "el curso", linea):
+            if not isinstance(parte, dict) or not isinstance(parte.get("fases"), list):
+                continue
+            ident = parte.get("id")
+            lin = self.linea_json(ident, linea)
+            if not parte["fases"]:
+                self.error_json(lin, f"parte «{ident}»: no tiene fases (cada parte agrupa al menos una)")
+                continue
+            # solo las fases que existen y son de esta parte (las demás ya tienen su error)
+            suyas = [f for f in parte["fases"] if f in posicion and vistas.get(f) == ident]
+            if not suyas:
+                continue
+            desorden = next(((a, b) for a, b in zip(suyas, suyas[1:]) if posicion[b] < posicion[a]), None)
+            if desorden:
+                self.error_json(lin, f"parte «{ident}»: sus fases no van en el orden del curso "
+                                     f"(«{desorden[0]}» va antes que «{desorden[1]}»)")
+            else:
+                for a, b in zip(suyas, suyas[1:]):
+                    if posicion[b] != posicion[a] + 1:
+                        medio = ids_fases[posicion[a] + 1]
+                        de = f", de la parte «{vistas[medio]}»" if medio in vistas else ""
+                        self.error_json(lin, f"parte «{ident}»: sus fases no van seguidas "
+                                             f"(entre «{a}» y «{b}» está «{medio}»{de})")
+                        break
+            primera = min(posicion[f] for f in suyas)
+            if anterior and primera < anterior[1]:
+                self.error_json(lin, f"la parte «{anterior[0]}» va delante de «{ident}» en «partes», "
+                                     "pero sus fases van detrás")
+            anterior = (ident, primera)
 
     def comprobar_proyecto(self):
         proyecto = self.datos.get("proyecto")
