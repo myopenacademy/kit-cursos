@@ -31,6 +31,23 @@ MODULO = "fase-01-primeros-pasos/01-ficheros-json.md"
 EJEMPLOS = "fase-01-primeros-pasos/codigo/01-ficheros-json/ejemplos"
 CONTAR = f"{EJEMPLOS}/2.2-contar-clientes/contar.sh"
 HAY_DOCKER = terminal.hay_docker()
+API = f"{EJEMPLOS}/2.4-preguntar-a-una-api"     # el ejemplo con servidor.json (puerto 8080)
+
+
+def puerto_libre():
+    """Un puerto que no usa nadie en este momento, elegido por el sistema (se escucha en el 0 y se suelta), para
+    que las pruebas no dependan de que el 8080 del equipo esté libre. Se escucha como servidor_http (en «::»,
+    también IPv4) para que esté libre en las dos."""
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET6)
+        s.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        s.bind(("::", 0))
+    except OSError:
+        s = socket.socket(socket.AF_INET)
+        s.bind(("127.0.0.1", 0))
+    with s:
+        return s.getsockname()[1]
 
 
 class Bash32(unittest.TestCase):
@@ -80,6 +97,12 @@ class Base(unittest.TestCase):
         self.tmp = Path(tempfile.mkdtemp(prefix="verificar-codigo-"))
         self.raiz = self.tmp / "curso-ejemplo"
         shutil.copytree(BUENO, self.raiz)
+        # En la copia, el ejemplo del servidor HTTP escucha en un puerto libre y no en el 8080 (el curso de
+        # ejemplo no se toca: la academia lo fija por su commit)
+        self.puerto = puerto_libre()
+        self.cambiar(f"{API}/servidor.json", '"puerto": 8080', f'"puerto": {self.puerto}')
+        for rel in (f"{API}/sesion.txt", MODULO):
+            self.cambiar(rel, "localhost:8080/", f"localhost:{self.puerto}/")
 
     def tearDown(self):
         shutil.rmtree(self.tmp)
@@ -665,10 +688,10 @@ class ServidorHTTP(unittest.TestCase):
 
 
 class Servidor(Base):
-    """El servidor HTTP local en las sesiones y los scripts (servidor.json). Sin Docker, en el equipo (puerto
-    8080); ConDockerServidor repite las mismas pruebas en la terminal del kit."""
+    """El servidor HTTP local en las sesiones y los scripts (servidor.json). Sin Docker, en el equipo (en un
+    puerto libre, self.puerto); ConDockerServidor repite las mismas pruebas en la terminal del kit."""
     sin_docker = True
-    CARPETA = f"{EJEMPLOS}/2.4-preguntar-a-una-api"
+    CARPETA = API
 
     def test_el_ejemplo_pasa_y_el_servidor_json_no_se_copia(self):
         self.assertEqual(self.ejecutar(MODULO), 0, self.salida)
@@ -685,7 +708,8 @@ class Servidor(Base):
 
     def test_un_script_con_curl(self):
         carpeta = self.raiz / self.CARPETA
-        script = '#!/bin/bash\n# Guarda los clientes de la API en un fichero\ncurl -s -o clientes.json http://localhost:8080/clientes\ngrep -c nombre clientes.json\n'
+        script = ('#!/bin/bash\n# Guarda los clientes de la API en un fichero\n'
+                  f'curl -s -o clientes.json http://localhost:{self.puerto}/clientes\ngrep -c nombre clientes.json\n')
         (carpeta / "guardar.sh").write_text(script, encoding="utf-8")
         self.cambiar(MODULO, "$ ls\nclientes.json\n", "$ ls\nclientes.json  guardar.sh\n")   # la sesión también lo ve
         enlace = f"📁 **Código:** [`{self.CARPETA[len('fase-01-primeros-pasos/'):]}/`]({self.CARPETA[len('fase-01-primeros-pasos/'):]}/)"
@@ -697,24 +721,25 @@ class Servidor(Base):
     def test_en_una_serie_el_servidor_sigue(self):
         carpeta = self.raiz / self.CARPETA
         (carpeta / "sesion.txt").rename(carpeta / "sesion-1.txt")
-        (carpeta / "sesion-2.txt").write_text("curl -s localhost:8080/clientes/1\n", encoding="utf-8")
+        (carpeta / "sesion-2.txt").write_text(f"curl -s localhost:{self.puerto}/clientes/1\n", encoding="utf-8")
         self.cambiar(MODULO, "(`sesion.txt`):\n\n```text\n$ curl -i", "(`sesion-1.txt`):\n\n```text\n$ curl -i")
         enlace = "📁 **Código:** [`codigo/01-ficheros-json/ejemplos/2.4-preguntar-a-una-api/`](codigo/01-ficheros-json/ejemplos/2.4-preguntar-a-una-api/)"
         with open(self.raiz / MODULO, "a", encoding="utf-8") as f:
-            f.write('\n**En tu terminal** (`sesion-2.txt`):\n\n```text\n$ curl -s localhost:8080/clientes/1\n'
+            f.write(f'\n**En tu terminal** (`sesion-2.txt`):\n\n```text\n$ curl -s localhost:{self.puerto}/clientes/1\n'
                     f'{{\n  "nombre": "Ana",\n  "puntos": 120\n}}\n```\n\n{enlace}\n')
         self.assertEqual(self.ejecutar(MODULO), 0, self.salida)
 
     def test_el_puerto_ocupado(self):
+        """Se ocupa a propósito el puerto del servidor.json (el libre de la copia)."""
         import socket
         with socket.socket(socket.AF_INET6) as ocupado:
             ocupado.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
             try:
-                ocupado.bind(("::", 8080))
+                ocupado.bind(("::", self.puerto))
             except OSError:
-                self.skipTest("el puerto 8080 ya está ocupado en este equipo")
+                self.skipTest(f"el puerto {self.puerto} lo ha ocupado otro programa entre medias")
             ocupado.listen()
-            self.assertError(MODULO, "el servidor HTTP local no arranca", "el puerto 8080 ya está en uso")
+            self.assertError(MODULO, "el servidor HTTP local no arranca", f"el puerto {self.puerto} ya está en uso")
 
 
 @unittest.skipUnless(HAY_DOCKER, "sin Docker")
@@ -726,7 +751,7 @@ class ConDockerServidor(Servidor):
 
     def test_puerto_en_uso_dentro_de_la_sesion(self):
         with terminal.Contenedor(self.raiz / self.CARPETA) as t:
-            pantalla = t.sesion([("python3 -m http.server 8080 2>&1 | tail -1", None), ("ps -eo user,args | grep -c servidor_htt[p]", None)])
+            pantalla = t.sesion([(f"python3 -m http.server {self.puerto} 2>&1 | tail -1", None), ("ps -eo user,args | grep -c servidor_htt[p]", None)])
         self.assertIn("Address already in use", pantalla)
         self.assertIn("\n1\n", pantalla)
 

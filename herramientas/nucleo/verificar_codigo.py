@@ -97,12 +97,21 @@ import formato_csv, formato_ini, formato_json, formato_markdown, formato_svg, fo
 
 FORMATOS = [formato_json, formato_yaml, formato_xml, formato_csv, formato_markdown, formato_toml, formato_ini, formato_svg]
 
+# LOS EJECUTORES: los lenguajes cuyo código se ejecuta, en orden (manda el primero que diga que el fichero es suyo).
+# Cada uno es (módulo de lenguajes/, método del Verificador que lo ejecuta y compara con el texto). El módulo tiene:
+#   es_mio(fichero) -> bool    ¿es un programa suyo? (por ejemplo, por su extensión)
+#   DE_VERIFICACION            opcional: los nombres de sus ficheros de verificación, que se suman a los comunes
+#                              (son para el kit: no se comparan con los bloques ni son ficheros de datos)
+# y el método recibe (md, línea del enlace «📁 Código», fichero, carpeta enlazada).
+EJECUTORES = [(lenguaje_bash, "verificar_script")]
+
 ENLACE_CODIGO = re.compile(r"^📁 \*\*Código:\*\* \[[^\]]*\]\(([^)\s]+)\)")
 SESION = re.compile(r"^\*\*En tu terminal\*\* \(`([^`]+)`\):\s*$")
 SALIDA, SALIDA_DE_ERROR = "**Salida:**", "**Salida de error:**"
 ENCADENADA = re.compile(r"sesion-(\d+)\.txt")
 DE_VERIFICACION = {"entrada.txt", "args.txt", "termina-con-error.txt", "debe-fallar.txt", "separador.txt",
-                   "codificacion.txt", "salida-variable.txt", servidor_http.NOMBRE}
+                   "codificacion.txt", "salida-variable.txt", servidor_http.NOMBRE}.union(
+                   *(getattr(ejecutor, "DE_VERIFICACION", ()) for ejecutor, _ in EJECUTORES))
 
 
 def es_de_verificacion(nombre):
@@ -235,8 +244,9 @@ class Verificador:
             return
         fichero = iguales[0]
         self.mostrados.add(fichero.resolve())
-        if lenguaje_bash.es_mio(fichero):
-            self.verificar_script(md, i, fichero, carpeta)
+        metodo = next((m for ejecutor, m in EJECUTORES if ejecutor.es_mio(fichero)), None)
+        if metodo:
+            getattr(self, metodo)(md, i, fichero, carpeta)
 
     def verificar_script(self, md, i, fichero, carpeta):
         self.compatibilidad_3_2(fichero)
