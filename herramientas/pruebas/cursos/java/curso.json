@@ -49,6 +49,28 @@
               "titulo": "Las comillas de Kotlin"
             }
           ]
+        },
+        {
+          "id": "ejemplo-java.ventanas",
+          "fichero": "fase-01-java/04-ventanas.md",
+          "titulo": "Ventanas",
+          "ejercicios": [
+            {
+              "id": "ejemplo-java.ventanas.el-id-de-un-boton",
+              "titulo": "El id de un botón"
+            }
+          ]
+        },
+        {
+          "id": "ejemplo-java.spring",
+          "fichero": "fase-01-java/05-spring.md",
+          "titulo": "Una aplicación de Spring Boot",
+          "ejercicios": [
+            {
+              "id": "ejemplo-java.spring.el-codigo-201",
+              "titulo": "El código 201"
+            }
+          ]
         }
       ]
     }

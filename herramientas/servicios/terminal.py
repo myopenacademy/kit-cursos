@@ -129,6 +129,12 @@ def versiones():
     return r.stdout.decode("utf-8", "replace")
 
 
+def versiones_java():
+    """Lo mismo para la imagen de Java (JDK, Maven, Gradle y lo que añade encima de la terminal)."""
+    r = _docker("run", "--rm", "--network", "none", imagen_java(), "cat", "/usr/share/kit-java/versiones.txt")
+    return r.stdout.decode("utf-8", "replace")
+
+
 def pantalla(texto):
     """Lo que queda en una terminal tras escribir `texto` en ella: interpreta el retorno de carro, el salto de
     línea, el retroceso y las secuencias que mueven el cursor y borran (las demás, como los colores, no cambian el
@@ -370,6 +376,11 @@ class Contenedor:
             raise ErrorDeTerminal(f"«{' '.join(orden)}» no termina en {espera} segundos")
         return r.returncode, r.stdout.decode("utf-8", "replace"), r.stderr.decode("utf-8", "replace")
 
+    def leer(self, ruta):
+        """Los bytes de un fichero de la terminal (una ruta absoluta del contenedor), o None si no existe."""
+        r = subprocess.run(["docker", "exec", self.nombre, "cat", ruta], capture_output=True)
+        return r.stdout if r.returncode == 0 else None
+
     def sesion(self, ordenes):
         return self.sesiones([ordenes])[0]
 
@@ -438,6 +449,11 @@ class Local:
         except subprocess.TimeoutExpired:
             raise ErrorDeTerminal(f"«{' '.join(orden)}» no termina en {espera} segundos")
         return r.returncode, r.stdout.decode("utf-8", "replace"), r.stderr.decode("utf-8", "replace")
+
+    def leer(self, ruta):
+        """Los bytes de un fichero (una ruta del equipo), o None si no existe."""
+        ruta = Path(ruta)
+        return ruta.read_bytes() if ruta.is_file() else None
 
     def sesion(self, ordenes):
         return self.sesiones([ordenes])[0]

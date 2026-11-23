@@ -13,7 +13,8 @@
 #   - Gradle 9.8.2, de gradle.org (services.gradle.org/distributions, con su SHA-256 publicado).
 #     La más reciente el 23 de noviembre de 2026: 9.9.2.
 #   - Las letras DejaVu (fonts-dejavu-core) y fontconfig, fijadas: las ventanas de Swing y JavaFX que se dibujan
-#     sin pantalla usan esas letras, y con otras la imagen cambiaría.
+#     sin pantalla usan esas letras, y con otras la imagen cambiaría. Y Pango (libpangoft2-1.0-0, con sus
+#     dependencias): JavaFX coloca el texto con él en Linux, y sin él ninguna ventana con texto arranca.
 #
 # SIN RED al verificar: Maven y Gradle trabajan sin conexión (-o, --offline) contra la caché de /opt/kit-java/cache,
 # un volumen de Docker que llena «verificar_codigo.py --preparar-java» (la única vez que hay red). Fuera de la
@@ -61,14 +62,15 @@ USER root
 # Las fuentes de Ubuntu por HTTPS (la imagen base las trae con http://)
 RUN sed -i 's|http://|https://|g' /etc/apt/sources.list.d/ubuntu.sources \
     && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        fonts-dejavu-core=2.37-8build1 fontconfig=2.17.1-3ubuntu1 \
+        fonts-dejavu-core=2.37-8build1 fontconfig=2.17.1-3ubuntu1 libpangoft2-1.0-0=1.57.0-1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=descargar /java /opt/java
 COPY --from=descargar /maven /opt/maven
 COPY --from=descargar /gradle /opt/gradle
-# Lo del kit: la tarea de Gradle que da el classpath y el programa que teclea entrada.txt en una terminal
-COPY classpath.init.gradle.kts teclear.py /opt/kit-java/
+# Lo del kit: la tarea de Gradle que da el classpath, el programa que teclea entrada.txt en una terminal, el que
+# arranca una aplicación de Spring Boot y le hace sus peticiones, y los lanzadores de las ventanas de JavaFX y Swing
+COPY classpath.init.gradle.kts teclear.py aplicacion.py CapturaVentana.java CapturaSwing.java /opt/kit-java/
 
 # La caché de Maven y Gradle (el volumen de --preparar-java), de «alumno»: un volumen nuevo copia este dueño
 RUN mkdir -p /opt/kit-java/cache/m2/repository /opt/kit-java/cache/gradle \
@@ -87,7 +89,7 @@ RUN mkdir -p /usr/share/kit-java && { \
       java -version 2>&1 | sed -n 2p; \
       mvn -v 2>/dev/null | head -1; \
       GRADLE_USER_HOME=/tmp/gradle-versiones gradle -v 2>/dev/null | grep '^Gradle'; \
-      dpkg-query -W -f='${Package} ${Version}\n' fonts-dejavu-core fontconfig; \
+      dpkg-query -W -f='${Package} ${Version}\n' fonts-dejavu-core fontconfig libpangoft2-1.0-0; \
     } > /usr/share/kit-java/versiones.txt && rm -rf /tmp/gradle-versiones
 
 USER alumno

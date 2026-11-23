@@ -41,9 +41,14 @@ VOLUMEN_PRUEBAS = "kit-java-cache-pruebas"
 PROGRAMAS = "fase-01-java/01-programas.md"
 MAVEN = "fase-01-java/02-maven.md"
 GRADLE = "fase-01-java/03-gradle.md"
+VENTANAS = "fase-01-java/04-ventanas.md"
+SPRING = "fase-01-java/05-spring.md"
 EJEMPLOS = "fase-01-java/codigo/01-programas/ejemplos"
 TIENDA = "fase-01-java/codigo/02-maven/ejemplos/2.1-tienda"
 INVENTARIO = "fase-01-java/codigo/03-gradle/ejemplos/2.1-inventario"
+CONTADOR = "fase-01-java/codigo/04-ventanas/ejemplos/2.1-contador"
+PANEL = "fase-01-java/codigo/04-ventanas/ejemplos/2.2-panel"
+PRECIOS = "fase-01-java/codigo/05-spring/ejemplos/2.1-precios"
 
 PREPARADOS = {}         # modo (sin_docker) -> salida de --preparar-java, una vez por ejecución de las pruebas
 
@@ -62,7 +67,7 @@ class Unidad(unittest.TestCase):
         self.assertIn((lenguaje_java, "verificar_java"), verificar_codigo.EJECUTORES)
         self.assertTrue(lenguaje_java.es_mio(Path("Hola.java")))
         self.assertFalse(lenguaje_java.es_mio(Path("hola.sh")))
-        for nombre in ("opciones-java.txt", "solo-compilar.txt"):
+        for nombre in ("opciones-java.txt", "solo-compilar.txt", "peticiones.txt", "servidor.txt", "acciones.txt"):
             self.assertTrue(verificar_codigo.es_de_verificacion(nombre), nombre)
 
     def test_resumen_de_surefire_sin_tiempos_ni_trazas(self):
@@ -100,6 +105,26 @@ class Unidad(unittest.TestCase):
         self.assertEqual(lenguaje_java.raiz_gradle(CURSO / INVENTARIO / "src/main/java/es/inventario"),
                          (CURSO / INVENTARIO, CURSO / INVENTARIO))
         self.assertIsNone(lenguaje_java.raiz_maven(CURSO / EJEMPLOS / "2.1-saludo"))
+
+    def test_servidor_txt_rutas_opciones_puerto_y_copia(self):
+        tmp = Path(tempfile.mkdtemp(prefix="test-java-"))
+        self.addCleanup(shutil.rmtree, tmp)
+        lista = tmp / "servidor.txt"
+        lista.write_text("# Las API\n../api/Api.java  la API simulada\n../catalogo --server.port=8082 --x=1 otra copia\n\n",
+                         encoding="utf-8")
+        self.assertEqual(lenguaje_java.lineas_de_servidor(lista),
+                         [("../api/Api.java", []), ("../catalogo", ["--server.port=8082", "--x=1"])])
+        self.assertEqual(lenguaje_java.puerto_de(tmp, ["--server.port=8082"]), 8082)
+        recursos = tmp / "src/main/resources"
+        recursos.mkdir(parents=True)
+        (recursos / "application.properties").write_text("server.port=8085\n", encoding="utf-8")
+        (recursos / "application-b.properties").write_text("server.port=8086\n", encoding="utf-8")
+        self.assertEqual(lenguaje_java.puerto_de(tmp), 8085)
+        self.assertEqual(lenguaje_java.puerto_de(tmp, ["--spring.profiles.active=b"]), 8086)
+        self.assertEqual(lenguaje_java.puerto_de(tmp / "otro"), 8080)
+        aplicacion = CURSO / PRECIOS / "aplicacion"
+        self.assertEqual(lenguaje_java.copia_con_servidores(aplicacion, aplicacion), CURSO / PRECIOS)
+        self.assertEqual(lenguaje_java.copia_con_servidores(CURSO / TIENDA, CURSO / TIENDA), CURSO / TIENDA)
 
     def test_preparar_sin_proyectos(self):
         tmp = Path(tempfile.mkdtemp(prefix="test-java-"))
@@ -333,6 +358,128 @@ class GradleSinDocker(Base):
 
 @unittest.skipUnless(HAY_DOCKER, "sin Docker")
 class GradleConDocker(GradleSinDocker):
+    sin_docker = False
+
+
+@unittest.skipUnless(HAY_DOCKER, "sin Docker: las imágenes de las ventanas son las de la imagen de Java del kit")
+class VentanasConDocker(Base):
+    """JavaFX (con acciones.txt) y Swing (content()), sin pantalla: la imagen de la ventana, byte a byte."""
+    sin_docker = False
+
+    def setUp(self):
+        super().setUp()
+        self.preparar()
+
+    def nueva(self, rel):
+        return self.raiz / ".verificacion" / "ventanas" / rel
+
+    def test_el_modulo_pasa(self):
+        self.assertEqual(self.ejecutar(VENTANAS), 0, self.salida)
+        self.assertIn("2 programas de Java", self.salida)
+        self.assertFalse((self.raiz / ".verificacion").exists())
+
+    def test_acciones(self):
+        (self.raiz / CONTADOR / "acciones.txt").write_text("pulsar #suma\n", encoding="utf-8")
+        self.assertError(VENTANAS, self.linea(VENTANAS, "**La ventana:**", "2.1. Un contador"),
+                         "la ventana de ContadorApp.java no es como en la imagen "
+                         f"{CONTADOR}/captura-ContadorApp.png: la de ahora está en "
+                         f".verificacion/ventanas/{CONTADOR}/captura-ContadorApp.png")
+        self.assertIn(f"{VENTANAS}:{self.linea(VENTANAS, '**Salida:**', '2.1. Un contador')}: ERROR: la salida de "
+                      "ContadorApp.java no es la del texto", self.salida)
+        nueva = self.nueva(f"{CONTADOR}/captura-ContadorApp.png").read_bytes()
+        self.assertTrue(nueva.startswith(b"\x89PNG"))
+        self.assertNotEqual(nueva, (self.raiz / CONTADOR / "captura-ContadorApp.png").read_bytes())
+
+    def test_swing_distinto(self):
+        for rel in (f"{PANEL}/Pedido.java", VENTANAS):
+            self.cambiar(rel, 'new JButton("Pedir")', 'new JButton("Comprar")')
+        self.assertError(VENTANAS, self.linea(VENTANAS, "**La ventana:**", "2.2. Un formulario"),
+                         "la ventana de Pedido.java no es como en la imagen")
+
+    def test_imagen_que_falta(self):
+        (self.raiz / PANEL / "captura-Pedido.png").unlink()
+        self.assertError(VENTANAS, self.linea(VENTANAS, "**La ventana:**", "2.2. Un formulario"),
+                         f"no existe la imagen {PANEL}/captura-Pedido.png: la de ahora está en "
+                         f".verificacion/ventanas/{PANEL}/captura-Pedido.png (si es correcta, cópiala ahí)")
+        self.assertEqual(self.nueva(f"{PANEL}/captura-Pedido.png").read_bytes(),
+                         (CURSO / PANEL / "captura-Pedido.png").read_bytes())
+
+    def test_las_versiones_de_las_dos_imagenes(self):
+        self.assertEqual(self.ejecutar("--versiones"), 0, self.salida)
+        for trozo in ("git 2.56.0", "Temurin-25.0.4.1+1", "Apache Maven 3.10.0", "Gradle 9.8.2", "libpangoft2-1.0-0"):
+            self.assertIn(trozo, self.salida)
+
+
+@unittest.skipUnless(HAY_JAVA_LOCAL and shutil.which("curl"), "sin java, javac, mvn, gradle o curl en el PATH")
+class SpringSinDocker(Base):
+    """Una aplicación de Spring Boot con peticiones.txt y una API simulada en su servidor.txt."""
+
+    def setUp(self):
+        super().setUp()
+        self.preparar()
+        self.arrancada = self.linea(SPRING, "**Con la aplicación arrancada:**", "2.1. Los precios")
+
+    def test_el_modulo_pasa(self):
+        self.assertEqual(self.ejecutar(SPRING), 0, self.salida)
+        self.assertIn("1 programas de Java", self.salida)
+
+    def test_respuesta_distinta(self):
+        self.cambiar(SPRING, "Hola, Cuaderno\n", "Hola, Lápiz\n")
+        self.assertError(SPRING, self.arrancada,
+                         "la sesión con la aplicación arrancada de PreciosApplication.java no es la del texto",
+                         "'Hola, Lápiz'", "'Hola, Cuaderno'")
+
+    def test_sin_su_api_simulada(self):
+        (self.raiz / PRECIOS / "aplicacion/servidor.txt").unlink()
+        self.assertError(SPRING, self.arrancada,
+                         "la sesión con la aplicación arrancada de PreciosApplication.java no es la del texto",
+                         """'{"nombre":"Cuaderno","dolares":2.75}'""")
+
+    def test_cp_y_variables(self):
+        # Sin el cp, la tienda no cambia; sin la variable, el saludo no tendría el nombre
+        self.cambiar(f"{PRECIOS}/aplicacion/peticiones.txt", "cp otra-tienda.txt tienda.txt\n", "")
+        self.assertError(SPRING, self.arrancada, "no es la del texto", "'$ cp otra-tienda.txt tienda.txt'")
+
+    def test_una_linea_que_no_es_curl(self):
+        (self.raiz / PRECIOS / "aplicacion/peticiones.txt").write_text("wget http://localhost:8080/api/tienda\n",
+                                                                       encoding="utf-8")
+        self.assertError(SPRING, self.enlace(SPRING, "codigo/05-spring/ejemplos/2.1-precios/aplicacion/src", 1),
+                         "PreciosApplication.java: peticiones.txt: cada línea es una orden curl, sleep, cp o un "
+                         "comentario (#): wget http://localhost:8080/api/tienda")
+
+    def test_sin_su_bloque_solo_se_construye(self):
+        self.cambiar(SPRING, "**Con la aplicación arrancada:**", "Lo que contesta:")
+        self.assertEqual(self.ejecutar(SPRING), 0, self.salida)
+        for rel in (f"{PRECIOS}/aplicacion/src/main/java/es/precios/PrecioController.java", SPRING):
+            self.cambiar(rel, "return new Precio(1, \"Cuaderno\", 2.5);", "return new Precio(1, \"Cuaderno\", 2.5)")
+        self.assertError(SPRING, self.enlace(SPRING, "codigo/05-spring/ejemplos/2.1-precios/aplicacion/src", 1),
+                         "mvn package falla en aplicacion")
+
+
+@unittest.skipUnless(HAY_DOCKER, "sin Docker")
+class SpringConDocker(SpringSinDocker):
+    sin_docker = False
+
+
+@unittest.skipUnless(HAY_JAVA_LOCAL, "sin java, javac, mvn o gradle en el PATH")
+class PrepararGradleConPruebasQueFallanSinDocker(Base):
+    """L8: --preparar-java no se para por un proyecto de Gradle cuyas pruebas fallan a propósito."""
+
+    def test_prepara_igual(self):
+        prueba = self.raiz / INVENTARIO / "src/test/java/es/inventario/FallaTest.java"
+        prueba.parent.mkdir(parents=True)
+        prueba.write_text("package es.inventario;\n\nimport static org.junit.jupiter.api.Assertions.assertEquals;\n\n"
+                          "import org.junit.jupiter.api.Test;\n\nclass FallaTest {\n    @Test\n    void falla() {\n"
+                          "        assertEquals(1, 2);\n    }\n}\n", encoding="utf-8")
+        self.assertEqual(self.ejecutar("--preparar-java", GRADLE), 0, self.salida)
+        self.assertIn(f"✅ Preparado (Gradle): {INVENTARIO}/", self.salida)
+        # Al verificar, Gradle se comporta como siempre: la prueba que falla para la construcción
+        self.assertError(GRADLE, self.enlace(GRADLE, "codigo/03-gradle/ejemplos/2.1-inventario/src/main"),
+                         "gradle build falla en 2.1-inventario")
+
+
+@unittest.skipUnless(HAY_DOCKER, "sin Docker")
+class PrepararGradleConPruebasQueFallanConDocker(PrepararGradleConPruebasQueFallanSinDocker):
     sin_docker = False
 
 

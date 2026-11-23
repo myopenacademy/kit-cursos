@@ -132,4 +132,4 @@ Tampoco tiene caso real.
    </details>
 
 ---
-⬅️ [Anterior: Un proyecto de Maven](02-maven.md) · 📚 [Índice](../00-indice.md) · ➡️ [Siguiente: Retos de la fase](retos.md)
+⬅️ [Anterior: Un proyecto de Maven](02-maven.md) · 📚 [Índice](../00-indice.md) · ➡️ [Siguiente: Ventanas](04-ventanas.md)

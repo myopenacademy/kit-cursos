@@ -1,0 +1,19 @@
+# Un precio
+curl -i http://localhost:8080/api/precios/1
+# El mismo, en dólares: la aplicación pregunta a la API de cambio
+curl -s http://localhost:8080/api/precios/1/dolares
+# Uno que no existe
+curl -s http://localhost:8080/api/precios/99
+# Un método que esa ruta no admite
+curl -s -i -X PUT http://localhost:8080/api/precios/1
+# Uno nuevo
+curl -s -i -H "Content-Type: application/json" -d '{"id": 2, "nombre": "Lápiz", "euros": 0.8}' http://localhost:8080/api/precios
+# El nombre, en una variable
+NOMBRE=$(curl -s http://localhost:8080/api/precios/1 | jq -r .nombre)
+curl -s "http://localhost:8080/api/saludo?nombre=$NOMBRE"
+curl -s http://localhost:8080/api/precios/1 | jq -r .euros
+# La tienda, antes y después de cambiar su fichero
+curl -s http://localhost:8080/api/tienda
+cp otra-tienda.txt tienda.txt
+sleep 1
+curl -s http://localhost:8080/api/tienda

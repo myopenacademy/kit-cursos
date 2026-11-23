@@ -11,6 +11,8 @@
   - [01.01 Programas de Java](#0101-programas-de-java)
   - [01.02 Un proyecto de Maven](#0102-un-proyecto-de-maven)
   - [01.03 Un proyecto de Gradle](#0103-un-proyecto-de-gradle)
+  - [01.04 Ventanas](#0104-ventanas)
+  - [01.05 Una aplicación de Spring Boot](#0105-una-aplicación-de-spring-boot)
 
 ---
 
@@ -51,6 +53,30 @@
 | Qué | Orden |
 |---|---|
 | Construir | `gradle build` |
+
+---
+
+### 01.04 Ventanas
+
+📖 Módulo completo: [fase-01-java/04-ventanas.md](fase-01-java/04-ventanas.md)
+
+#### JavaFX
+
+| Qué | Clase |
+|---|---|
+| La ventana | `Stage` |
+
+---
+
+### 01.05 Una aplicación de Spring Boot
+
+📖 Módulo completo: [fase-01-java/05-spring.md](fase-01-java/05-spring.md)
+
+#### Spring Boot
+
+| Qué | Anotación |
+|---|---|
+| Un controlador | `@RestController` |
 
 ---
 📚 [Índice del curso](00-indice.md) · 🏠 [Portada](README.md)

@@ -42,9 +42,31 @@ Dónde (servicios/terminal.py):
     Es la verificación parcial: otras versiones pueden dar otra salida.
   El curso nunca se toca: target/, build/ y .gradle/ quedan en la copia.
 
-Lo que vendrá (T5b): peticiones.txt y servidor.txt (Spring Boot), acciones.txt y «**La ventana:**» (JavaFX) y
-Swing sin pantalla. Hoy, «**La ventana:**» no se compara: el programa solo se ejecuta.
+APLICACIONES WEB DE SPRING BOOT: con un peticiones.txt junto al pom.xml, la clase con main no se ejecuta como un
+programa: si tras ella (o más abajo, como la «**Salida:**») viene «**Con la aplicación arrancada:**» y un bloque
+```text, se arranca en un puerto libre (--server.port), se espera a que acepte conexiones, se lanzan las órdenes de
+peticiones.txt (curl, «VAR=$(curl … | jq -r .campo)», «curl … | jq -r .campo», sleep y cp) con ese puerto en lugar
+del 8080 y se para (servicios/java/aplicacion.py, dentro de la terminal: con Docker, sin red, solo localhost). La
+sesión se compara sin la cabecera Date, con los métodos de Allow ordenados, el puerto visto como 8080 y sin las
+fechas y horas ISO (ni lo de salida-variable.txt). Sin ese bloque, el proyecto solo se construye. Con un servidor.txt
+junto al pom.xml, los programas que nombra (una API simulada, «../api-externa/ApiDelTiempo.java», que escribe
+«Escuchando en http://localhost:PUERTO/»; u otro proyecto de Spring Boot con sus opciones, «../catalogo
+--server.port=8082», que se construye con -DskipTests y se arranca con java -jar) se arrancan antes, en orden, y se
+paran después: para eso, la copia de la terminal es la carpeta que los contiene a todos. Un compose.yaml en el
+servidor.txt todavía no se admite (necesita Docker dentro de la terminal). Un servidor.txt junto a un programa suelto
+que lo nombra (el servidor de una página con fetch): ese programa solo se compila.
+VENTANAS (sin pantalla, con las letras de la imagen): una aplicación de JavaFX (una clase que extiende Application,
+en un proyecto con JavaFX) se ejecuta con -Dglass.platform=headless -Dprism.order=sw, JavaFX en el module path y el
+lanzador servicios/java/CapturaVentana.java, que hace las acciones de acciones.txt (junto al programa o en la raíz
+de su módulo), guarda la imagen de la ventana de delante y la cierra. Un programa de Swing con «public static JPanel
+content()» no ejecuta su main: el lanzador CapturaSwing.java pinta ese panel (-Djava.awt.headless=true). Si tras el
+enlace (y su «**Salida:**», si la hay) viene «**La ventana:**» y una imagen ![…](….png), la de ahora debe ser
+idéntica, byte a byte. Si no lo es (o si la imagen todavía no existe), la de ahora se guarda en
+.verificacion/ventanas/ (con la misma ruta que la del texto, desde la carpeta en la que se verifica) y el error lo
+dice: si el cambio es correcto, el autor la copia encima de la del curso. Las imágenes se hacen con la imagen de Java
+del kit (con Docker): sin Docker, con otras letras, salen distintas.
 """
+import json
 import os
 import re
 import shlex
@@ -52,12 +74,13 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import uuid
 from pathlib import Path
 
 import terminal
 
 EXTENSIONES = {".java"}
-DE_VERIFICACION = {"opciones-java.txt", "solo-compilar.txt"}
+DE_VERIFICACION = {"opciones-java.txt", "solo-compilar.txt", "peticiones.txt", "servidor.txt", "acciones.txt"}
 MAIN = re.compile(r"\bvoid\s+main\s*\(")
 PAQUETE = re.compile(r"^\s*package\s+([\w.]+)\s*;", re.M)
 TIEMPO_MAXIMO = 60                      # segundos por programa
@@ -68,7 +91,16 @@ OPCIONES_EXTRA = "opciones-java.txt"
 SOLO_COMPILAR = "solo-compilar.txt"
 SALIDA, SALIDA_DE_ERROR = "**Salida:**", "**Salida de error:**"
 SESION, PRUEBAS = "**Sesión en la terminal:**", "**Salida de las pruebas:**"
-RESULTADOS = (SALIDA, SESION, "**La ventana:**", "**Con la aplicación arrancada:**")
+LA_VENTANA, ARRANCADA = "**La ventana:**", "**Con la aplicación arrancada:**"
+RESULTADOS = (SALIDA, SESION, LA_VENTANA, ARRANCADA)
+PETICIONES, SERVIDOR, ACCIONES = "peticiones.txt", "servidor.txt", "acciones.txt"
+APLICACION_FX = re.compile(r"\bextends\s+Application\b")
+APLICACION_SWING = re.compile(r"\bpublic\s+static\s+JPanel\s+content\s*\(\s*\)")
+JAR_FX = re.compile(r"^(javafx-[a-z]+)-\d")
+IMAGEN = re.compile(r"^!\[[^\]]*\]\(([^)]+\.png)\)\s*$")
+# Las fechas y horas de las respuestas (el «timestamp» de un error) cambian en cada ejecución
+MARCA_DE_TIEMPO = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?")
+TIEMPO_APLICACION = 600     # segundos para toda la sesión de peticiones (arrancar, las órdenes y parar)
 NO_COPIAR = {".gradle", ".idea", "out"}         # además de target/ y build/ (servicios/terminal.py)
 
 SERVICIOS_JAVA = Path(__file__).resolve().parent.parent / "servicios" / "java"
@@ -216,16 +248,20 @@ class Proyecto:
     """Un proyecto de Maven o Gradle copiado a una terminal que dura toda la verificación: se construye una vez y
     luego se ejecutan sus programas y sus pruebas."""
 
-    def __init__(self, tipo, raiz, con_docker):
-        self.tipo, self.raiz, self.con_docker = tipo, raiz, con_docker
+    def __init__(self, tipo, raiz, con_docker, copia=None):
+        # copia: la carpeta que se copia a la terminal (la raíz o, con un servidor.txt, la que contiene también sus
+        # servidores)
+        self.tipo, self.raiz, self.con_docker, self.copia = tipo, raiz, con_docker, copia or raiz
         self.t = None
+        self.lanzadores = {}        # (lanzador, module path de JavaFX) -> carpeta con el .class, en la terminal
+        self.jars = {}              # proyecto de Spring Boot de un servidor.txt -> su .jar, en la terminal
         self.error = None           # el de la construcción, si falla (se repite para cada programa)
         self.construido = False
         self.classpaths = {}
 
     def terminal(self):
         if self.t is None:
-            t = abrir_terminal(self.raiz, self.con_docker)
+            t = abrir_terminal(self.copia, self.con_docker)
             self.t = t.__enter__()
         return self.t
 
@@ -234,9 +270,18 @@ class Proyecto:
             self.t.__exit__(None, None, None)
             self.t = None
 
-    def ejecutar(self, orden, modulo=None, espera=600):
-        directorio = modulo.relative_to(self.raiz).as_posix() if modulo else None
-        return self.terminal().ejecutar(orden, espera=espera, directorio=directorio, entorno=entorno_de(self.terminal()))
+    def rel(self, carpeta):
+        return Path(carpeta).relative_to(self.copia).as_posix()
+
+    def dentro(self, carpeta):
+        """La ruta de la carpeta (o el fichero) en la terminal."""
+        rel = self.rel(carpeta)
+        return base_de(self.terminal()) + ("" if rel == "." else f"/{rel}")
+
+    def ejecutar(self, orden, carpeta=None, espera=600, entrada=None):
+        """Ejecuta en la terminal del proyecto, desde la carpeta (de la raíz si no se dice)."""
+        t = self.terminal()
+        return t.ejecutar(orden, entrada, espera, self.rel(carpeta or self.raiz), entorno_de(t))
 
     def construir(self):
         if self.error:
@@ -265,9 +310,7 @@ class Proyecto:
         """El classpath del módulo, con las rutas de dentro de la terminal."""
         self.construir()
         if modulo not in self.classpaths:
-            base = base_de(self.t)
-            rel = modulo.relative_to(self.raiz).as_posix()
-            dentro = f"{base}/{rel}" if rel != "." else base
+            dentro = self.dentro(modulo)
             if self.tipo == "maven":
                 codigo, out, err = self.ejecutar(["cat", f"{dentro}/target/classpath.txt"])
                 if codigo != 0:
@@ -298,11 +341,42 @@ class Java:
     def __init__(self, verificador):
         self.v = verificador
         self.proyectos = {}
+        self.temporales = []        # carpetas temporales del equipo (sin Docker), que se borran al cerrar
 
     def cerrar(self):
         for p in self.proyectos.values():
             p.cerrar()
         self.proyectos.clear()
+        for carpeta in self.temporales:
+            shutil.rmtree(carpeta, ignore_errors=True)
+        self.temporales.clear()
+
+    def temporal(self, t):
+        """Una carpeta vacía de usar y tirar en la terminal (fuera de la carpeta personal)."""
+        if isinstance(t, terminal.Contenedor):
+            ruta = f"/tmp/kit-java-{uuid.uuid4().hex[:10]}"
+            t.ejecutar(["mkdir", "-p", ruta])
+            return ruta
+        ruta = tempfile.mkdtemp(prefix="kit-java-")
+        self.temporales.append(ruta)
+        return ruta
+
+    def lanzador(self, t, nombre, modulos_fx=None, cache=None):
+        """Compila el lanzador (CapturaVentana o CapturaSwing) en la terminal, una vez por terminal, y da la carpeta
+        con su .class."""
+        clave = (nombre, modulos_fx)
+        if cache is not None and clave in cache:
+            return cache[clave]
+        fuente = (f"{EN_LA_IMAGEN}/{nombre}.java" if isinstance(t, terminal.Contenedor)
+                  else str(SERVICIOS_JAVA / f"{nombre}.java"))
+        destino = self.temporal(t)
+        fx = ["--module-path", modulos_fx, "--add-modules", "javafx.controls"] if modulos_fx else []
+        codigo, out, err = t.ejecutar(["javac", *fx, "-d", destino, fuente], None, TIEMPO_MAXIMO, None, entorno_de(t))
+        if codigo != 0:
+            raise RuntimeError(f"no compila {nombre}.java:\n{sangrar(out + err)}")
+        if cache is not None:
+            cache[clave] = destino
+        return destino
 
     def proyecto(self, carpeta):
         """(Proyecto, módulo) de la carpeta, o (None, None) si es un programa suelto."""
@@ -312,7 +386,7 @@ class Java:
             return None, None
         tipo, (raiz, modulo) = ("maven", maven) if maven else ("gradle", gradle)
         if raiz not in self.proyectos:
-            self.proyectos[raiz] = Proyecto(tipo, raiz, self.v.con_docker)
+            self.proyectos[raiz] = Proyecto(tipo, raiz, self.v.con_docker, copia_con_servidores(raiz, modulo))
         return self.proyectos[raiz], modulo
 
     # Lo que viene tras el enlace
@@ -379,28 +453,51 @@ class Java:
             return              # una clase auxiliar, package-info, module-info: solo se compara
         self.v.cuentas["java"] = self.v.cuentas.get("java", 0) + 1
         proyecto, modulo = self.proyecto(donde)
-        if proyecto and (modulo / SOLO_COMPILAR).is_file():
-            try:
-                proyecto.construir()
-            except RuntimeError as e:
-                self.v.informe.error(md.rel, i + 1, str(e))
+        buscar = [donde] + ([modulo] if modulo and modulo != donde else [])
+        variable = _primero(buscar, "salida-variable.txt")
+        mascara = variable.parent if variable else donde
+        # Una aplicación web de Spring Boot con peticiones.txt: se arranca y se le hacen las peticiones
+        if proyecto and proyecto.tipo == "maven" and (modulo / PETICIONES).is_file():
+            k = self.resultado_del_programa(md, i)
+            arrancada = self.etiqueta(md, k, ARRANCADA)
+            if arrancada is None:
+                self.construir(md, i, proyecto)
+            elif arrancada:
+                self.verificar_peticiones(md, i, fichero, proyecto, modulo, buscar, arrancada, mascara)
             return
-        if (donde / SOLO_COMPILAR).is_file():
+        if proyecto and (modulo / SOLO_COMPILAR).is_file():
+            self.construir(md, i, proyecto)
+            return
+        # El servidor de una página con fetch (su servidor.txt lo nombra): no termina, así que solo se compila
+        lista = donde / SERVIDOR
+        es_servidor = lista.is_file() and any(ruta == fichero.name for ruta, _ in lineas_de_servidor(lista))
+        if (donde / SOLO_COMPILAR).is_file() or es_servidor:
             error = self.compilar(fichero)
             if error:
                 self.v.informe.error(md.rel, i + 1, f"{fichero.name} no compila:\n{sangrar(error)}")
             return
         resultado = self.resultado_del_programa(md, i) if programa_de(donde) == fichero else k
-        buscar = [donde] + ([modulo] if modulo and modulo != donde else [])
-        variable = _primero(buscar, "salida-variable.txt")
-        mascara = variable.parent if variable else donde
         sesion = self.etiqueta(md, resultado, SESION)
         if sesion is not None:
             if sesion:
                 self.verificar_sesion(md, i, fichero, proyecto, modulo, buscar, sesion, mascara)
             return
+        # La imagen de la ventana (JavaFX o Swing): tras el enlace, y tras su «**Salida:**» si la hay
+        salida = self.etiqueta(md, resultado, SALIDA)
+        if salida is False:
+            return
+        despues = self.siguiente_no_vacia(md, salida[2]) if salida else resultado
+        ventana = None
+        if despues < len(md.lineas) and md.lineas[despues].strip() == LA_VENTANA:
+            j = self.siguiente_no_vacia(md, despues + 1)
+            imagen = IMAGEN.match(md.lineas[j].strip()) if j < len(md.lineas) else None
+            if not imagen:
+                self.v.informe.error(md.rel, despues + 1, f"falta la imagen ![…](….png) tras «{LA_VENTANA}»")
+                return
+            ventana = (md.ruta.parent / imagen.group(1)).resolve()
+            despues = self.siguiente_no_vacia(md, j + 1)
         try:
-            codigo, out, err = self.ejecutar(fichero, proyecto, modulo, buscar)
+            codigo, out, err, png = self.ejecutar(fichero, proyecto, modulo, buscar, captura=ventana is not None)
         except RuntimeError as e:
             self.v.informe.error(md.rel, i + 1, str(e))
             return
@@ -412,11 +509,10 @@ class Java:
         if not con_error and codigo != 0:
             self.v.informe.error(md.rel, i + 1, f"{nombre} termina con el código {codigo}:\n{sangrar(err.strip()[:1500])}")
             return
-        salida = self.etiqueta(md, resultado, SALIDA)
-        despues = resultado
+        if ventana is not None:
+            self.comparar_ventana(md, despues_de_la_etiqueta(md, LA_VENTANA, resultado), fichero, ventana, png)
         if salida:
             self.v.comparar(md, salida[0], salida[1], out, mascara, f"la salida de {fichero.name}")
-            despues = self.siguiente_no_vacia(md, salida[2])
         if con_error:
             error = self.etiqueta(md, despues, SALIDA_DE_ERROR)
             if error:
@@ -425,32 +521,93 @@ class Java:
                 self.v.informe.error(md.rel, i + 1, f"{fichero.name} lleva termina-con-error.txt: falta "
                                                     f"«{SALIDA_DE_ERROR}» y su bloque")
 
-    def orden(self, fichero, proyecto, modulo, buscar, t):
-        """La orden de java (lista) y la carpeta (relativa a la copia) desde la que se ejecuta."""
+    def construir(self, md, i, proyecto):
+        try:
+            proyecto.construir()
+        except RuntimeError as e:
+            self.v.informe.error(md.rel, i + 1, str(e))
+
+    def comparar_ventana(self, md, linea, fichero, ventana, png):
+        """La imagen de ahora (png) debe ser la del texto, byte a byte. Si no, se guarda en .verificacion/ventanas/."""
+        if png is None:
+            self.v.informe.error(md.rel, linea + 1, f"{fichero.name} no ha guardado la imagen de su ventana")
+            return
+        if ventana.is_file() and ventana.read_bytes() == png:
+            return
+        nueva = Path.cwd() / ".verificacion" / "ventanas" / self.v.rel(ventana)
+        nueva.parent.mkdir(parents=True, exist_ok=True)
+        nueva.write_bytes(png)
+        donde = nueva.relative_to(Path.cwd()).as_posix()
+        if not ventana.is_file():
+            self.v.informe.error(md.rel, linea + 1, f"no existe la imagen {self.v.rel(ventana)}: la de ahora está en "
+                                                    f"{donde} (si es correcta, cópiala ahí)")
+        else:
+            self.v.informe.error(md.rel, linea + 1, f"la ventana de {fichero.name} no es como en la imagen "
+                                                    f"{self.v.rel(ventana)}: la de ahora está en {donde} (si el "
+                                                    "cambio es correcto, cópiala encima)")
+
+    def orden(self, fichero, proyecto, modulo, buscar, t, captura=None):
+        """La orden de java (lista) y la carpeta (relativa a la copia) desde la que se ejecuta. Una aplicación de JavaFX
+        va con su lanzador, CapturaVentana, y un programa de Swing con content(), con CapturaSwing; los dos guardan
+        la imagen de la ventana en captura (una ruta de la terminal) si se pide."""
         argumentos = _primero(buscar, "args.txt")
         opciones = _primero(buscar, OPCIONES_EXTRA)
         extra = shlex.split(argumentos.read_text(encoding="utf-8")) if argumentos else []
         jvm = shlex.split(opciones.read_text(encoding="utf-8")) if opciones else []
+        fuente = fichero.read_text(encoding="utf-8")
+        captura_opcion = [f"-Dcaptura.fichero={captura}"] if captura else []
         if proyecto:
-            return (["java", *OPCIONES_JVM, *jvm, "-cp", proyecto.classpath(modulo), clase_de(fichero), *extra],
-                    modulo.relative_to(proyecto.raiz).as_posix())
+            classpath = proyecto.classpath(modulo)
+            clase = clase_de(fichero)
+            if APLICACION_FX.search(fuente) and "openjfx" in classpath:
+                rutas = classpath.split(os.pathsep)
+                javafx = [r for r in rutas if "openjfx" in r and JAR_FX.match(Path(r).name)]
+                resto = [r for r in rutas if r not in javafx]
+                modulos = sorted({JAR_FX.match(Path(r).name).group(1).replace("-", ".") for r in javafx})
+                modulos_fx = os.pathsep.join(javafx)
+                acciones = _primero(buscar, ACCIONES)
+                programa = ["-Dglass.platform=headless", "-Dprism.order=sw", "--enable-native-access=javafx.graphics",
+                            "--module-path", modulos_fx, "--add-modules", ",".join(modulos), *captura_opcion,
+                            *([f"-Dcaptura.acciones={proyecto.dentro(acciones)}"] if acciones else []),
+                            "-cp", os.pathsep.join([self.lanzador(t, "CapturaVentana", modulos_fx, proyecto.lanzadores),
+                                                    *resto]), "CapturaVentana", clase]
+            elif APLICACION_SWING.search(fuente):
+                programa = ["-Djava.awt.headless=true", *captura_opcion, "-cp",
+                            os.pathsep.join([self.lanzador(t, "CapturaSwing", None, proyecto.lanzadores), classpath]),
+                            "CapturaSwing", clase]
+            else:
+                programa = ["-cp", classpath, clase]
+            return ["java", *OPCIONES_JVM, *jvm, *programa, *extra], proyecto.rel(modulo)
+        if APLICACION_SWING.search(fuente):
+            # Un programa suelto de Swing: se compila su carpeta y se pinta su content()
+            compilado = self.temporal(t)
+            fuentes = [f.name for f in sorted(fichero.parent.glob("*.java"))]
+            codigo, out, err = t.ejecutar(["javac", "-encoding", "UTF-8", "-d", compilado, *fuentes], None,
+                                          TIEMPO_MAXIMO, None, entorno_de(t))
+            if codigo != 0:
+                raise RuntimeError(f"{fichero.name} no compila:\n{sangrar(out + err)}")
+            clase = clase_de(fichero)
+            programa = ["-Djava.awt.headless=true", *captura_opcion, "-cp",
+                        os.pathsep.join([self.lanzador(t, "CapturaSwing"), compilado]), "CapturaSwing", clase]
+            return ["java", *OPCIONES_JVM, *jvm, *programa, *extra], None
         return ["java", *OPCIONES_JVM, *jvm, fichero.name, *extra], None
 
-    def _terminal(self, fichero, proyecto):
-        """La terminal del programa: la de su proyecto (abierta) o una nueva con su carpeta (sin abrir)."""
-        return proyecto.terminal() if proyecto else abrir_terminal(fichero.parent, self.v.con_docker)
-
-    def ejecutar(self, fichero, proyecto, modulo, buscar):
+    def ejecutar(self, fichero, proyecto, modulo, buscar, captura=False):
+        """(código, salida, salida de error, imagen de la ventana o None)."""
         entrada = _primero(buscar, "entrada.txt")
         datos = entrada.read_bytes() if entrada else b""
+
+        def en(t):
+            ruta = f"{self.temporal(t)}/ventana.png" if captura else None
+            orden, desde = self.orden(fichero, proyecto, modulo, buscar, t, ruta)
+            codigo, out, err = t.ejecutar(orden, datos, TIEMPO_MAXIMO, desde, entorno_de(t))
+            return codigo, out, err, (t.leer(ruta) if ruta else None)
+
         try:
             if proyecto:
-                t = proyecto.terminal()
-                orden, desde = self.orden(fichero, proyecto, modulo, buscar, t)
-                return t.ejecutar(orden, datos, TIEMPO_MAXIMO, desde, entorno_de(t))
+                return en(proyecto.terminal())
             with abrir_terminal(fichero.parent, self.v.con_docker) as t:
-                orden, desde = self.orden(fichero, None, None, buscar, t)
-                return t.ejecutar(orden, datos, TIEMPO_MAXIMO, desde, entorno_de(t))
+                return en(t)
         except terminal.ErrorDeTerminal as e:
             raise RuntimeError(f"{fichero.name}: {e}")
         except OSError as e:
@@ -462,7 +619,7 @@ class Java:
         try:
             if proyecto:
                 t = proyecto.terminal()
-                codigo, texto, err = self._teclear(t, fichero, proyecto, modulo, buscar, entrada, proyecto.raiz)
+                codigo, texto, err = self._teclear(t, fichero, proyecto, modulo, buscar, entrada, proyecto.copia)
             else:
                 with abrir_terminal(fichero.parent, self.v.con_docker) as t:
                     codigo, texto, err = self._teclear(t, fichero, None, None, buscar, entrada, fichero.parent)
@@ -481,12 +638,73 @@ class Java:
         orden, desde = self.orden(fichero, proyecto, modulo, buscar, t)
         base = base_de(t)
         ruta = f"{base}/{entrada.relative_to(copia).as_posix()}" if entrada else "-"
-        if isinstance(t, terminal.Contenedor):
-            teclear = ["python3", f"{EN_LA_IMAGEN}/teclear.py"]
-        else:
-            teclear = [sys.executable, str(SERVICIOS_JAVA / "teclear.py")]
-        return t.ejecutar([*teclear, ruta, str(TIEMPO_MAXIMO), "--", *orden], None, TIEMPO_MAXIMO + 30, desde,
-                          entorno_de(t))
+        return t.ejecutar([*python_de(t), _del_kit(t, "teclear.py"), ruta, str(TIEMPO_MAXIMO), "--", *orden], None,
+                          TIEMPO_MAXIMO + 30, desde, entorno_de(t))
+
+    # Spring Boot
+
+    def verificar_peticiones(self, md, i, fichero, proyecto, modulo, buscar, arrancada, mascara):
+        try:
+            real = self.sesion_curl(fichero, proyecto, modulo, buscar)
+        except (RuntimeError, terminal.ErrorDeTerminal, OSError) as e:
+            self.v.informe.error(md.rel, i + 1, f"{fichero.name}: {e}")
+            return
+        self.v.comparar(md, arrancada[0], MARCA_DE_TIEMPO.sub("<fecha y hora>", arrancada[1]),
+                        MARCA_DE_TIEMPO.sub("<fecha y hora>", real), mascara,
+                        f"la sesión con la aplicación arrancada de {fichero.name}")
+
+    def sesion_curl(self, fichero, proyecto, modulo, buscar):
+        """Arranca los servidores del servidor.txt y la aplicación en la terminal del proyecto, lanza las peticiones y
+        lo para todo (servicios/java/aplicacion.py). Devuelve la sesión."""
+        t = proyecto.terminal()
+        orden, desde = self.orden(fichero, proyecto, modulo, buscar, t)
+        servidores = []
+        lista = modulo / SERVIDOR
+        for ruta, opciones in (lineas_de_servidor(lista) if lista.is_file() else []):
+            programa = (modulo / ruta).resolve()
+            if programa != proyecto.copia and proyecto.copia not in programa.parents:
+                raise RuntimeError(f"{SERVIDOR}: {ruta} está fuera de la carpeta del ejemplo")
+            if opciones and not (programa.is_dir() and (programa / "pom.xml").is_file()):
+                raise RuntimeError(f"{SERVIDOR}: las opciones {' '.join(opciones)} solo valen para un proyecto de Spring Boot")
+            if programa.name in ("compose.yaml", "compose.yml"):
+                raise RuntimeError(f"{SERVIDOR}: {ruta}: el kit todavía no arranca un compose.yaml como servidor")
+            if programa.is_dir() and (programa / "pom.xml").is_file():
+                servidores.append({"tipo": "spring", "carpeta": proyecto.dentro(programa), "nombre": programa.name,
+                                   "orden": ["java", "-jar", self.jar_de(proyecto, programa), *opciones],
+                                   "puerto": puerto_de(programa, opciones)})
+            elif programa.is_file():
+                servidores.append({"tipo": "java", "carpeta": proyecto.dentro(programa.parent), "nombre": programa.name,
+                                   "orden": ["java", "-Dstdout.encoding=UTF-8", programa.name]})
+            else:
+                raise RuntimeError(f"{SERVIDOR}: no existe {ruta}")
+        encargo = {"servidores": servidores, "espera": TIEMPO_MAXIMO,
+                   "aplicacion": {"carpeta": proyecto.dentro(modulo), "orden": orden, "nombre": fichero.name},
+                   "peticiones": proyecto.dentro(modulo / PETICIONES)}
+        codigo, out, err = t.ejecutar([*python_de(t), _del_kit(t, "aplicacion.py")],
+                                      json.dumps(encargo).encode("utf-8"), TIEMPO_APLICACION, desde, entorno_de(t))
+        try:
+            respuesta = json.loads(out)
+        except ValueError:
+            raise RuntimeError(f"aplicacion.py no responde (código {codigo}):\n{sangrar(out + err)}")
+        if "error" in respuesta:
+            raise RuntimeError(respuesta["error"])
+        return respuesta["sesion"]
+
+    def jar_de(self, proyecto, programa):
+        """Construye (una vez, sin pruebas y sin red) otro proyecto de Spring Boot de un servidor.txt y da su .jar, en
+        la terminal."""
+        if programa not in proyecto.jars:
+            codigo, out, err = proyecto.ejecutar(orden_maven(proyecto.terminal(), "-q", "-DskipTests", "package"),
+                                                 programa)
+            if codigo != 0:
+                falta = _sin_red(out + err, "Maven")
+                raise RuntimeError(str(falta) if falta else f"{programa.name} no se construye:\n{sangrar((out + err)[-2000:])}")
+            codigo, out, _ = proyecto.ejecutar(["ls", "target"], programa)
+            jars = sorted(n for n in out.split() if n.endswith(".jar") and not n.endswith(".original"))
+            if not jars:
+                raise RuntimeError(f"{programa.name}: no hay ningún .jar en target/")
+            proyecto.jars[programa] = f"{proyecto.dentro(programa)}/target/{jars[0]}"
+        return proyecto.jars[programa]
 
     def compilar(self, fichero):
         """Compila el fichero solo, sin ejecutarlo, desde su carpeta: el error de javac, o None si compila."""
@@ -526,6 +744,73 @@ class Java:
         self.v.comparar(md, linea, esperado, real, fichero.parent, f"la salida de las pruebas de {fichero.name}")
 
 
+def python_de(t):
+    return ["python3"] if isinstance(t, terminal.Contenedor) else [sys.executable]
+
+
+def _del_kit(t, nombre):
+    """Un programa del kit (servicios/java/), en la terminal: en la imagen o en el equipo."""
+    return f"{EN_LA_IMAGEN}/{nombre}" if isinstance(t, terminal.Contenedor) else str(SERVICIOS_JAVA / nombre)
+
+
+def despues_de_la_etiqueta(md, etiqueta, desde):
+    """La línea de la etiqueta desde la línea desde (para dar el error en ella)."""
+    for k in range(desde, len(md.lineas)):
+        if md.lineas[k].strip() == etiqueta:
+            return k
+    return desde
+
+
+def lineas_de_servidor(lista):
+    """Las líneas de un servidor.txt: [(ruta, opciones)], sin las vacías ni los comentarios (#). Cada línea es la ruta,
+    las opciones que empiezan por -- (solo para un proyecto de Spring Boot) y una descripción, que no se usa."""
+    servidores = []
+    for linea in Path(lista).read_text(encoding="utf-8").splitlines():
+        if not linea.strip() or linea.lstrip().startswith("#"):
+            continue
+        ruta, *resto = linea.split()
+        opciones = []
+        for palabra in resto:
+            if not palabra.startswith("--"):
+                break
+            opciones.append(palabra)
+        servidores.append((ruta, opciones))
+    return servidores
+
+
+def copia_con_servidores(raiz, modulo):
+    """La carpeta que se copia a la terminal de un proyecto: su raíz o, si junto a su pom.xml hay un servidor.txt, la
+    más baja que contiene también a todos sus servidores (sin salir de codigo/)."""
+    lista = Path(modulo) / SERVIDOR
+    if not lista.is_file():
+        return raiz
+    rutas = [raiz]
+    for ruta, _ in lineas_de_servidor(lista):
+        programa = (Path(modulo) / ruta).resolve()
+        rutas.append(programa if programa.is_dir() else programa.parent)
+    comun = Path(os.path.commonpath([str(r) for r in rutas]))
+    return comun if comun.name != "codigo" and any(p.name == "codigo" for p in comun.parents) else raiz
+
+
+def puerto_de(proyecto, opciones=()):
+    """El server.port de las opciones, del application-<perfil>.properties del perfil de las opciones o del
+    application.properties de un proyecto de Spring Boot (8080 si no lo dice)."""
+    perfiles = []
+    for opcion in opciones:
+        if opcion.startswith("--server.port="):
+            return int(opcion.split("=", 1)[1])
+        if opcion.startswith("--spring.profiles.active="):
+            perfiles = [p.strip() for p in opcion.split("=", 1)[1].split(",")]
+    recursos = Path(proyecto) / "src" / "main" / "resources"
+    for nombre in [f"application-{p}.properties" for p in reversed(perfiles)] + ["application.properties"]:
+        propiedades = recursos / nombre
+        if propiedades.is_file():
+            for linea in propiedades.read_text(encoding="utf-8").splitlines():
+                if linea.strip().startswith("server.port="):
+                    return int(linea.split("=", 1)[1].strip())
+    return 8080
+
+
 def teclear_no_termina():
     return 124          # el código con el que termina servicios/java/teclear.py si el programa no termina
 
@@ -543,6 +828,12 @@ def proyectos_de(carpetas):
         candidatas = [carpeta] + sorted(p.parent for nombre in ("pom.xml", "build.gradle.kts")
                                         for p in carpeta.rglob(nombre)
                                         if not NO_COPIAR.union({"target", "build"}) & set(p.parts))
+        # Los proyectos de Spring Boot que arranca el servidor.txt de un proyecto, aunque no estén enlazados
+        for c in list(candidatas):
+            lista = c / SERVIDOR
+            if (c / "pom.xml").is_file() and lista.is_file():
+                candidatas += [(c / ruta).resolve() for ruta, _ in lineas_de_servidor(lista)
+                               if ((c / ruta).resolve() / "pom.xml").is_file()]
         for c in candidatas:
             maven = raiz_maven(c)
             gradle = None if maven else raiz_gradle(c)
@@ -561,7 +852,8 @@ def preparar(tipo, raiz, con_docker):
         metas = ["package", "dependency:build-classpath", "-Dmdep.outputFile=${project.build.directory}/classpath.txt",
                  "-Dmaven.test.failure.ignore=true"]
     else:
-        metas = ["build", "printRuntimeClasspath", "--continue"]
+        # -PkitPreparar: las pruebas que fallan a propósito no paran la construcción (classpath.init.gradle.kts)
+        metas = ["build", "printRuntimeClasspath", "--continue", "-PkitPreparar"]
     if con_docker:
         try:
             with abrir_terminal(raiz, True, red=True) as t:

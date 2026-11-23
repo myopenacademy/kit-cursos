@@ -87,7 +87,7 @@ Uso, desde la raíz del curso (con el kit en la carpeta hermana ../kit-cursos/):
     python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --commit                # el último commit, como un clon
     python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --commit v1.0.0         # una etiqueta (o --commit=v1.0.0)
     python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --sin-docker            # sin Docker
-    python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --versiones             # qué lleva la imagen
+    python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --versiones             # qué llevan las imágenes
     python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --preparar-java         # la caché de Java (con red)
     python3 ../kit-cursos/herramientas/nucleo/verificar_codigo.py --help
 Termina con 0 si todo coincide y funciona (aunque haya avisos), con 1 si hay algún error y con 2 si los
@@ -573,6 +573,11 @@ def main():
             print("❌ Sin Docker no hay imagen de la terminal del kit.", file=sys.stderr)
             sys.exit(1)
         print(terminal.versiones(), end="")
+        try:
+            print("\n" + terminal.versiones_java(), end="")
+        except terminal.ErrorDeTerminal as e:
+            print(f"❌ No se puede preparar la imagen de Java del kit:\n{e}", file=sys.stderr)
+            sys.exit(1)
         return
     raiz = Path(".")
     temporal = None
