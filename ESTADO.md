@@ -19,7 +19,7 @@ Todo documentado en `herramientas/README.md`, con «Por dónde empezar».
 
 ## Siguiente paso
 
-- **Publicado el 23 de noviembre de 2026** en <https://github.com/myopenacademy/kit-cursos> (público): etiqueta `v1.0.0` sobre `f041ccb` y *release* «Kit de cursos 1.0.0» con la nota de `CHANGELOG.md`. `FORMATO.md` se abre en <https://github.com/myopenacademy/kit-cursos/blob/main/FORMATO.md> (comprobado: 200). El curso inicial ya puede publicar (enlaza a ese `FORMATO.md`).
+- **Publicado el 23 de noviembre de 2026** en <https://github.com/myopenacademy/kit-cursos> (público): etiqueta `v1.0.0` sobre `f041ccb` y *release* «Kit de cursos 1.0.0» con la nota de `CHANGELOG.md`. `FORMATO.md` se abre en <https://github.com/myopenacademy/kit-cursos/blob/main/FORMATO.md> (comprobado: 200). El curso inicial ya está publicado también (ver «Hecho», 23 de noviembre de 2026).
 - Las etiquetas solo se mueven si cambia el producto; los commits que solo tocan `ESTADO.md` van con el push de `main` (regla del autor, 23 de noviembre de 2026). Un cambio del kit, a partir de ahora, sale en una versión nueva (1.0.1, 1.1.0…) con su entrada en `CHANGELOG.md`.
 
 ## Lo hecho, tarea a tarea, y sus decisiones
@@ -96,6 +96,7 @@ Si algo bloquea, dilo al autor: él pasa la información de una sesión a otra.
 
 | Fecha | Qué |
 |---|---|
+| 2026-11-23 | **Curso inicial publicado** (aviso de su sesión, su `ESTADO.md` en `2e5dd15`): <https://github.com/myopenacademy/curso-inicial>, etiqueta `v1.0.0` sobre `2928b0a` (sin mover) y *release* «Fundamentos para programar 1.0.0 (16 de noviembre de 2026)». Su enlace a `FORMATO.md` del kit devuelve 200. Comprobado desde aquí: la etiqueta remota apunta a `2928b0a` y la *release* está publicada. |
 | 2026-11-23 | **Publicada la 1.0.0** (orden del autor): fecha en `CHANGELOG.md` (`f041ccb`); gitleaks 8.30.1 sobre los 43 commits, sin hallazgos (en el disco, solo los secretos inventados de la prueba de `.env.example` dentro de un `.pyc` ignorado); 358 pruebas, OK (1 saltada), con el 8080 libre (con la academia en local fallaban 37, ver «Para más adelante»). Repositorio `myopenacademy/kit-cursos` público, `main` y etiqueta `v1.0.0` sobre `f041ccb`, *release* «Kit de cursos 1.0.0» marcada como la última. |
 | 2026-11-08 | Repositorio creado; `FORMATO.md` versión 1 movido desde la raíz. |
 | 2026-11-08 | Decisiones 1 a 3 del apartado 4 de `PLAN.md`. Ajustes de `FORMATO.md` dentro de la versión 1 (apartados 3.2, 7, 13 y 15). |
