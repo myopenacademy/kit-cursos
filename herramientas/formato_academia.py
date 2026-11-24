@@ -94,9 +94,10 @@ HUECO = re.compile(r"\{\{([^{}]*)\}\}")
 
 ID_CURSO = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 # MAYOR.MENOR.PARCHE: tres números con cifras de 0 a 9, sin ceros a la izquierda (salvo el propio 0) y nada más,
-# ni delante ni detrás (\Z, no $, que deja pasar un salto de línea final; [0-9], no \d, que admite cifras de
-# otras escrituras). Vale para «version», «academia_minima» y «desde» (FORMATO.md 3.2 y 11.1).
-SEMVER = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\Z")
+# ni delante ni detrás. La misma expresión que FORMATO.md 11.1, siempre con fullmatch() (todo el texto: match() con $
+# deja pasar un salto de línea final); [0-9], no \d, que admite cifras de otras escrituras. Vale para «version»,
+# «academia_minima» y «desde» (FORMATO.md 3.2 y 11.1).
+SEMVER = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 CARPETA_FASE = re.compile(r"^fase-(\d{2})-[a-z0-9]+(-[a-z0-9]+)*$")
 FICHERO_NUMERADO = re.compile(r"^(\d{2})-[a-z0-9]+(-[a-z0-9]+)*\.md$")
 GITHUB = re.compile(r"^https://github\.com/([^/]+)/([^/#?]+)(?:/(blob|tree)/([^/]+)(/[^#?]*)?)?(?:#(.*))?$")
@@ -515,12 +516,12 @@ class Curso:
                                                          "los títulos son texto plano")
         self.texto(d, "descripcion", "el curso", self.linea_json('"descripcion"'))
         version = self.texto(d, "version", "el curso", self.linea_json('"version"'))
-        if version and not SEMVER.match(version):
+        if version and not SEMVER.fullmatch(version):
             self.error_json(self.linea_json('"version"'), f"«version» ({valor_visible(version)}) debe ser MAYOR.MENOR.PARCHE, por ejemplo 1.0.0")
         # Opcional (revisión 1.1): la versión mínima de la academia que necesita el curso
         if "academia_minima" in d:
             minima = d["academia_minima"]
-            if not isinstance(minima, str) or not SEMVER.match(minima):
+            if not isinstance(minima, str) or not SEMVER.fullmatch(minima):
                 self.error_json(self.linea_json('"academia_minima"'),
                                 f"«academia_minima» ({valor_visible(minima)}) debe ser MAYOR.MENOR.PARCHE, por ejemplo 1.1.0")
         self.texto(d, "idioma", "el curso", self.linea_json('"idioma"'))
@@ -853,7 +854,7 @@ class Curso:
             donde = f"equivalencia de «{antes}»"
             self.campos_desconocidos(eq, "equivalencia", donde, lin)
             desde = self.texto(eq, "desde", donde, lin)
-            if desde and not SEMVER.match(desde):
+            if desde and not SEMVER.fullmatch(desde):
                 self.error_json(lin, f"{donde}: «desde» ({valor_visible(desde)}) debe ser una versión MAYOR.MENOR.PARCHE")
             if not isinstance(antes, str):
                 self.error_json(lin, "una equivalencia sin «antes» (el identificador que ya no existe)")
@@ -877,7 +878,7 @@ class Curso:
                                        capture_output=True, text=True, check=True).stdout.split()
         except (OSError, subprocess.CalledProcessError):
             return "sin Git: no se ha comparado con la última versión publicada"
-        etiquetas = [e for e in etiquetas if SEMVER.match(e[1:])]
+        etiquetas = [e for e in etiquetas if SEMVER.fullmatch(e[1:])]
         if not etiquetas:
             return "sin versiones etiquetadas todavía"
         etiqueta = etiquetas[0]
@@ -903,7 +904,7 @@ class Curso:
                                 f"«{ident}» estaba en la versión {etiqueta} y ya no existe: añade su equivalencia "
                                 "(FORMATO.md, apartado 11.2)")
         version = self.datos.get("version", "")
-        if SEMVER.match(str(version)) and tuple(map(int, version.split("."))) < tuple(map(int, etiqueta[1:].split("."))):
+        if SEMVER.fullmatch(str(version)) and tuple(map(int, version.split("."))) < tuple(map(int, etiqueta[1:].split("."))):
             self.aviso_json(self.linea_json('"version"'), f"la versión {version} es anterior a la última publicada ({etiqueta})")
         return f"comparado con {etiqueta}"
 
