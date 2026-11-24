@@ -2,7 +2,7 @@
 
 Los cambios del kit de cursos de MyOpenAcademy, versión a versión. Las versiones siguen [versionado semántico](https://semver.org/lang/es/): la del kit es independiente de la del formato (`FORMATO.md`), que lleva su propio número.
 
-## 1.1.0 — sin publicar
+## 1.1.0 — 24 de noviembre de 2026
 
 Pedida por el curso de Java (23 de noviembre de 2026) para adaptarse al kit, con lo que pidieron la academia y el autor por el camino. **El formato sigue en la versión 1**: los cambios son ampliaciones compatibles y forman la **revisión 1.1** de `FORMATO.md` (un curso que la usa sigue con `"formato": 1` y se instala en la academia 1.0.0, que ignora los campos que no conoce; comprobado el 23 de noviembre de 2026).
 

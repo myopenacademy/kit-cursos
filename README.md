@@ -2,7 +2,7 @@
 
 El formato y las herramientas para crear cursos para **MyOpenAcademy**, una academia de programación libre, gratuita y de código abierto que funciona como un juego con DLC: la academia es el juego y cada curso es una expansión que se instala, se actualiza sin perder el progreso y que cualquiera puede crear.
 
-**Versión del kit: 1.0.0** · **versión del formato: 1** ([`CHANGELOG.md`](CHANGELOG.md)).
+**Versión del kit: 1.1.0** · **versión del formato: 1** ([`CHANGELOG.md`](CHANGELOG.md)).
 
 ## Qué hay aquí
 
