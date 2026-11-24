@@ -604,6 +604,36 @@ class Enlaces(Base):
         self.assertError(MODULO, "debe apuntar a la rama main")
 
 
+class EnlaceDeCodigo(Base):
+    """El texto de un «📁 **Código:**» y su destino deben ser la misma carpeta (FORMATO.md, apartado 7)."""
+    ENLACE = ("[`codigo/01-ficheros-json/ejemplos/2.1-un-cliente/`]"
+              "(codigo/01-ficheros-json/ejemplos/2.1-un-cliente/)")
+
+    def avisos_de_codigo(self):
+        self.comprobar()
+        return [a for a in self.avisos if "«📁 Código»" in a]
+
+    def test_misma_carpeta_no_avisa(self):
+        self.assertEqual(self.avisos_de_codigo(), [])
+
+    def test_solo_la_barra_del_final_distinta_no_avisa(self):
+        self.cambiar(MODULO, self.ENLACE, "[`codigo/01-ficheros-json/ejemplos/2.1-un-cliente`]"
+                                          "(codigo/01-ficheros-json/ejemplos/2.1-un-cliente/)")
+        self.assertEqual(self.avisos_de_codigo(), [])
+        self.cambiar(MODULO, "(codigo/01-ficheros-json/ejemplos/2.1-un-cliente/)",
+                     "(./codigo/01-ficheros-json/ejemplos/2.1-un-cliente)")
+        self.assertEqual(self.avisos_de_codigo(), [])
+
+    def test_carpetas_distintas_avisa(self):
+        self.cambiar(MODULO, self.ENLACE, "[`codigo/01-ficheros-json/ejemplos/2.1-un-cliente/`]"
+                                          "(codigo/01-ficheros-json/ejemplos/2.1-un-cliente/datos/)")
+        self.escribir("fase-01-primeros-pasos/codigo/01-ficheros-json/ejemplos/2.1-un-cliente/datos/nota.txt", "hola\n")
+        self.assertEqual(self.avisos_de_codigo(), [
+            f"{MODULO}:41: «📁 Código»: el texto dice «codigo/01-ficheros-json/ejemplos/2.1-un-cliente/» y el enlace "
+            "lleva a «codigo/01-ficheros-json/ejemplos/2.1-un-cliente/datos/» (deben ser la misma carpeta)"])
+        self.assertEqual(self.errores, [])
+
+
 class Imagenes(Base):
     def test_imagen_de_otra_web(self):
         self.cambiar(MODULO, "(img/estructura.svg)", "(https://ejemplo.org/a.png)")

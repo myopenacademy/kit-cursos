@@ -59,7 +59,7 @@ public class ContadorApp extends Application {
 }
 ```
 
-📁 **Código:** [`codigo/04-ventanas/ejemplos/2.1-contador/`](codigo/04-ventanas/ejemplos/2.1-contador/src/main/java/es/contador/)
+📁 **Código:** [`codigo/04-ventanas/ejemplos/2.1-contador/src/main/java/es/contador/`](codigo/04-ventanas/ejemplos/2.1-contador/src/main/java/es/contador/)
 
 Tras pulsar dos veces el botón:
 

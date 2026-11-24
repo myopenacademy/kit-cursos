@@ -106,6 +106,46 @@ class Unidad(unittest.TestCase):
                          (CURSO / INVENTARIO, CURSO / INVENTARIO))
         self.assertIsNone(lenguaje_java.raiz_maven(CURSO / EJEMPLOS / "2.1-saludo"))
 
+    def arbol(self, *ficheros):
+        """Un curso temporal con los ficheros vacíos (rutas relativas a su raíz, que tiene curso.json)."""
+        tmp = Path(tempfile.mkdtemp(prefix="test-java-"))
+        self.addCleanup(shutil.rmtree, tmp)
+        for rel in ("curso.json", *ficheros):
+            (tmp / rel).parent.mkdir(parents=True, exist_ok=True)
+            (tmp / rel).write_text("", encoding="utf-8")
+        return tmp
+
+    def test_raiz_gradle_con_settings_gradle_de_groovy(self):
+        # FORMATO.md, apartado 7: la raíz es la carpeta con settings.gradle o settings.gradle.kts, la más exterior
+        for settings, build in (("settings.gradle", "build.gradle"), ("settings.gradle", "build.gradle.kts"),
+                                ("settings.gradle.kts", "build.gradle.kts")):
+            with self.subTest(settings=settings, build=build):
+                p = "fase-01/codigo/01-x/ejercicios/ej01-multi"
+                tmp = self.arbol(f"{p}/{settings}", f"{p}/app/{build}", f"{p}/modelo/{build}",
+                                 f"{p}/app/src/main/java/es/app/Main.java")
+                carpeta = tmp / p / "app/src/main/java/es/app"
+                self.assertEqual(lenguaje_java.raiz_gradle(carpeta), (tmp / p, tmp / p / "app"))
+                self.assertIsNone(lenguaje_java.raiz_maven(carpeta))
+                self.assertEqual(lenguaje_java.proyectos_de([carpeta]), [("gradle", tmp / p)])
+
+    def test_raiz_gradle_es_la_mas_exterior_y_no_sale_de_codigo(self):
+        p = "fase-01/codigo/01-x/ejemplos/2.1-gradle"
+        tmp = self.arbol("settings.gradle.kts", "fase-01/settings.gradle", f"{p}/settings.gradle",
+                         f"{p}/interno/settings.gradle.kts", f"{p}/interno/app/build.gradle")
+        self.assertEqual(lenguaje_java.raiz_gradle(tmp / p / "interno/app/src"), (tmp / p, tmp / p / "interno/app"))
+
+    def test_raiz_maven_es_el_pom_mas_alto_sin_salir_de_codigo(self):
+        # Los pom.xml de fuera de codigo/ (y el de codigo/ mismo) no cuentan
+        p = "fase-01/codigo/01-x/ejercicios/ej07-multimodulo"
+        tmp = self.arbol("pom.xml", "fase-01/pom.xml", "fase-01/codigo/pom.xml", f"{p}/pom.xml",
+                         f"{p}/modelo/pom.xml")
+        carpeta = tmp / p / "modelo/src/main/java/es/modelo"
+        self.assertEqual(lenguaje_java.raiz_maven(carpeta), (tmp / p, tmp / p / "modelo"))
+        self.assertEqual(lenguaje_java.proyectos_de([carpeta]), [("maven", tmp / p)])
+        suelto = tmp / "fase-01/codigo/01-x/ejemplos/2.1-suelto"
+        suelto.mkdir(parents=True)
+        self.assertIsNone(lenguaje_java.raiz_maven(suelto))
+
     def test_servidor_txt_rutas_opciones_puerto_y_copia(self):
         tmp = Path(tempfile.mkdtemp(prefix="test-java-"))
         self.addCleanup(shutil.rmtree, tmp)

@@ -32,7 +32,7 @@ public class Main {
 }
 ```
 
-📁 **Código:** [`codigo/03-gradle/ejemplos/2.1-inventario/`](codigo/03-gradle/ejemplos/2.1-inventario/src/main/java/es/inventario/)
+📁 **Código:** [`codigo/03-gradle/ejemplos/2.1-inventario/src/main/java/es/inventario/`](codigo/03-gradle/ejemplos/2.1-inventario/src/main/java/es/inventario/)
 
 **Salida:**
 

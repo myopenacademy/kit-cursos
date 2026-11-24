@@ -36,7 +36,7 @@ public class PreciosApplication {
 }
 ```
 
-📁 **Código:** [`codigo/05-spring/ejemplos/2.1-precios/aplicacion/`](codigo/05-spring/ejemplos/2.1-precios/aplicacion/src/main/java/es/precios/)
+📁 **Código:** [`codigo/05-spring/ejemplos/2.1-precios/aplicacion/src/main/java/es/precios/`](codigo/05-spring/ejemplos/2.1-precios/aplicacion/src/main/java/es/precios/)
 
 Su controlador, que pregunta los tipos de cambio a una API (en el ejemplo, una simulada en el puerto 8090):
 
@@ -112,7 +112,7 @@ public class PrecioController {
 }
 ```
 
-📁 **Código:** [`codigo/05-spring/ejemplos/2.1-precios/aplicacion/`](codigo/05-spring/ejemplos/2.1-precios/aplicacion/src/main/java/es/precios/)
+📁 **Código:** [`codigo/05-spring/ejemplos/2.1-precios/aplicacion/src/main/java/es/precios/`](codigo/05-spring/ejemplos/2.1-precios/aplicacion/src/main/java/es/precios/)
 
 **Con la aplicación arrancada:**
 

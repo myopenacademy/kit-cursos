@@ -32,7 +32,7 @@ public class Precio {
 }
 ```
 
-📁 **Código:** [`codigo/02-maven/ejemplos/2.1-tienda/`](codigo/02-maven/ejemplos/2.1-tienda/src/main/java/es/tienda/)
+📁 **Código:** [`codigo/02-maven/ejemplos/2.1-tienda/src/main/java/es/tienda/`](codigo/02-maven/ejemplos/2.1-tienda/src/main/java/es/tienda/)
 
 Y el programa que lo usa:
 
@@ -46,7 +46,7 @@ public class App {
 }
 ```
 
-📁 **Código:** [`codigo/02-maven/ejemplos/2.1-tienda/`](codigo/02-maven/ejemplos/2.1-tienda/src/main/java/es/tienda/)
+📁 **Código:** [`codigo/02-maven/ejemplos/2.1-tienda/src/main/java/es/tienda/`](codigo/02-maven/ejemplos/2.1-tienda/src/main/java/es/tienda/)
 
 **Salida:**
 
@@ -76,7 +76,7 @@ class PrecioTest {
 }
 ```
 
-📁 **Código:** [`codigo/02-maven/ejemplos/2.1-tienda/`](codigo/02-maven/ejemplos/2.1-tienda/src/test/java/es/tienda/)
+📁 **Código:** [`codigo/02-maven/ejemplos/2.1-tienda/src/test/java/es/tienda/`](codigo/02-maven/ejemplos/2.1-tienda/src/test/java/es/tienda/)
 
 **Salida de las pruebas:**
 

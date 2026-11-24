@@ -12,6 +12,7 @@ Revisa, sin ejecutar nada del curso:
   - Los retos de cada fase, las etapas del proyecto, el glosario, 00-indice.md y los ficheros
     obligatorios.
   - Enlaces del mismo curso y a otros cursos (con sus anclas), imágenes, diagramas Mermaid y HTML.
+  - Que el texto de cada «📁 **Código:**» y su destino sean la misma carpeta (aviso).
   - Listas de tareas de Markdown (- [ ], - [x]) fuera de los bloques de código, que la academia todavía no
     dibuja (aviso).
   - Correos fuera del código: <ana@example.com> o <mailto:…>, que CommonMark y GitHub convierten en un enlace
@@ -42,6 +43,7 @@ Necesita Python 3.11 o posterior, sin librerías adicionales.
 """
 import json
 import os
+import posixpath
 import re
 import subprocess
 import sys
@@ -139,6 +141,7 @@ HTML_INERTE = {"span", "div", "u", "b", "i", "s", "mark", "ins", "small", "big",
                "figure", "figcaption", "section", "article", "header", "footer", "main", "aside", "nav", "hgroup",
                "address", "time", "dl", "dt", "dd"}
 IMAGENES = {".png", ".jpg", ".jpeg", ".svg"}
+ENLACE_CODIGO = "📁 **Código:**"
 ENTIDADES_MERMAID = {"quot", "lt", "gt", "amp"}
 
 
@@ -1458,8 +1461,11 @@ class Curso:
                 linea = md.texto_sin_codigo(i)
                 if not linea:
                     continue
-                for m in ENLACE.finditer(linea):
+                for k, m in enumerate(ENLACE.finditer(linea)):
                     self.comprobar_enlace(md, i, m.group(1) == "!", m.group(2), m.group(3))
+                    if k == 0 and md.lineas[i].startswith(ENLACE_CODIGO):
+                        # El texto, tal cual (en linea, el código en línea está tapado con espacios)
+                        self.comprobar_enlace_de_codigo(md, i, md.lineas[i][m.start(2):m.end(2)], m.group(3))
                 self.comprobar_html(md, i, linea)
                 if TAREA.match(linea):
                     self.informe.aviso(md.rel, i + 1, "lista de tareas (- [ ] / - [x]): la academia todavía no las dibuja "
@@ -1523,6 +1529,16 @@ class Curso:
                 inf.aviso(md.rel, i + 1, f"la imagen {destino} conviene que esté en la carpeta img/ de la fase")
             return
         self.comprobar_destino(md, i, destino, objetivo, rel, unquote(seccion))
+
+    def comprobar_enlace_de_codigo(self, md, i, texto, destino):
+        """El texto de un «📁 **Código:**» y su destino deben ser la misma carpeta (FORMATO.md, apartado 7): la
+        academia puede dar el ZIP del proyecto entero, pero el texto dice la carpeta del enlace."""
+        visible = texto.strip().strip("`").strip()
+        if not visible or not destino or re.match(r"^[a-z]+:", destino):
+            return
+        if posixpath.normpath(visible) != posixpath.normpath(unquote(destino.partition("#")[0])):
+            self.informe.aviso(md.rel, i + 1, f"«📁 Código»: el texto dice «{visible}» y el enlace lleva a «{destino}» "
+                                              "(deben ser la misma carpeta)")
 
     def comprobar_destino(self, md, i, destino, objetivo, rel, seccion, otro_curso=None):
         inf = self.informe

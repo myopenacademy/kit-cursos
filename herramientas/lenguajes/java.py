@@ -11,7 +11,8 @@ comparaciones (FORMATO.md, apartado 7.1, «Los de Java»), para que el kit dé e
   proyecto se construye UNA VEZ por verificación («mvn package», pruebas incluidas, y el classpath con
   dependency:build-classpath) y la clase se ejecuta con «java -cp <classpath> paquete.Clase» desde la carpeta del
   módulo (la del pom.xml más cercano), como en IntelliJ. La raíz es el pom.xml más alto (un multimódulo). Igual con
-  GRADLE (build.gradle.kts; la raíz, la del settings.gradle.kts): «gradle build» y el classpath que da la tarea de
+  GRADLE (build.gradle.kts o build.gradle; la raíz, la carpeta más exterior con settings.gradle.kts o settings.gradle,
+  sin salir de codigo/; FORMATO.md, apartado 7): «gradle build» y el classpath que da la tarea de
   servicios/java/classpath.init.gradle.kts. entrada.txt, args.txt y opciones-java.txt pueden ir junto al fichero o
   en la raíz del módulo, y salida-variable.txt, también junto al pom.xml.
 - Tras el enlace «📁 Código», o más abajo, tras otros ficheros del mismo proyecto (solo para el programa de la
@@ -147,13 +148,19 @@ def raiz_maven(carpeta):
     return (poms[-1], poms[0]) if poms else None
 
 
+BUILD_GRADLE = ("build.gradle.kts", "build.gradle")
+SETTINGS_GRADLE = ("settings.gradle.kts", "settings.gradle")
+
+
 def raiz_gradle(carpeta):
-    """(raíz, subproyecto) del proyecto Gradle que contiene a carpeta, o None."""
+    """(raíz, subproyecto) del proyecto Gradle que contiene a carpeta, o None: el subproyecto es la carpeta con
+    build.gradle.kts o build.gradle más cercana y la raíz, la más alta con settings.gradle.kts o settings.gradle (sin
+    salir de codigo/)."""
     raiz = modulo = None
     for c in _arriba(Path(carpeta)):
-        if modulo is None and (c / "build.gradle.kts").exists():
+        if modulo is None and any((c / n).exists() for n in BUILD_GRADLE):
             modulo = c
-        if (c / "settings.gradle.kts").exists():
+        if any((c / n).exists() for n in SETTINGS_GRADLE):
             raiz = c
     return (raiz or modulo, modulo) if modulo else None
 
@@ -825,7 +832,7 @@ def proyectos_de(carpetas):
     """Los proyectos (tipo, raíz) de las carpetas enlazadas: el de cada carpeta y los que haya dentro, sin repetir."""
     vistos = {}
     for carpeta in sorted(carpetas):
-        candidatas = [carpeta] + sorted(p.parent for nombre in ("pom.xml", "build.gradle.kts")
+        candidatas = [carpeta] + sorted(p.parent for nombre in ("pom.xml", *BUILD_GRADLE)
                                         for p in carpeta.rglob(nombre)
                                         if not NO_COPIAR.union({"target", "build"}) & set(p.parts))
         # Los proyectos de Spring Boot que arranca el servidor.txt de un proyecto, aunque no estén enlazados
