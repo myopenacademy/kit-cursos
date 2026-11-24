@@ -42,12 +42,13 @@ un servidor HTTP en localhost con las rutas que describe (servicios/servidor_htt
 para que curl tenga a quién preguntar sin internet, y lo para después. El servidor.json de cada carpeta enlazada
 se comprueba aunque ninguna sesión lo use, y no se copia a la terminal.
 JAVA (lenguajes/java.py, que lo explica entero; FORMATO.md, apartado 7.1, «Los de Java»): cada .java con main que
-muestra un bloque se ejecuta (un programa suelto con «java Fichero.java»; uno de un proyecto de Maven o Gradle, con su
-classpath, tras construir el proyecto una vez) con entrada.txt, args.txt y opciones-java.txt, y su «**Salida:**»,
-«**Salida de error:**» (con termina-con-error.txt) o «**Sesión en la terminal:**» debe ser la del texto; tras una
-clase de pruebas de Maven, «**Salida de las pruebas:**» es el resumen de Surefire; con solo-compilar.txt, solo se
-compila (o, junto al pom.xml, solo se construye). Con Docker, en la imagen de Java del kit (Temurin, Maven y Gradle
-fijados), sin red: Maven y Gradle sin conexión, con la caché que llena --preparar-java.
+muestra un bloque se ejecuta (un programa suelto con «java Fichero.java» desde su carpeta, con las demás fuentes si
+tiene package bajo src/; uno de un proyecto de Maven o Gradle, con su classpath, tras construir el proyecto una
+vez) con entrada.txt, args.txt y opciones-java.txt, y su «**Salida:**», «**Salida de error:**» (con
+termina-con-error.txt) o «**Sesión en la terminal:**» debe ser la del texto; tras una clase de pruebas de Maven,
+«**Salida de las pruebas:**» es el resumen de Surefire; con solo-compilar.txt, solo se compila (o, junto al
+pom.xml, solo se construye). Con Docker, en la imagen de Java del kit (Temurin, Maven y Gradle fijados), sin red:
+Maven y Gradle sin conexión (Gradle, sin demonio), con la caché que llena --preparar-java.
 Antes de comparar, lo que encaja con cada expresión regular del salida-variable.txt de la carpeta se sustituye
 por «…», en la salida real y en la del texto.
 Además: error por cada fichero enlazado que Git ignora (.gitignore: no llegaría a un clon del curso), y aviso por
@@ -64,11 +65,12 @@ Dónde se ejecuta (servicios/terminal.py):
 
 LA RED, SOLO CON --preparar-java [carpeta]: es la única vez que hay red. Construye, con internet, cada proyecto de
 Maven o Gradle de las carpetas enlazadas por los módulos (de todo el curso o de la carpeta o el módulo que se diga)
-para descargar sus dependencias y plugins a la caché: con Docker, al volumen kit-java-cache (o el de la variable de
-entorno KIT_JAVA_CACHE), que la verificación monta en la imagen de Java; sin Docker, a las cachés del equipo
-(~/.m2/repository, o la de KIT_JAVA_M2, y ~/.gradle, o la de GRADLE_USER_HOME). Después, la verificación ya no
-necesita red; si falta una dependencia, el error dice que hay que volver a prepararla. Hazlo la primera vez y cada
-vez que cambie una dependencia. No verifica nada: termina con 0 si todos los proyectos se han preparado.
+para descargar sus dependencias y plugins a la caché (sin el repackage de Spring Boot, que falla sin clase con
+main): con Docker, al volumen kit-java-cache (o el de la variable de entorno KIT_JAVA_CACHE), que la verificación
+monta en la imagen de Java; sin Docker, a las cachés del equipo (~/.m2/repository, o la de KIT_JAVA_M2, y
+~/.gradle, o la de GRADLE_USER_HOME). Después, la verificación ya no necesita red; si falta una dependencia, el
+error dice que hay que volver a prepararla. Hazlo la primera vez y cada vez que cambie una dependencia. No
+verifica nada: termina con 0 si todos los proyectos se han preparado.
 
 Qué se verifica:
   - SIN --commit, los ficheros del disco, tal como están: lo normal mientras se escribe un módulo.

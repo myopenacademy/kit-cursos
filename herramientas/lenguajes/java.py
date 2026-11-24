@@ -6,7 +6,10 @@ comparaciones (FORMATO.md, apartado 7.1, «Los de Java»), para que el kit dé e
 - ¿Es mío? Los ficheros .java. Los que no tienen main (una clase auxiliar, package-info, module-info) solo se
   comparan con su bloque.
 - UN PROGRAMA SUELTO se ejecuta con «java Fichero.java» desde una copia de su carpeta, con las opciones de
-  opciones-java.txt delante del fichero, los argumentos de args.txt detrás y entrada.txt como entrada estándar.
+  opciones-java.txt delante del fichero, los argumentos de args.txt detrás y entrada.txt como entrada estándar. Si
+  tiene package y sus carpetas son las del paquete (src/es/tienda/app/Main.java con «package es.tienda.app;»), la
+  copia es la de la raíz de las fuentes (src/, sin salir de codigo/) y se ejecuta desde la carpeta del programa, como
+  en su sitio: el lanzador de código fuente (JDK 22 o posterior) encuentra las demás clases desde esa raíz.
 - UN PROGRAMA DE UN PROYECTO DE MAVEN (hay un pom.xml en su carpeta o en una superior, sin salir de codigo/): el
   proyecto se construye UNA VEZ por verificación («mvn package», pruebas incluidas, y el classpath con
   dependency:build-classpath) y la clase se ejecuta con «java -cp <classpath> paquete.Clase» desde la carpeta del
@@ -37,7 +40,9 @@ Dónde (servicios/terminal.py):
     Maven y Gradle trabajan sin conexión (-o, --offline) con la caché del volumen de Docker VOLUMEN (o el que diga
     la variable de entorno KIT_JAVA_CACHE), que llena «verificar_codigo.py --preparar-java», la única vez que hay
     red. Si falta una dependencia, el error lo dice. Cada proyecto se copia a un contenedor que dura toda la
-    verificación; cada programa suelto, a uno nuevo.
+    verificación; cada programa suelto, a uno nuevo. Gradle, sin demonio (--no-daemon): el demonio de un proyecto
+    seguiría vivo en su contenedor con el bloqueo de la caché compartida, y Gradle no puede pedirle que lo suelte
+    desde otro contenedor («Timeout waiting to lock journal cache»).
   - SIN DOCKER: el java, javac, mvn y gradle del PATH del equipo, también sin conexión, con sus cachés (la de Maven,
     ~/.m2/repository o la de KIT_JAVA_M2; la de Gradle, ~/.gradle o la de GRADLE_USER_HOME), en una copia temporal.
     Es la verificación parcial: otras versiones pueden dar otra salida.
@@ -165,6 +170,21 @@ def raiz_gradle(carpeta):
     return (raiz or modulo, modulo) if modulo else None
 
 
+def raiz_de_fuentes(fichero):
+    """La carpeta que se copia para ejecutar un programa suelto: si tiene package y las carpetas de encima son las del
+    paquete, la raíz de las fuentes (se sube tantas carpetas como partes tiene el paquete, sin llegar a codigo/); si
+    no, su carpeta."""
+    fichero = Path(fichero)
+    paquete = PAQUETE.search(fichero.read_text(encoding="utf-8"))
+    if not paquete:
+        return fichero.parent
+    partes = paquete.group(1).split(".")
+    carpetas = list(_arriba(fichero.parent))       # la del fichero y las de encima, sin codigo/
+    if len(carpetas) <= len(partes) or [c.name for c in carpetas[len(partes) - 1::-1]] != partes:
+        return fichero.parent
+    return carpetas[len(partes)]
+
+
 def programa_de(carpeta):
     """El programa de la carpeta: su único fichero con main o, si hay varios, Main.java (None si no lo hay)."""
     con_main = [f for f in sorted(carpeta.glob("*.java")) if MAIN.search(f.read_text(encoding="utf-8"))]
@@ -231,12 +251,12 @@ def orden_maven(t, *metas):
 
 
 def orden_gradle(t, *tareas):
+    """Sin demonio también con Docker: el de un proyecto se quedaría con el bloqueo de la caché compartida."""
     if isinstance(t, terminal.Contenedor):
         init = f"{EN_LA_IMAGEN}/classpath.init.gradle.kts"
-        extra = []
     else:
-        init, extra = str(SERVICIOS_JAVA / "classpath.init.gradle.kts"), ["--no-daemon"]
-    return ["gradle", "-q", "--offline", "--console=plain", "--no-configuration-cache", *extra,
+        init = str(SERVICIOS_JAVA / "classpath.init.gradle.kts")
+    return ["gradle", "-q", "--offline", "--console=plain", "--no-configuration-cache", "--no-daemon",
             "--init-script", init, *tareas]
 
 
@@ -553,10 +573,11 @@ class Java:
                                                     f"{self.v.rel(ventana)}: la de ahora está en {donde} (si el "
                                                     "cambio es correcto, cópiala encima)")
 
-    def orden(self, fichero, proyecto, modulo, buscar, t, captura=None):
+    def orden(self, fichero, proyecto, modulo, buscar, t, captura=None, raiz=None):
         """La orden de java (lista) y la carpeta (relativa a la copia) desde la que se ejecuta. Una aplicación de JavaFX
         va con su lanzador, CapturaVentana, y un programa de Swing con content(), con CapturaSwing; los dos guardan
-        la imagen de la ventana en captura (una ruta de la terminal) si se pide."""
+        la imagen de la ventana en captura (una ruta de la terminal) si se pide. Un programa suelto se ejecuta desde
+        su carpeta, dentro de la copia de raiz (raiz_de_fuentes(); su carpeta si no se dice)."""
         argumentos = _primero(buscar, "args.txt")
         opciones = _primero(buscar, OPCIONES_EXTRA)
         extra = shlex.split(argumentos.read_text(encoding="utf-8")) if argumentos else []
@@ -585,35 +606,38 @@ class Java:
             else:
                 programa = ["-cp", classpath, clase]
             return ["java", *OPCIONES_JVM, *jvm, *programa, *extra], proyecto.rel(modulo)
+        rel = fichero.parent.relative_to(raiz or fichero.parent).as_posix()
+        desde = None if rel == "." else rel
         if APLICACION_SWING.search(fuente):
             # Un programa suelto de Swing: se compila su carpeta y se pinta su content()
             compilado = self.temporal(t)
             fuentes = [f.name for f in sorted(fichero.parent.glob("*.java"))]
             codigo, out, err = t.ejecutar(["javac", "-encoding", "UTF-8", "-d", compilado, *fuentes], None,
-                                          TIEMPO_MAXIMO, None, entorno_de(t))
+                                          TIEMPO_MAXIMO, desde, entorno_de(t))
             if codigo != 0:
                 raise RuntimeError(f"{fichero.name} no compila:\n{sangrar(out + err)}")
             clase = clase_de(fichero)
             programa = ["-Djava.awt.headless=true", *captura_opcion, "-cp",
                         os.pathsep.join([self.lanzador(t, "CapturaSwing"), compilado]), "CapturaSwing", clase]
-            return ["java", *OPCIONES_JVM, *jvm, *programa, *extra], None
-        return ["java", *OPCIONES_JVM, *jvm, fichero.name, *extra], None
+            return ["java", *OPCIONES_JVM, *jvm, *programa, *extra], desde
+        return ["java", *OPCIONES_JVM, *jvm, fichero.name, *extra], desde
 
     def ejecutar(self, fichero, proyecto, modulo, buscar, captura=False):
         """(código, salida, salida de error, imagen de la ventana o None)."""
         entrada = _primero(buscar, "entrada.txt")
         datos = entrada.read_bytes() if entrada else b""
+        raiz = None if proyecto else raiz_de_fuentes(fichero)
 
         def en(t):
             ruta = f"{self.temporal(t)}/ventana.png" if captura else None
-            orden, desde = self.orden(fichero, proyecto, modulo, buscar, t, ruta)
+            orden, desde = self.orden(fichero, proyecto, modulo, buscar, t, ruta, raiz)
             codigo, out, err = t.ejecutar(orden, datos, TIEMPO_MAXIMO, desde, entorno_de(t))
             return codigo, out, err, (t.leer(ruta) if ruta else None)
 
         try:
             if proyecto:
                 return en(proyecto.terminal())
-            with abrir_terminal(fichero.parent, self.v.con_docker) as t:
+            with abrir_terminal(raiz, self.v.con_docker) as t:
                 return en(t)
         except terminal.ErrorDeTerminal as e:
             raise RuntimeError(f"{fichero.name}: {e}")
@@ -628,8 +652,9 @@ class Java:
                 t = proyecto.terminal()
                 codigo, texto, err = self._teclear(t, fichero, proyecto, modulo, buscar, entrada, proyecto.copia)
             else:
-                with abrir_terminal(fichero.parent, self.v.con_docker) as t:
-                    codigo, texto, err = self._teclear(t, fichero, None, None, buscar, entrada, fichero.parent)
+                raiz = raiz_de_fuentes(fichero)
+                with abrir_terminal(raiz, self.v.con_docker) as t:
+                    codigo, texto, err = self._teclear(t, fichero, None, None, buscar, entrada, raiz)
         except (RuntimeError, terminal.ErrorDeTerminal, OSError) as e:
             self.v.informe.error(md.rel, i + 1, f"{fichero.name}: {e}")
             return
@@ -642,7 +667,7 @@ class Java:
             self.v.comparar(md, sesion[0], sesion[1], texto, mascara, f"la sesión en la terminal de {fichero.name}")
 
     def _teclear(self, t, fichero, proyecto, modulo, buscar, entrada, copia):
-        orden, desde = self.orden(fichero, proyecto, modulo, buscar, t)
+        orden, desde = self.orden(fichero, proyecto, modulo, buscar, t, raiz=None if proyecto else copia)
         base = base_de(t)
         ruta = f"{base}/{entrada.relative_to(copia).as_posix()}" if entrada else "-"
         return t.ejecutar([*python_de(t), _del_kit(t, "teclear.py"), ruta, str(TIEMPO_MAXIMO), "--", *orden], None,
@@ -851,24 +876,29 @@ def proyectos_de(carpetas):
     return sorted((tipo, raiz) for raiz, tipo in vistos.items())
 
 
-def preparar(tipo, raiz, con_docker):
-    """Construye el proyecto CON RED para llenar la caché (el volumen de Docker o las del equipo): la misma
-    construcción que la verificación, más sus pruebas (sin parar si alguna falla a propósito). None si va bien, o
-    el error."""
+def metas_de_preparar(tipo):
+    """Lo que construye --preparar-java: lo mismo que la verificación, más sus pruebas (sin parar si alguna falla a
+    propósito). Con Maven, sin el repackage de Spring Boot, que falla en un proyecto sin clase con main (una
+    autoconfiguración): lo que se quiere es la caché, no el .jar."""
     if tipo == "maven":
-        metas = ["package", "dependency:build-classpath", "-Dmdep.outputFile=${project.build.directory}/classpath.txt",
-                 "-Dmaven.test.failure.ignore=true"]
-    else:
-        # -PkitPreparar: las pruebas que fallan a propósito no paran la construcción (classpath.init.gradle.kts)
-        metas = ["build", "printRuntimeClasspath", "--continue", "-PkitPreparar"]
+        return ["package", "dependency:build-classpath", "-Dmdep.outputFile=${project.build.directory}/classpath.txt",
+                "-Dmaven.test.failure.ignore=true", "-Dspring-boot.repackage.skip=true"]
+    # -PkitPreparar: las pruebas que fallan a propósito no paran la construcción (classpath.init.gradle.kts)
+    return ["build", "printRuntimeClasspath", "--continue", "-PkitPreparar"]
+
+
+def preparar(tipo, raiz, con_docker):
+    """Construye el proyecto CON RED para llenar la caché (el volumen de Docker o las del equipo), con
+    metas_de_preparar(). None si va bien, o el error."""
+    metas = metas_de_preparar(tipo)
     if con_docker:
         try:
             with abrir_terminal(raiz, True, red=True) as t:
                 if tipo == "maven":
                     orden = ["mvn", "-B", "-q", *metas]
                 else:
-                    orden = ["gradle", "-q", "--console=plain", "--no-configuration-cache", "--init-script",
-                             f"{EN_LA_IMAGEN}/classpath.init.gradle.kts", *metas]
+                    orden = ["gradle", "-q", "--console=plain", "--no-configuration-cache", "--no-daemon",
+                             "--init-script", f"{EN_LA_IMAGEN}/classpath.init.gradle.kts", *metas]
                 codigo, out, err = t.ejecutar(orden, espera=1800, entorno=dict(ENTORNO))
         except terminal.ErrorDeTerminal as e:
             return str(e)

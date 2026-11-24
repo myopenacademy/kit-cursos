@@ -147,6 +147,44 @@ public class Aviso {
 
 📁 **Código:** [`codigo/01-programas/ejemplos/2.6-ventana/`](codigo/01-programas/ejemplos/2.6-ventana/)
 
+### 2.7. Un programa con paquetes
+
+El producto, en su paquete:
+
+```java
+package es.tienda.modelo;
+
+public record Producto(String nombre, double precio) {
+}
+```
+
+📁 **Código:** [`codigo/01-programas/ejemplos/2.7-paquetes/src/es/tienda/modelo/`](codigo/01-programas/ejemplos/2.7-paquetes/src/es/tienda/modelo/)
+
+Y el programa, en otro paquete, que lo usa:
+
+```java
+package es.tienda.app;
+
+import es.tienda.modelo.Producto;
+
+public class Main {
+    public static void main(String[] args) {
+        Producto lapiz = new Producto("Lápiz", 0.5);
+        System.out.println(lapiz.nombre() + ": " + lapiz.precio() + " €");
+    }
+}
+```
+
+📁 **Código:** [`codigo/01-programas/ejemplos/2.7-paquetes/src/es/tienda/app/`](codigo/01-programas/ejemplos/2.7-paquetes/src/es/tienda/app/)
+
+**Salida:**
+
+```text
+Lápiz: 0.5 €
+```
+
+Se ejecuta con `java Main.java` desde su carpeta: Java busca las demás clases desde la raíz de las fuentes (`src/`).
+
 ## 3. Errores típicos
 
 ### 3.1. El nombre del fichero

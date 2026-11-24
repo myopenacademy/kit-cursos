@@ -18,6 +18,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 PRUEBAS = Path(__file__).resolve().parent
@@ -49,6 +50,7 @@ INVENTARIO = "fase-01-java/codigo/03-gradle/ejemplos/2.1-inventario"
 CONTADOR = "fase-01-java/codigo/04-ventanas/ejemplos/2.1-contador"
 PANEL = "fase-01-java/codigo/04-ventanas/ejemplos/2.2-panel"
 PRECIOS = "fase-01-java/codigo/05-spring/ejemplos/2.1-precios"
+PAQUETES = f"{EJEMPLOS}/2.7-paquetes"
 
 PREPARADOS = {}         # modo (sin_docker) -> salida de --preparar-java, una vez por ejecución de las pruebas
 
@@ -166,6 +168,34 @@ class Unidad(unittest.TestCase):
         self.assertEqual(lenguaje_java.copia_con_servidores(aplicacion, aplicacion), CURSO / PRECIOS)
         self.assertEqual(lenguaje_java.copia_con_servidores(CURSO / TIENDA, CURSO / TIENDA), CURSO / TIENDA)
 
+    def test_raiz_de_las_fuentes_de_un_programa_suelto(self):
+        # Con paquete bajo src/: se sube tantas carpetas como partes tiene el paquete (para copiar todas las fuentes)
+        self.assertEqual(lenguaje_java.raiz_de_fuentes(CURSO / PAQUETES / "src/es/tienda/app/Main.java"),
+                         CURSO / PAQUETES / "src")
+        # Sin paquete, su carpeta
+        self.assertEqual(lenguaje_java.raiz_de_fuentes(CURSO / EJEMPLOS / "2.1-saludo/Saludo.java"),
+                         CURSO / EJEMPLOS / "2.1-saludo")
+        tmp = self.arbol("fase-01/codigo/es/app/Main.java", "fase-01/codigo/01-x/ejemplos/2.1-a/otro/Main.java")
+        # Nunca sube hasta codigo/ ni más arriba: su carpeta
+        (tmp / "fase-01/codigo/es/app/Main.java").write_text("package es.app;\n", encoding="utf-8")
+        self.assertEqual(lenguaje_java.raiz_de_fuentes(tmp / "fase-01/codigo/es/app/Main.java"),
+                         tmp / "fase-01/codigo/es/app")
+        # Las carpetas no son las del paquete: su carpeta
+        otro = tmp / "fase-01/codigo/01-x/ejemplos/2.1-a/otro/Main.java"
+        otro.write_text("package es.app;\n", encoding="utf-8")
+        self.assertEqual(lenguaje_java.raiz_de_fuentes(otro), otro.parent)
+
+    def test_preparar_maven_sin_repackage(self):
+        # Un proyecto de Spring Boot sin clase con main (una autoconfiguración): el repackage fallaría
+        self.assertIn("-Dspring-boot.repackage.skip=true", lenguaje_java.metas_de_preparar("maven"))
+        self.assertNotIn("-Dspring-boot.repackage.skip=true", lenguaje_java.metas_de_preparar("gradle"))
+
+    def test_gradle_sin_demonio_con_y_sin_docker(self):
+        # Con Docker, el demonio de un proyecto se quedaría con el bloqueo de la caché compartida (el volumen)
+        for t in (terminal.Contenedor(CURSO), terminal.Local(CURSO)):
+            with self.subTest(terminal=type(t).__name__):
+                self.assertIn("--no-daemon", lenguaje_java.orden_gradle(t, "build"))
+
     def test_preparar_sin_proyectos(self):
         tmp = Path(tempfile.mkdtemp(prefix="test-java-"))
         self.addCleanup(shutil.rmtree, tmp)
@@ -243,7 +273,7 @@ class ProgramasSinDocker(Base):
 
     def test_el_modulo_pasa(self):
         self.assertEqual(self.ejecutar(PROGRAMAS), 0, self.salida)
-        self.assertIn("7 programas de Java", self.salida)
+        self.assertIn("8 programas de Java", self.salida)
         if self.sin_docker:
             self.assertIn("Sin Docker: verificación parcial", self.salida)
             self.assertIn("el JDK, Maven y Gradle del equipo", self.salida)
@@ -291,6 +321,15 @@ class ProgramasSinDocker(Base):
             self.cambiar(rel, '"Tu pedido está en camino.");', '"Tu pedido está en camino.")')
         self.assertError(PROGRAMAS, self.enlace(PROGRAMAS, "codigo/01-programas/ejemplos/2.6-ventana/"),
                          "Aviso.java no compila", "Aviso.java:5: error: ';' expected")
+
+    def test_programa_con_paquete_bajo_src(self):
+        # Se ejecuta en su sitio, con las demás fuentes (las del otro paquete) alrededor, y desde su carpeta
+        (self.raiz / PAQUETES / "src/es/tienda/app/args.txt").write_text("x\n", encoding="utf-8")
+        for rel in (f"{PAQUETES}/src/es/tienda/app/Main.java", PROGRAMAS):
+            self.cambiar(rel, 'lapiz.precio() + " €");', 'lapiz.precio() + " € " + args.length + " " '
+                         '+ java.nio.file.Files.exists(java.nio.file.Path.of("args.txt")));')
+        self.assertError(PROGRAMAS, self.linea(PROGRAMAS, "**Salida:**", "2.7. Un programa con paquetes"),
+                         "la salida de Main.java no es la del texto", "'Lápiz: 0.5 € 1 true'")
 
     def test_solo_compilar_no_lo_ejecuta(self):
         # Sin solo-compilar.txt se ejecutaría, y sin pantalla JOptionPane falla (HeadlessException)
@@ -385,6 +424,18 @@ class GradleSinDocker(Base):
         self.assertError(GRADLE, self.enlace(GRADLE, "codigo/03-gradle/ejemplos/2.1-inventario/src/main"),
                          "gradle build falla en 2.1-inventario")
 
+    def test_dos_proyectos_en_la_misma_verificacion(self):
+        # Con Docker, el demonio del primero no puede quedarse con el bloqueo de la caché de Gradle (el volumen)
+        otro = INVENTARIO.replace("2.1-inventario", "2.2-almacen")
+        shutil.copytree(self.raiz / INVENTARIO, self.raiz / otro)
+        texto = (self.raiz / GRADLE).read_text(encoding="utf-8")
+        inicio = texto.index("```java\npackage es.inventario;")
+        bloque = texto[inicio:texto.index("```\n", texto.index("**Salida:**", inicio) + 20) + 4]
+        self.cambiar(GRADLE, "## 3. Errores típicos", "### 2.2. Otro inventario\n\n" + bloque.replace(
+            "2.1-inventario", "2.2-almacen") + "\n## 3. Errores típicos")
+        self.assertEqual(self.ejecutar(GRADLE), 0, self.salida)
+        self.assertIn("2 programas de Java", self.salida)
+
     def test_dependencia_que_no_esta_en_la_cache(self):
         dependencia = 'implementation("org.apache.commons:commons-lang3:3.22.0")\n    testImplementation("org.junit'
         if self.sin_docker:
@@ -399,6 +450,27 @@ class GradleSinDocker(Base):
 @unittest.skipUnless(HAY_DOCKER, "sin Docker")
 class GradleConDocker(GradleSinDocker):
     sin_docker = False
+
+
+@unittest.skipUnless(HAY_DOCKER, "sin Docker")
+class GradleSinDemonioConDocker(Base):
+    """Con Docker, cada proyecto tiene su contenedor durante toda la verificación y la caché de Gradle es un volumen
+    compartido: si el demonio de Gradle de un proyecto siguiera vivo, se quedaría con el bloqueo de la caché y Gradle
+    no podría pedirle que lo suelte desde otro contenedor («Timeout waiting to lock journal cache»)."""
+    sin_docker = False
+
+    def setUp(self):
+        super().setUp()
+        self.preparar()
+
+    def test_no_queda_ningun_demonio_tras_construir(self):
+        with unittest.mock.patch.dict(os.environ, {"KIT_JAVA_CACHE": VOLUMEN_PRUEBAS}):
+            proyecto = lenguaje_java.Proyecto("gradle", self.raiz / INVENTARIO, con_docker=True)
+            self.addCleanup(proyecto.cerrar)
+            proyecto.classpath(self.raiz / INVENTARIO)
+            codigo, out, err = proyecto.ejecutar(["jps", "-l"])
+        self.assertEqual(codigo, 0, out + err)
+        self.assertNotIn("GradleDaemon", out)
 
 
 @unittest.skipUnless(HAY_DOCKER, "sin Docker: las imágenes de las ventanas son las de la imagen de Java del kit")
@@ -520,6 +592,36 @@ class PrepararGradleConPruebasQueFallanSinDocker(Base):
 
 @unittest.skipUnless(HAY_DOCKER, "sin Docker")
 class PrepararGradleConPruebasQueFallanConDocker(PrepararGradleConPruebasQueFallanSinDocker):
+    sin_docker = False
+
+
+@unittest.skipUnless(HAY_JAVA_LOCAL, "sin java, javac, mvn o gradle en el PATH")
+class PrepararSpringSinMainSinDocker(Base):
+    """--preparar-java no se para por un proyecto de Spring Boot sin clase con main (lo que se quiere es la caché)."""
+
+    def test_prepara_igual(self):
+        proyecto = self.raiz / PRECIOS.replace("2.1-precios", "2.2-autoconfiguracion")
+        clase = proyecto / "src/main/java/es/saludo/SaludoConfiguracion.java"
+        clase.parent.mkdir(parents=True)
+        fuente = "package es.saludo;\n\npublic class SaludoConfiguracion {\n}\n"
+        clase.write_text(fuente, encoding="utf-8")
+        pom = (self.raiz / PRECIOS / "aplicacion/pom.xml").read_text(encoding="utf-8")
+        # Con el plugin de Spring Boot, como en el curso de Java (11.07, ej06 y ej07): su repackage busca el main
+        plugin = ("    <build>\n        <plugins>\n            <plugin>\n                <groupId>org.springframework.boot</groupId>\n"
+                  "                <artifactId>spring-boot-maven-plugin</artifactId>\n            </plugin>\n"
+                  "        </plugins>\n    </build>\n</project>")
+        pom = pom.replace("<artifactId>precios</artifactId>", "<artifactId>saludo</artifactId>")
+        (proyecto / "pom.xml").write_text(pom.replace("</project>", plugin), encoding="utf-8")
+        rel = "codigo/05-spring/ejemplos/2.2-autoconfiguracion/src/main/java/es/saludo/"
+        self.cambiar(SPRING, "## 3. Errores típicos", f"### 2.2. Una autoconfiguración\n\n```java\n{fuente}```\n\n"
+                     f"📁 **Código:** [`{rel}`]({rel})\n\n## 3. Errores típicos")
+        self.assertEqual(self.ejecutar("--preparar-java", SPRING), 0, self.salida)
+        self.assertIn(f"✅ Preparado (Maven): {proyecto.relative_to(self.raiz).as_posix()}/",
+                      self.salida)
+
+
+@unittest.skipUnless(HAY_DOCKER, "sin Docker")
+class PrepararSpringSinMainConDocker(PrepararSpringSinMainSinDocker):
     sin_docker = False
 
 
