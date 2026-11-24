@@ -15,9 +15,14 @@ comparaciones (FORMATO.md, apartado 7.1, «Los de Java»), para que el kit dé e
   dependency:build-classpath) y la clase se ejecuta con «java -cp <classpath> paquete.Clase» desde la carpeta del
   módulo (la del pom.xml más cercano), como en IntelliJ. La raíz es el pom.xml más alto (un multimódulo). Igual con
   GRADLE (build.gradle.kts o build.gradle; la raíz, la carpeta más exterior con settings.gradle.kts o settings.gradle,
-  sin salir de codigo/; FORMATO.md, apartado 7): «gradle build» y el classpath que da la tarea de
+  sin salir de codigo/; sin settings, Gradle construye la carpeta del build.gradle(.kts) como un proyecto de un solo
+  módulo, y esa es la raíz): «gradle build» y el classpath que da la tarea de
   servicios/java/classpath.init.gradle.kts. entrada.txt, args.txt y opciones-java.txt pueden ir junto al fichero o
   en la raíz del módulo, y salida-variable.txt, también junto al pom.xml.
+  MAVEN Y GRADLE MEZCLADOS (uno dentro del otro): la herramienta es la del módulo del programa, la de su fichero de
+  construcción más cercano (pom.xml o build.gradle(.kts); en la misma carpeta, Maven), y se construye desde su raíz;
+  lo que se copia a la terminal es el proyecto de FORMATO.md, apartado 7 (el que entrega la academia en el ZIP): el
+  más exterior de todos dentro de codigo/ (raiz_del_proyecto()).
 - Tras el enlace «📁 Código», o más abajo, tras otros ficheros del mismo proyecto (solo para el programa de la
   carpeta: su único fichero con main o, si hay varios, Main.java), antes del siguiente título o el siguiente
   programa:
@@ -43,13 +48,18 @@ Dónde (servicios/terminal.py):
   - CON DOCKER: en la imagen de Java del kit (servicios/java/Dockerfile: Temurin, Maven y Gradle fijados), SIN RED.
     Maven y Gradle trabajan sin conexión (-o, --offline) con la caché del volumen de Docker VOLUMEN (o el que diga
     la variable de entorno KIT_JAVA_CACHE), que llena «verificar_codigo.py --preparar-java», la única vez que hay
-    red. Si falta una dependencia, el error lo dice. Cada proyecto se copia a un contenedor que dura toda la
-    verificación; cada programa suelto, a uno nuevo. Gradle, sin demonio (--no-daemon): el demonio de un proyecto
-    seguiría vivo en su contenedor con el bloqueo de la caché compartida, y Gradle no puede pedirle que lo suelte
-    desde otro contenedor («Timeout waiting to lock journal cache»).
+    red y la única que puede escribir en él. Al verificar, el volumen se monta DE SOLO LECTURA (:ro), para que un
+    programa o una construcción no cambien lo que usan los demás, y cada contenedor escribe en su propia caché, que
+    se tira con él: Maven, con un repositorio local nuevo (/tmp/kit-java-m2) y el del volumen detrás, de solo lectura
+    (-Dmaven.repo.local.tail, el repositorio local encadenado de Maven 3.9 o posterior); Gradle, con un
+    GRADLE_USER_HOME nuevo (/tmp/kit-java-gradle) y la caché de dependencias del volumen como caché de solo lectura
+    (GRADLE_RO_DEP_CACHE). Si falta una dependencia, el error lo dice. Cada proyecto se copia a un contenedor que dura
+    toda la verificación; cada programa suelto, a uno nuevo. Gradle, sin demonio (--no-daemon): no se queda nada
+    vivo en el contenedor del proyecto (antes de la caché de solo lectura, el demonio de un proyecto se quedaba con
+    el bloqueo de la caché compartida: «Timeout waiting to lock journal cache»).
   - SIN DOCKER: el java, javac, mvn y gradle del PATH del equipo, también sin conexión, con sus cachés (la de Maven,
     ~/.m2/repository o la de KIT_JAVA_M2; la de Gradle, ~/.gradle o la de GRADLE_USER_HOME), en una copia temporal.
-    Es la verificación parcial: otras versiones pueden dar otra salida.
+    Es la verificación parcial: otras versiones pueden dar otra salida, y esas cachés no son de solo lectura.
   El curso nunca se toca: target/, build/ y .gradle/ quedan en la copia.
 
 APLICACIONES WEB DE SPRING BOOT: con un peticiones.txt junto al pom.xml, la clase con main no se ejecuta como un
@@ -73,8 +83,9 @@ content()» no ejecuta su main: el lanzador CapturaSwing.java pinta ese panel (-
 enlace (y su «**Salida:**», si la hay) viene «**La ventana:**» y una imagen ![…](….png), la de ahora debe ser
 idéntica, byte a byte. Si no lo es (o si la imagen todavía no existe), la de ahora se guarda en
 .verificacion/ventanas/ (con la misma ruta que la del texto, desde la carpeta en la que se verifica) y el error lo
-dice: si el cambio es correcto, el autor la copia encima de la del curso. Las imágenes se hacen con la imagen de Java
-del kit (con Docker): sin Docker, con otras letras, salen distintas.
+dice: si el cambio es correcto, el autor la copia encima de la del curso. Si la imagen está fuera de la carpeta que
+se verifica, la de ahora no se guarda (nunca se escribe fuera de .verificacion/ventanas/). Las imágenes se hacen con
+la imagen de Java del kit (con Docker): sin Docker, con otras letras, salen distintas.
 """
 import json
 import os
@@ -116,6 +127,9 @@ NO_COPIAR = {".gradle", ".idea", "out"}         # además de target/ y build/ (s
 
 SERVICIOS_JAVA = Path(__file__).resolve().parent.parent / "servicios" / "java"
 EN_LA_IMAGEN = "/opt/kit-java"
+CACHE = f"{EN_LA_IMAGEN}/cache"             # donde se monta el volumen (de solo lectura, salvo en --preparar-java)
+M2_DEL_CONTENEDOR = "/tmp/kit-java-m2"      # el repositorio local de Maven de cada contenedor (el del volumen, detrás)
+GRADLE_DEL_CONTENEDOR = "/tmp/kit-java-gradle"  # el GRADLE_USER_HOME de cada contenedor
 VOLUMEN = "kit-java-cache"
 PREPARAR = "ejecuta antes «verificar_codigo.py --preparar-java» (la única vez que se usa la red)"
 SIN_RED = re.compile(r"offline mode|has not been downloaded from it before|No cached version|available for offline")
@@ -174,7 +188,8 @@ SETTINGS_GRADLE = ("settings.gradle.kts", "settings.gradle")
 def raiz_gradle(carpeta):
     """(raíz, subproyecto) del proyecto Gradle que contiene a carpeta, o None: el subproyecto es la carpeta con
     build.gradle.kts o build.gradle más cercana y la raíz, la más alta con settings.gradle.kts o settings.gradle (sin
-    salir de codigo/)."""
+    salir de codigo/). Sin settings, la del subproyecto: Gradle (comprobado con 9.8.2) construye un build.gradle(.kts)
+    sin settings como un proyecto de un solo módulo, sin los build.gradle(.kts) de dentro ni de encima."""
     raiz = modulo = None
     for c in _arriba(Path(carpeta)):
         if modulo is None and any((c / n).exists() for n in BUILD_GRADLE):
@@ -184,15 +199,57 @@ def raiz_gradle(carpeta):
     return (raiz or modulo, modulo) if modulo else None
 
 
+def construccion_de(carpeta):
+    """(tipo, raíz, módulo) de lo que construye el programa de carpeta, o None si es un programa suelto. Con Maven y
+    Gradle mezclados, la herramienta es la del módulo: el fichero de construcción más cercano (en la misma carpeta,
+    Maven), con su raíz (raiz_maven() o raiz_gradle())."""
+    maven, gradle = raiz_maven(carpeta), raiz_gradle(carpeta)
+    if gradle and (not maven or len(gradle[1].parts) > len(maven[1].parts)):
+        return ("gradle", *gradle)
+    return ("maven", *maven) if maven else None
+
+
+def raiz_del_proyecto(carpeta):
+    """El proyecto de FORMATO.md, apartado 7 (el que entrega la academia en el ZIP y el que se copia a la terminal):
+    la carpeta más exterior, sin salir de codigo/, de la ruta de carpeta con pom.xml o con settings.gradle(.kts) o, si
+    en la ruta no hay ningún settings.gradle(.kts), con build.gradle(.kts). None si no hay ninguna."""
+    poms, ajustes, construcciones = [], [], []
+    for c in _arriba(Path(carpeta)):
+        if (c / "pom.xml").exists():
+            poms.append(c)
+        if any((c / n).exists() for n in SETTINGS_GRADLE):
+            ajustes.append(c)
+        if any((c / n).exists() for n in BUILD_GRADLE):
+            construcciones.append(c)
+    candidatas = poms + (ajustes or construcciones)
+    return min(candidatas, key=lambda c: len(c.parts)) if candidatas else None
+
+
+def _del_curso(ruta):
+    """La ruta, relativa a la raíz del curso (la carpeta con curso.json), para los mensajes."""
+    ruta = Path(ruta)
+    raiz = next((c for c in ruta.parents if (c / "curso.json").exists()), None)
+    return ruta.relative_to(raiz).as_posix() if raiz else str(ruta)
+
+
 def sin_pruebas(raiz):
     """¿Se construye el proyecto de raiz sin ejecutar sus pruebas? Sí, si junto a alguno de sus pom.xml o
-    build.gradle(.kts) hay un solo-compilar.txt cuyo texto empieza por «Sin pruebas:»."""
+    build.gradle(.kts) hay un solo-compilar.txt cuyo texto empieza por «Sin pruebas:». RuntimeError (con el fichero y
+    la línea) si ese solo-compilar.txt no está en UTF-8."""
     for nombre in ("pom.xml", *BUILD_GRADLE):
         for fichero in Path(raiz).rglob(nombre):
             if NO_COPIAR.union({"target", "build"}) & set(fichero.relative_to(raiz).parts):
                 continue
             solo = fichero.parent / SOLO_COMPILAR
-            if solo.is_file() and solo.read_text(encoding="utf-8").lstrip().startswith(SIN_PRUEBAS):
+            if not solo.is_file():
+                continue
+            datos = solo.read_bytes()
+            try:
+                texto = datos.decode("utf-8")
+            except UnicodeDecodeError as e:
+                linea = datos[:e.start].count(b"\n") + 1
+                raise RuntimeError(f"{_del_curso(solo)}:{linea}: no está en UTF-8")
+            if texto.lstrip().startswith(SIN_PRUEBAS):
                 return True
     return False
 
@@ -262,8 +319,9 @@ def abrir_terminal(carpeta, con_docker, red=False):
     """Una terminal (sin entrar todavía) con la copia de carpeta: en la imagen de Java con la caché montada, o la
     del equipo."""
     if con_docker:
+        # Solo --preparar-java (con red) escribe en la caché; al verificar, es de solo lectura
         return terminal.Contenedor(carpeta, NO_COPIAR, imagen=terminal.imagen_java(), red=red,
-                                   opciones=["-v", f"{volumen()}:{EN_LA_IMAGEN}/cache"])
+                                   opciones=["-v", f"{volumen()}:{CACHE}" + ("" if red else ":ro")])
     return terminal.Local(carpeta, NO_COPIAR)
 
 
@@ -273,12 +331,17 @@ def base_de(t):
 
 
 def orden_maven(t, *metas):
-    local = [] if isinstance(t, terminal.Contenedor) else [f"-Dmaven.repo.local={repositorio_maven_local()}"]
+    """Con Docker, un repositorio local nuevo en el contenedor y el del volumen (de solo lectura) detrás: el repositorio
+    local encadenado de Maven (3.9 o posterior) lee de los dos y solo escribe en el primero."""
+    if isinstance(t, terminal.Contenedor):
+        local = [f"-Dmaven.repo.local={M2_DEL_CONTENEDOR}", f"-Dmaven.repo.local.tail={CACHE}/m2/repository"]
+    else:
+        local = [f"-Dmaven.repo.local={repositorio_maven_local()}"]
     return ["mvn", "-o", "-B", *local, *metas]
 
 
 def orden_gradle(t, *tareas):
-    """Sin demonio también con Docker: el de un proyecto se quedaría con el bloqueo de la caché compartida."""
+    """Sin demonio también con Docker: no se queda nada vivo en el contenedor del proyecto."""
     if isinstance(t, terminal.Contenedor):
         init = f"{EN_LA_IMAGEN}/classpath.init.gradle.kts"
     else:
@@ -288,10 +351,12 @@ def orden_gradle(t, *tareas):
 
 
 def entorno_de(t):
-    """Las variables de los programas: sin pantalla (ni Docker ni Local pasan DISPLAY) y en UTF-8; sin Docker,
-    además el JAVA_HOME y la caché de Gradle del equipo."""
+    """Las variables de los programas: sin pantalla (ni Docker ni Local pasan DISPLAY) y en UTF-8; con Docker, un
+    GRADLE_USER_HOME nuevo en el contenedor y la caché de dependencias del volumen como caché de solo lectura de
+    Gradle (GRADLE_RO_DEP_CACHE, la carpeta que contiene modules-2); sin Docker, el JAVA_HOME y la caché de Gradle del
+    equipo."""
     if isinstance(t, terminal.Contenedor):
-        return dict(ENTORNO)
+        return {**ENTORNO, "GRADLE_USER_HOME": GRADLE_DEL_CONTENEDOR, "GRADLE_RO_DEP_CACHE": f"{CACHE}/gradle/caches"}
     extra = {"GRADLE_USER_HOME": str(gradle_local())}
     if os.environ.get("JAVA_HOME"):
         extra["JAVA_HOME"] = os.environ["JAVA_HOME"]
@@ -343,8 +408,12 @@ class Proyecto:
         if self.construido:
             return
         try:
-            t = self.terminal()
             saltar = sin_pruebas(self.raiz)
+        except RuntimeError as e:
+            self.error = str(e)
+            raise RuntimeError(self.error)
+        try:
+            t = self.terminal()
             if self.tipo == "maven":
                 codigo, out, err = self.ejecutar(orden_maven(t, "-q", "package", "dependency:build-classpath",
                                                              "-Dmdep.outputFile=${project.build.directory}/classpath.txt",
@@ -435,14 +504,15 @@ class Java:
         return destino
 
     def proyecto(self, carpeta):
-        """(Proyecto, módulo) de la carpeta, o (None, None) si es un programa suelto."""
-        maven = raiz_maven(carpeta)
-        gradle = None if maven else raiz_gradle(carpeta)
-        if not (maven or gradle):
+        """(Proyecto, módulo) de la carpeta, o (None, None) si es un programa suelto. Se construye con la herramienta
+        de su módulo desde su raíz (construccion_de()), y se copia el proyecto de FORMATO.md 7 (raiz_del_proyecto())."""
+        construccion = construccion_de(carpeta)
+        if not construccion:
             return None, None
-        tipo, (raiz, modulo) = ("maven", maven) if maven else ("gradle", gradle)
+        tipo, raiz, modulo = construccion
         if raiz not in self.proyectos:
-            self.proyectos[raiz] = Proyecto(tipo, raiz, self.v.con_docker, copia_con_servidores(raiz, modulo))
+            self.proyectos[raiz] = Proyecto(tipo, raiz, self.v.con_docker,
+                                            copia_con_servidores(raiz_del_proyecto(modulo), modulo))
         return self.proyectos[raiz], modulo
 
     # Lo que viene tras el enlace
@@ -590,10 +660,19 @@ class Java:
             return
         if ventana.is_file() and ventana.read_bytes() == png:
             return
-        nueva = Path.cwd() / ".verificacion" / "ventanas" / self.v.rel(ventana)
+        # Solo dentro de .verificacion/ventanas/: una imagen fuera de la carpeta que se verifica (su ruta, absoluta) o
+        # un enlace simbólico que saque de ahí no puede hacer que se escriba en otro sitio
+        rel = self.v.rel(ventana)
+        base = (Path.cwd() / ".verificacion" / "ventanas").resolve()
+        nueva = (base / rel).resolve()
+        if Path(rel).is_absolute() or base not in nueva.parents or Path.cwd().resolve() not in base.parents:
+            self.v.informe.error(md.rel, linea + 1, f"la imagen {rel} está fuera de la carpeta que se verifica: la "
+                                                    "de ahora no se guarda (solo se guarda dentro de "
+                                                    ".verificacion/ventanas/)")
+            return
         nueva.parent.mkdir(parents=True, exist_ok=True)
         nueva.write_bytes(png)
-        donde = nueva.relative_to(Path.cwd()).as_posix()
+        donde = (Path(".verificacion") / "ventanas" / rel).as_posix()
         if not ventana.is_file():
             self.v.informe.error(md.rel, linea + 1, f"no existe la imagen {self.v.rel(ventana)}: la de ahora está en "
                                                     f"{donde} (si es correcta, cópiala ahí)")
@@ -856,22 +935,42 @@ def copia_con_servidores(raiz, modulo):
     return comun if not es_carpeta_de_codigo(comun) and any(es_carpeta_de_codigo(p) for p in comun.parents) else raiz
 
 
+def _puerto(valor):
+    """El número de un server.port: un número o ${VARIABLE:número} (en la terminal no hay esa variable, así que Spring
+    usa el valor por defecto). None si no es ninguna de las dos cosas."""
+    valor = valor.strip()
+    por_defecto = re.fullmatch(r"\$\{[^:}]+:([0-9]+)\}", valor)
+    if por_defecto:
+        valor = por_defecto.group(1)
+    return int(valor) if re.fullmatch(r"[0-9]+", valor) else None
+
+
 def puerto_de(proyecto, opciones=()):
     """El server.port de las opciones, del application-<perfil>.properties del perfil de las opciones o del
-    application.properties de un proyecto de Spring Boot (8080 si no lo dice)."""
+    application.properties de un proyecto de Spring Boot (8080 si no lo dice). RuntimeError (con el fichero y la línea)
+    si no es un número ni ${VARIABLE:número}."""
     perfiles = []
     for opcion in opciones:
         if opcion.startswith("--server.port="):
-            return int(opcion.split("=", 1)[1])
+            puerto = _puerto(opcion.split("=", 1)[1])
+            if puerto is None:
+                raise RuntimeError(f"{SERVIDOR}: {Path(proyecto).name} {opcion}: el puerto no es un número "
+                                   "(ni ${VARIABLE:número})")
+            return puerto
         if opcion.startswith("--spring.profiles.active="):
             perfiles = [p.strip() for p in opcion.split("=", 1)[1].split(",")]
     recursos = Path(proyecto) / "src" / "main" / "resources"
     for nombre in [f"application-{p}.properties" for p in reversed(perfiles)] + ["application.properties"]:
         propiedades = recursos / nombre
         if propiedades.is_file():
-            for linea in propiedades.read_text(encoding="utf-8").splitlines():
+            for n, linea in enumerate(propiedades.read_text(encoding="utf-8").splitlines(), 1):
                 if linea.strip().startswith("server.port="):
-                    return int(linea.split("=", 1)[1].strip())
+                    valor = linea.split("=", 1)[1].strip()
+                    puerto = _puerto(valor)
+                    if puerto is None:
+                        raise RuntimeError(f"{Path(proyecto).name}/src/main/resources/{nombre}:{n}: server.port no "
+                                           f"es un número (ni ${{VARIABLE:número}}): {valor}")
+                    return puerto
     return 8080
 
 
@@ -899,32 +998,33 @@ def proyectos_de(carpetas):
                 candidatas += [(c / ruta).resolve() for ruta, _ in lineas_de_servidor(lista)
                                if ((c / ruta).resolve() / "pom.xml").is_file()]
         for c in candidatas:
-            maven = raiz_maven(c)
-            gradle = None if maven else raiz_gradle(c)
-            if maven:
-                vistos.setdefault(maven[0], "maven")
-            elif gradle:
-                vistos.setdefault(gradle[0], "gradle")
+            construccion = construccion_de(c)
+            if construccion:
+                vistos.setdefault(construccion[1], construccion[0])
     return sorted((tipo, raiz) for raiz, tipo in vistos.items())
 
 
-def metas_de_preparar(tipo, sin_pruebas=False):
+def metas_de_preparar(tipo, saltar_pruebas=False):
     """Lo que construye --preparar-java: lo mismo que la verificación, más sus pruebas (sin parar si alguna falla a
-    propósito; con sin_pruebas, «Sin pruebas:» en un solo-compilar.txt, se compilan pero no se ejecutan). Con Maven,
+    propósito; con saltar_pruebas, «Sin pruebas:» en un solo-compilar.txt, se compilan pero no se ejecutan). Con Maven,
     sin el repackage de Spring Boot, que falla en un proyecto sin clase con main (una autoconfiguración): lo que se
     quiere es la caché, no el .jar."""
     if tipo == "maven":
         return ["package", "dependency:build-classpath", "-Dmdep.outputFile=${project.build.directory}/classpath.txt",
                 "-Dmaven.test.failure.ignore=true", "-Dspring-boot.repackage.skip=true",
-                *(["-DskipTests"] if sin_pruebas else [])]
+                *(["-DskipTests"] if saltar_pruebas else [])]
     # -PkitPreparar: las pruebas que fallan a propósito no paran la construcción (classpath.init.gradle.kts)
-    return ["build", *(["testClasses", "-x", "test"] if sin_pruebas else []), "printRuntimeClasspath", "--continue", "-PkitPreparar"]
+    return ["build", *(["testClasses", "-x", "test"] if saltar_pruebas else []), "printRuntimeClasspath", "--continue",
+            "-PkitPreparar"]
 
 
 def preparar(tipo, raiz, con_docker):
-    """Construye el proyecto CON RED para llenar la caché (el volumen de Docker o las del equipo), con
-    metas_de_preparar(). None si va bien, o el error."""
-    metas = metas_de_preparar(tipo, sin_pruebas(raiz))
+    """Construye el proyecto CON RED para llenar la caché (el volumen de Docker, que solo aquí se monta con escritura,
+    o las del equipo), con metas_de_preparar(). None si va bien, o el error."""
+    try:
+        metas = metas_de_preparar(tipo, sin_pruebas(raiz))
+    except RuntimeError as e:
+        return str(e)
     if con_docker:
         try:
             with abrir_terminal(raiz, True, red=True) as t:

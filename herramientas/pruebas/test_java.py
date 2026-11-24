@@ -17,6 +17,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import types
 import unittest
 import unittest.mock
 from pathlib import Path
@@ -165,6 +166,120 @@ class Unidad(unittest.TestCase):
         app = tmp / "fase-01-java/codigo/01-x/codigo/app"
         self.assertEqual(lenguaje_java.raiz_gradle(app), (tmp / "fase-01-java/codigo/01-x", app))
 
+    def proyecto(self, carpeta):
+        """(tipo, raíz donde se construye, módulo, carpeta que se copia) del Proyecto de Java.proyecto()."""
+        java = lenguaje_java.Java(types.SimpleNamespace(con_docker=False))
+        proyecto, modulo = java.proyecto(carpeta)
+        return proyecto.tipo, proyecto.raiz, modulo, proyecto.copia
+
+    def test_maven_dentro_de_gradle(self):
+        # FORMATO.md 7: el proyecto (lo que se copia, como el ZIP) es el más exterior de todos, aquí el de Gradle;
+        # la herramienta, la del módulo del programa (el fichero de construcción más cercano): Maven
+        g = "fase-01/codigo/01-x/ejemplos/2.1-mezcla"
+        tmp = self.arbol(f"{g}/settings.gradle.kts", f"{g}/build.gradle.kts", f"{g}/tienda/pom.xml")
+        carpeta = tmp / g / "tienda/src/main/java/es/tienda"
+        carpeta.mkdir(parents=True)
+        self.assertEqual(lenguaje_java.raiz_del_proyecto(carpeta), tmp / g)
+        self.assertEqual(self.proyecto(carpeta), ("maven", tmp / g / "tienda", tmp / g / "tienda", tmp / g))
+        self.assertIn(("maven", tmp / g / "tienda"), lenguaje_java.proyectos_de([carpeta]))
+
+    def test_gradle_dentro_de_maven(self):
+        m = "fase-01/codigo/01-x/ejemplos/2.1-mezcla"
+        tmp = self.arbol(f"{m}/pom.xml", f"{m}/inventario/settings.gradle.kts", f"{m}/inventario/build.gradle.kts")
+        carpeta = tmp / m / "inventario/src/main/java/es/inventario"
+        carpeta.mkdir(parents=True)
+        self.assertEqual(lenguaje_java.raiz_del_proyecto(carpeta), tmp / m)
+        self.assertEqual(self.proyecto(carpeta),
+                         ("gradle", tmp / m / "inventario", tmp / m / "inventario", tmp / m))
+        self.assertEqual(lenguaje_java.proyectos_de([carpeta]), [("gradle", tmp / m / "inventario")])
+
+    def test_gradle_sin_settings(self):
+        # Gradle 9.8.2 construye un build.gradle(.kts) sin settings.gradle* como un proyecto de un solo módulo: se
+        # construye desde su carpeta, y el proyecto (FORMATO.md 7) es la carpeta del build.gradle(.kts) más exterior
+        p = "fase-01/codigo/01-x/ejemplos/2.1-sin-settings"
+        tmp = self.arbol(f"{p}/build.gradle.kts", f"{p}/app/build.gradle")
+        app = tmp / p / "app/src/main/java/es/app"
+        app.mkdir(parents=True)
+        self.assertEqual(lenguaje_java.raiz_gradle(app), (tmp / p / "app", tmp / p / "app"))
+        self.assertEqual(lenguaje_java.raiz_del_proyecto(app), tmp / p)
+        self.assertEqual(self.proyecto(app), ("gradle", tmp / p / "app", tmp / p / "app", tmp / p))
+        # Un solo build.gradle.kts sin settings: el proyecto es su carpeta
+        solo = tmp / p / "src"
+        solo.mkdir()
+        self.assertEqual(lenguaje_java.raiz_del_proyecto(solo), tmp / p)
+        self.assertEqual(self.proyecto(solo), ("gradle", tmp / p, tmp / p, tmp / p))
+        # Con settings en la ruta, el build.gradle de encima no cuenta (la regla de siempre)
+        tmp = self.arbol(f"{p}/build.gradle.kts", f"{p}/interno/settings.gradle.kts", f"{p}/interno/build.gradle.kts")
+        self.assertEqual(lenguaje_java.raiz_del_proyecto(tmp / p / "interno"), tmp / p / "interno")
+        self.assertIsNone(lenguaje_java.raiz_del_proyecto(tmp / "fase-01/codigo/01-x"))
+
+    def test_ventana_fuera_de_la_carpeta_verificada_no_se_escribe(self):
+        # La imagen nueva solo se guarda dentro de .verificacion/ventanas/ (de la carpeta desde la que se verifica)
+        tmp = Path(tempfile.mkdtemp(prefix="test-java-"))
+        self.addCleanup(shutil.rmtree, tmp)
+        raiz, fuera = tmp / "curso", tmp / "fuera"
+        raiz.mkdir()
+        fuera.mkdir()
+        imagen = fuera / "captura.png"
+        imagen.write_bytes(b"la de antes")
+        informe = verificar_codigo.Informe()
+        java = lenguaje_java.Java(verificar_codigo.Verificador(raiz, informe, False))
+        md = types.SimpleNamespace(rel="fase-01/01-x.md")
+        anterior = Path.cwd()
+        os.chdir(raiz)
+        self.addCleanup(os.chdir, anterior)
+        java.comparar_ventana(md, 9, raiz / "Panel.java", imagen, b"la de ahora")
+        self.assertEqual(imagen.read_bytes(), b"la de antes")
+        self.assertEqual(sorted(p.name for p in fuera.iterdir()), ["captura.png"])
+        self.assertFalse((raiz / ".verificacion").exists())
+        self.assertEqual(informe.errores, [("fase-01/01-x.md", 10, f"la imagen {imagen} está fuera de la carpeta "
+                                            "que se verifica: la de ahora no se guarda (solo se guarda dentro de "
+                                            ".verificacion/ventanas/)")])
+
+    def test_puerto_que_no_es_un_numero(self):
+        tmp = Path(tempfile.mkdtemp(prefix="test-java-"))
+        self.addCleanup(shutil.rmtree, tmp)
+        catalogo = tmp / "catalogo"
+        recursos = catalogo / "src/main/resources"
+        recursos.mkdir(parents=True)
+        propiedades = recursos / "application.properties"
+        # ${VARIABLE:valor}: sin la variable (la terminal no la tiene), Spring usa el valor por defecto
+        propiedades.write_text("spring.application.name=catalogo\nserver.port=${PORT:8085}\n", encoding="utf-8")
+        self.assertEqual(lenguaje_java.puerto_de(catalogo), 8085)
+        self.assertEqual(lenguaje_java.puerto_de(catalogo, ["--server.port=${PUERTO:8086}"]), 8086)
+        propiedades.write_text("spring.application.name=catalogo\nserver.port=${PORT}\n", encoding="utf-8")
+        with self.assertRaises(RuntimeError) as e:
+            lenguaje_java.puerto_de(catalogo)
+        self.assertEqual(str(e.exception), "catalogo/src/main/resources/application.properties:2: server.port no es "
+                                           "un número (ni ${VARIABLE:número}): ${PORT}")
+        with self.assertRaises(RuntimeError) as e:
+            lenguaje_java.puerto_de(catalogo, ["--server.port=abc"])
+        self.assertEqual(str(e.exception), "servidor.txt: catalogo --server.port=abc: el puerto no es un número "
+                                           "(ni ${VARIABLE:número})")
+
+    def test_solo_compilar_que_no_esta_en_utf8(self):
+        p = "fase-01/codigo/01-x/ejercicios/ej08-docker"
+        tmp = self.arbol(f"{p}/pom.xml")
+        (tmp / p / "solo-compilar.txt").write_bytes("Sin pruebas:\nnecesita Docker y Testcontainers, año 2026.\n"
+                                                     .encode("latin-1"))
+        mensaje = f"{p}/solo-compilar.txt:2: no está en UTF-8"
+        with self.assertRaises(RuntimeError) as e:
+            lenguaje_java.sin_pruebas(tmp / p)
+        self.assertEqual(str(e.exception), mensaje)
+        # --preparar-java lo dice como error del proyecto, sin llegar a construirlo
+        with unittest.mock.patch.object(lenguaje_java.subprocess, "run") as run:
+            self.assertEqual(lenguaje_java.preparar("maven", tmp / p, False), mensaje)
+        run.assert_not_called()
+
+    def test_la_cache_es_de_solo_lectura_al_verificar(self):
+        # Solo --preparar-java (con red) puede escribir en el volumen de la caché
+        cache = f"{lenguaje_java.volumen()}:{lenguaje_java.EN_LA_IMAGEN}/cache"
+        verificar = lenguaje_java.abrir_terminal(CURSO, True)
+        self.assertEqual(verificar.opciones, ["-v", f"{cache}:ro"])
+        self.assertFalse(verificar.red)
+        preparar = lenguaje_java.abrir_terminal(CURSO, True, red=True)
+        self.assertEqual(preparar.opciones, ["-v", cache])
+
     def test_servidor_txt_rutas_opciones_puerto_y_copia(self):
         tmp = Path(tempfile.mkdtemp(prefix="test-java-"))
         self.addCleanup(shutil.rmtree, tmp)
@@ -204,9 +319,9 @@ class Unidad(unittest.TestCase):
 
     def test_preparar_sin_pruebas(self):
         # L14.2: con «Sin pruebas:» en solo-compilar.txt, --preparar-java compila las pruebas pero no las ejecuta
-        self.assertIn("-DskipTests", lenguaje_java.metas_de_preparar("maven", sin_pruebas=True))
+        self.assertIn("-DskipTests", lenguaje_java.metas_de_preparar("maven", saltar_pruebas=True))
         self.assertNotIn("-DskipTests", lenguaje_java.metas_de_preparar("maven"))
-        gradle = lenguaje_java.metas_de_preparar("gradle", sin_pruebas=True)
+        gradle = lenguaje_java.metas_de_preparar("gradle", saltar_pruebas=True)
         self.assertIn(["-x", "test"], [gradle[i:i + 2] for i in range(len(gradle))])
         self.assertNotIn("-x", lenguaje_java.metas_de_preparar("gradle"))
 
@@ -355,9 +470,12 @@ class ProgramasSinDocker(Base):
                          f"{EJEMPLOS}/2.1-saludo/Saludo.java lleva termina-con-error.txt pero termina bien (código 0)")
 
     def test_salida_variable(self):
+        # Una hora que el reloj no puede dar (pero que la máscara acepta): sin la máscara, nunca coincide por azar
+        self.cambiar(PROGRAMAS, "Son las 10:30:00", "Son las 99:99:99")
+        self.assertEqual(self.ejecutar(PROGRAMAS), 0, self.salida)
         (self.raiz / EJEMPLOS / "2.5-hora/salida-variable.txt").unlink()
         self.assertError(PROGRAMAS, self.linea(PROGRAMAS, "**Salida:**", "2.5. La hora"),
-                         "la salida de Hora.java no es la del texto")
+                         "la salida de Hora.java no es la del texto", "'Son las 99:99:99'")
 
     def test_solo_compilar_que_no_compila(self):
         for rel in (f"{EJEMPLOS}/2.6-ventana/Aviso.java", PROGRAMAS):
@@ -429,19 +547,22 @@ class MavenSinDocker(Base):
 
     def test_salida_variable_junto_al_pom_en_las_pruebas(self):
         # L14.1: el salida-variable.txt del pom.xml también vale para la «Salida de las pruebas» (la hora de PrecioTest)
+        # Una hora que el reloj no puede dar: sin la máscara, nunca coincide por azar
+        self.cambiar(MAVEN, "Probado a las 10:30:00", "Probado a las 99:99:99")
         (self.raiz / TIENDA / "salida-variable.txt").unlink()
         self.assertError(MAVEN, self.linea(MAVEN, "**Salida de las pruebas:**", "Sus pruebas"),
-                         "la salida de las pruebas de PrecioTest.java no es la del texto", "'Probado a las 10:30:00'")
+                         "la salida de las pruebas de PrecioTest.java no es la del texto", "'Probado a las 99:99:99'")
 
     def test_salida_variable_de_la_carpeta_de_las_pruebas_va_primero(self):
         # Como con los programas: primero el de la carpeta de la clase y, si no hay, el del pom.xml
+        self.cambiar(MAVEN, "Probado a las 10:30:00", "Probado a las 99:99:99")
         clase = self.raiz / TIENDA / "src/test/java/es/tienda"
         shutil.copy(self.raiz / TIENDA / "salida-variable.txt", clase / "salida-variable.txt")
         (self.raiz / TIENDA / "salida-variable.txt").write_text("esto-no-sale\n", encoding="utf-8")
         self.assertEqual(self.ejecutar(MAVEN), 0, self.salida)
         (clase / "salida-variable.txt").write_text("esto-tampoco\n", encoding="utf-8")
         self.assertError(MAVEN, self.linea(MAVEN, "**Salida de las pruebas:**", "Sus pruebas"),
-                         "la salida de las pruebas de PrecioTest.java no es la del texto")
+                         "la salida de las pruebas de PrecioTest.java no es la del texto", "'Probado a las 99:99:99'")
 
     def prueba_que_falla(self, carpeta):
         prueba = self.raiz / carpeta / "src/test/java" / FALLA
@@ -453,8 +574,8 @@ class MavenSinDocker(Base):
         self.prueba_que_falla(TIENDA)
         (self.raiz / TIENDA / "solo-compilar.txt").write_text(
             "Sin pruebas: su prueba usa Testcontainers, que necesita Docker.\n", encoding="utf-8")
-        self.assertEqual(self.ejecutar(MAVEN), 0, self.salida)
-        self.assertNotIn("necesitaDocker", self.salida)          # la prueba no se ha ejecutado
+        self.assertEqual(self.ejecutar(MAVEN), 0, self.salida)   # FallaTest no se ha ejecutado: habría parado mvn
+        self.assertIn("2 programas de Java", self.salida)
 
     def test_solo_compilar_con_pruebas(self):
         # Sin el prefijo, como siempre: se construye con las pruebas, y la que falla para la construcción
@@ -464,7 +585,21 @@ class MavenSinDocker(Base):
         self.assertError(MAVEN, self.enlace(MAVEN, "codigo/02-maven/ejemplos/2.1-tienda/src/main", 2),
                          "mvn package falla en 2.1-tienda", "FallaTest")
 
-    def test_sin_pruebas_no_compila_las_pruebas_mal_escritas(self):
+    def test_solo_compilar_que_no_esta_en_utf8(self):
+        # Un error con su fichero y su línea, no una traza que para toda la verificación
+        (self.raiz / TIENDA / "solo-compilar.txt").write_bytes("Sin pruebas: año 2026.\n".encode("latin-1"))
+        self.assertError(MAVEN, self.enlace(MAVEN, "codigo/02-maven/ejemplos/2.1-tienda/src/main", 2),
+                         f"{TIENDA}/solo-compilar.txt:1: no está en UTF-8")
+        self.assertNotIn("Traceback", self.salida)
+
+    def test_maven_dentro_de_gradle(self):
+        # FORMATO.md 7: la copia es la del proyecto más exterior (el de Gradle), y se construye con Maven, el suyo
+        (self.raiz / TIENDA).parent.joinpath("settings.gradle.kts").write_text('rootProject.name = "ejemplos"\n',
+                                                                             encoding="utf-8")
+        self.assertEqual(self.ejecutar(MAVEN), 0, self.salida)
+        self.assertIn("2 programas de Java", self.salida)
+
+    def test_sin_pruebas_sigue_compilando_las_pruebas(self):
         # Las pruebas se compilan aunque no se ejecuten
         self.prueba_que_falla(TIENDA)
         self.cambiar(f"{TIENDA}/src/test/java/{FALLA}", "assertEquals(1, 2);", "assertEquals(1, 2)")
@@ -533,6 +668,22 @@ class GradleSinDocker(Base):
         (self.raiz / INVENTARIO / "solo-compilar.txt").write_text("Sin pruebas: necesita Docker.\n", encoding="utf-8")
         self.assertError(GRADLE, self.enlace(GRADLE, "codigo/03-gradle/ejemplos/2.1-inventario/src/main"),
                          "gradle build falla en 2.1-inventario")
+
+    def test_gradle_dentro_de_maven(self):
+        # FORMATO.md 7: la copia es la del proyecto más exterior (el pom.xml de encima), pero el programa se construye
+        # con Gradle, el de su módulo; con Maven no encontraría la clase
+        shutil.copy(self.raiz / TIENDA / "pom.xml", (self.raiz / INVENTARIO).parent / "pom.xml")
+        self.assertEqual(self.ejecutar(GRADLE), 0, self.salida)
+        self.assertIn("1 programas de Java", self.salida)
+
+    def test_gradle_sin_settings(self):
+        # Gradle construye un build.gradle.kts sin settings.gradle* como un proyecto de un solo módulo, también dentro
+        # de otro build.gradle.kts sin settings (el proyecto más exterior, el que se copia)
+        (self.raiz / INVENTARIO / "settings.gradle.kts").unlink()
+        self.assertEqual(self.ejecutar(GRADLE), 0, self.salida)
+        (self.raiz / INVENTARIO).parent.joinpath("build.gradle.kts").write_text("", encoding="utf-8")
+        self.assertEqual(self.ejecutar(GRADLE), 0, self.salida)
+        self.assertIn("1 programas de Java", self.salida)
 
     def test_dos_proyectos_en_la_misma_verificacion(self):
         # Con Docker, el demonio del primero no puede quedarse con el bloqueo de la caché de Gradle (el volumen)
@@ -757,6 +908,31 @@ class PrepararSpringSinMainSinDocker(Base):
 @unittest.skipUnless(HAY_DOCKER, "sin Docker")
 class PrepararSpringSinMainConDocker(PrepararSpringSinMainSinDocker):
     sin_docker = False
+
+
+@unittest.skipUnless(HAY_DOCKER, "sin Docker")
+class CacheDeSoloLecturaConDocker(Base):
+    """Al verificar, la caché de Java (el volumen que llena --preparar-java) es de solo lectura: un programa del curso
+    no puede cambiar lo que usarán los demás."""
+    sin_docker = False
+
+    def test_un_programa_no_puede_escribir_en_la_cache(self):
+        carpeta = self.raiz / EJEMPLOS / "2.8-cache"
+        carpeta.mkdir()
+        fuente = ("import java.io.IOException;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\n\n"
+                  "public class Intruso {\n    public static void main(String[] args) {\n"
+                  "        Path fichero = Path.of(\"/opt/kit-java/cache/m2/repository/intruso.txt\");\n"
+                  "        try {\n            Files.writeString(fichero, \"x\");\n            Files.delete(fichero);\n"
+                  "            System.out.println(\"He escrito en la caché.\");\n"
+                  "        } catch (IOException e) {\n            System.out.println(\"No puedo escribir en la caché.\");\n"
+                  "        }\n    }\n}\n")
+        (carpeta / "Intruso.java").write_text(fuente, encoding="utf-8")
+        rel = "codigo/01-programas/ejemplos/2.8-cache/"
+        self.cambiar(PROGRAMAS, "## 3. Errores típicos", f"### 2.8. La caché\n\n```java\n{fuente}```\n\n"
+                     f"📁 **Código:** [`{rel}`]({rel})\n\n**Salida:**\n\n```text\nNo puedo escribir en la caché.\n```\n\n"
+                     "## 3. Errores típicos")
+        self.assertEqual(self.ejecutar(PROGRAMAS), 0, self.salida)
+        self.assertIn("9 programas de Java", self.salida)
 
 
 @unittest.skipUnless(HAY_DOCKER, "sin Docker")
