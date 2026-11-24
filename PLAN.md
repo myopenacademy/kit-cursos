@@ -8,12 +8,12 @@ Que se pueda **escribir un curso para MyOpenAcademy, verificarlo y saber que se 
 
 ## 2. Estructura
 
-Cómo es hoy (9 de noviembre de 2026):
+Cómo es hoy (24 de noviembre de 2026, kit 1.1.0):
 
 ```
 kit-cursos/
 ├── README.md                 ← qué es y cómo arrancar un curso nuevo, paso a paso
-├── FORMATO.md                ← el contrato (versión 1)
+├── FORMATO.md                ← el contrato (versión 1, revisión 1.1)
 ├── plantillas/               ← lo que se copia al crear un curso, con huecos
 │   ├── curso.json
 │   ├── CLAUDE.md, PLAN-CURSO.md, ESTADO.md
@@ -23,11 +23,16 @@ kit-cursos/
 └── herramientas/
     ├── README.md
     ├── formato_academia.py   ← comprueba que un curso cumple FORMATO.md (la pieza central, sin dependencias)
-    ├── nucleo/               ← lo común: verificar_codigo, declarar_ejercicios, generar_indice, generar_chuleta_global,
-    │                           comprobar_mermaid, reemplazar y argumentos
-    ├── lenguajes/            ← un comprobador por lenguaje o formato: bash.py y formato_json/yaml/xml/csv/markdown/toml/ini/svg.py
-    ├── servicios/            ← terminal.py y la imagen de la terminal del kit (terminal/); lo del curso de Java, cuando lo pida
-    └── pruebas/              ← las pruebas y los cursos de ejemplo (bueno y ejemplo-destino), que usa también la academia
+    ├── nucleo/               ← lo común: verificar_codigo, declarar_ejercicios, generar_indice, generar_ruta_minima,
+    │                           generar_chuleta_global, comprobar_mermaid, reemplazar y argumentos
+    ├── lenguajes/            ← un comprobador por lenguaje o formato: los ejecutores bash.py y java.py, y
+    │                           formato_json/yaml/xml/csv/markdown/toml/ini/svg.py
+    ├── servicios/            ← terminal.py, servidor_http.py, la imagen de la terminal del kit (terminal/) y la de
+    │                           Java (java/: Dockerfile, teclear.py, aplicacion.py, CapturaVentana.java, CapturaSwing.java
+    │                           y classpath.init.gradle.kts)
+    └── pruebas/              ← las pruebas; los cursos de ejemplo bueno y ejemplo-destino (que usa también la academia) y
+                                java (para el ejecutor de Java); y fiabilidad_java.py, la prueba de fiabilidad con el
+                                curso de Java (no es de unittest)
 ```
 
 ## 3. Tareas para el curso inicial (versión mínima)
@@ -51,7 +56,7 @@ En este orden:
    - Condiciones comunes: **sin internet** y **salidas en español** (el kit fija `LC_ALL`, por ejemplo `es_ES.UTF-8`; la máquina necesita ese *locale* y las traducciones de Git).
 5. ~~**`herramientas/README.md`** con cada herramienta, sus requisitos y ejemplos~~ (hecho y revisado entero el 9 de noviembre de 2026).
 
-**Después** (cuando lo pida el curso de Java): separar `verificar_codigo.py` (unas 1.500 líneas) en núcleo y ejecutores (Java, SQL, Node, páginas, Compose, Linux, plataformas…), `generar_modulo.py`, y la prueba de fiabilidad contra el curso de Java original. Y dos opciones de `formato_academia.py`, en vez de un `comprobar_enlaces.py` aparte (decisión del autor, 8 de noviembre de 2026):
+**Después** (cuando lo pida el curso de Java). Hecho en el kit 1.1.0 (23 y 24 de noviembre de 2026, pedido por el curso de Java): `verificar_codigo.py` separado en núcleo y ejecutores, con el **ejecutor de Java** (`lenguajes/java.py` y su imagen, `servicios/java/`), `generar_ruta_minima.py` y **la prueba de fiabilidad** contra el curso de Java (`pruebas/fiabilidad_java.py`; ver `ESTADO.md`). Queda para cuando lo pida un curso: los demás ejecutores del curso de Java (SQL, Node, páginas, Compose, Linux, IA, plataformas…), `generar_modulo.py` y dos opciones de `formato_academia.py`, en vez de un `comprobar_enlaces.py` aparte (decisión del autor, 8 de noviembre de 2026):
 
 - **`--fichero <ruta>`**: comprobar un solo fichero mientras se escribe, más rápido.
 - **Todos los cursos a la vez** (por ejemplo, `--todos ../`, que recorre las carpetas hermanas con `curso.json`): detectar los enlaces que se rompen en otros cursos cuando uno renombra un fichero. Hace falta cuando haya más de un curso.

@@ -4,14 +4,17 @@
 
 ## Dónde estamos
 
+**24 de noviembre de 2026: la 1.1.0, lista en la rama `feat/kit-1-1-0`, sin fusionar con `main` ni publicar.** La pidió el curso de Java el 23 de noviembre de 2026 (plan aprobado por el autor): el **ejecutor de Java** de `verificar_codigo.py` con su imagen sin red y `--preparar-java`, `generar_ruta_minima.py` (con 🧭 en el índice) y la **prueba de fiabilidad** con el curso de Java; por el camino, la revisión 1.1 de `FORMATO.md` (el formato sigue en 1), las pruebas sin el 8080 y lo que pidieron la academia y el autor (partes, ZIP del proyecto, `academia_minima`). 13 commits de código y formato (ver «Hecho» y «Kit 1.1.0»), más el de esta documentación; 520 pruebas en el último recuento con commit (`c06fc47`).
+
 **23 de noviembre de 2026: publicado** (`v1.0.0`, ver «Siguiente paso»). **16 de noviembre de 2026.** El kit mínimo para el curso inicial está hecho entero: tareas 1 a 5 de `PLAN.md`, también el paso 4 de la tarea 4 (`curl` con un servidor HTTP local genérico: cada ejemplo describe sus rutas en su `servidor.json`). Hecha también la comparación de un CSV con su JSON (reto 3 de la fase 4 del curso), `codificacion.txt`, TSV, TOML, INI y SVG, Mermaid en `codigo/`, el aviso de las listas de tareas, la comprobación de los `.env` de `codigo/` y el aviso de los correos fuera de código, `.github/` y la cabecera YAML de los `.md` de `codigo/`, el error por un repositorio de Git en `codigo/` y Liquid de Jekyll como texto. 358 pruebas (`python3 -m unittest discover -s herramientas/pruebas`). El curso inicial tiene aprobadas sus fases 1 a 4, verificadas con las herramientas del kit, y está con la 5 (Git). La academia usa los cursos de ejemplo del kit (`94d93c8`).
 
 | Herramienta | Qué hace |
 |---|---|
 | `formato_academia.py` | Que un curso cumple `FORMATO.md` y se puede instalar |
-| `nucleo/verificar_codigo.py` | Que el código coincide con `codigo/` y funciona: bash (también con bash 3.2), sesiones de terminal, de Git y de `curl` con un servidor HTTP local (también encadenadas), JSON, YAML, XML, CSV/TSV (con `codificacion.txt`), TOML, INI, SVG y Markdown, y que un CSV y su JSON dicen lo mismo; con Docker, en la terminal del kit |
+| `nucleo/verificar_codigo.py` | Que el código coincide con `codigo/` y funciona: bash (también con bash 3.2), sesiones de terminal, de Git y de `curl` con un servidor HTTP local (también encadenadas), JSON, YAML, XML, CSV/TSV (con `codificacion.txt`), TOML, INI, SVG y Markdown, y que un CSV y su JSON dicen lo mismo; con Docker, en la terminal del kit. Desde la 1.1.0, **Java** (programas, Maven, Gradle, JUnit, Spring Boot, JavaFX y Swing) en la imagen de Java, y `--preparar-java` |
 | `nucleo/declarar_ejercicios.py` | Declara los ejercicios de un módulo en `curso.json` sin cambiar identificadores |
 | `nucleo/generar_indice.py`, `nucleo/generar_chuleta_global.py` | `00-indice.md` y `99-chuleta-global.md`, desde `curso.json` |
+| `nucleo/generar_ruta_minima.py` (1.1.0) | `RUTA-MINIMA.md`, desde `ruta_minima` de `curso.json` |
 | `nucleo/comprobar_mermaid.py` | Que los diagramas se dibujan, con Mermaid 12.3.0 (la de la academia) y 10.9.8 |
 | `nucleo/reemplazar.py` | Sustituciones en varios ficheros, todas o ninguna |
 
@@ -19,6 +22,8 @@ Todo documentado en `herramientas/README.md`, con «Por dónde empezar».
 
 ## Siguiente paso
 
+- **Kit 1.1.0, le toca al autor:** revisar la rama `feat/kit-1-1-0`, fusionarla con `main`, poner la fecha a la entrada de `CHANGELOG.md` (hoy «sin publicar») y la versión en el `README.md`, etiquetar `v1.1.0` y publicar la *release* con su nota. Hasta que exista la etiqueta, el curso de Java no puede anotar verificaciones con el ejecutor de Java (regla común de `../CLAUDE.md`: solo cuentan las hechas con una copia limpia de una versión etiquetada del kit).
+- Después, avisar al curso de Java (lo que le toca, en «Dependencias con el curso de Java») y a la academia («Notas para la academia», en «Kit 1.1.0»).
 - **Publicado el 23 de noviembre de 2026** en <https://github.com/myopenacademy/kit-cursos> (público): etiqueta `v1.0.0` sobre `f041ccb` y *release* «Kit de cursos 1.0.0» con la nota de `CHANGELOG.md`. `FORMATO.md` se abre en <https://github.com/myopenacademy/kit-cursos/blob/main/FORMATO.md> (comprobado: 200). El curso inicial ya está publicado también (ver «Hecho», 23 de noviembre de 2026).
 - Las etiquetas solo se mueven si cambia el producto; los commits que solo tocan `ESTADO.md` van con el push de `main` (regla del autor, 23 de noviembre de 2026). Un cambio del kit, a partir de ahora, sale en una versión nueva (1.0.1, 1.1.0…) con su entrada en `CHANGELOG.md`.
 
@@ -54,6 +59,74 @@ Todo documentado en `herramientas/README.md`, con «Por dónde empezar».
 **Además, a petición del curso inicial**: `nucleo/reemplazar.py` (de su `.verificacion/`, mejorado: `--comprobar`, `--raiz`, saltos de línea de Windows y vuelta atrás si una escritura falla) y `nucleo/declarar_ejercicios.py` (de su `publicar.py`: reconoce los ejercicios solo por su título y, si uno cambia, para y pregunta; decisiones del autor).
 
 **Datos de esta máquina** (8 de noviembre de 2026): Docker 29.9.2, Node 24.22.1 y Chrome, el *locale* `es_ES.UTF-8` y Git 2.53.0 del sistema.
+
+## Kit 1.1.0: ejecutor de Java, ruta mínima y prueba de fiabilidad
+
+Pedido por el curso de Java el 23 de noviembre de 2026; plan aprobado por el autor con estas respuestas: `ruta_minima` en `curso.json`, con el texto aparte; red solo en `--preparar-java`; las versiones de SDKMAN del autor, fechadas y con la más reciente anotada; el 8080, dentro de la 1.1.0. Y dos cambios suyos: el formato sigue en 1, con la revisión 1.1 en el registro de cambios de `FORMATO.md` (comprobado antes que la academia 1.0.0 instala un curso con `ruta_minima` y lo ignora sin error), y la prueba de fiabilidad sobre `../curso-java/` en un commit fijo y solo leyendo.
+
+**Decisiones del autor por el camino:**
+
+- **La imagen de Java, de 1,38 GB, vale** (23 de noviembre de 2026; hoy 1,39 GB, unos 826 MB más que la terminal: documentado en `herramientas/README.md` y `CHANGELOG.md`). **Gradle 9.8.2 → 9.9.x se actualiza a la vez que el curso de Java revise sus versiones antes de publicar** (la imagen y el curso, con las mismas). Temurin y Maven son parches: se quedan.
+- **Las ventanas se dibujan con DejaVu** (24 de noviembre de 2026): la letra de la imagen. El curso regenera sus capturas con Docker.
+- **Un bloque puede enseñar un fichero de verificación** y se compara con él (24 de noviembre de 2026; `FORMATO.md` 7.1). Va en el ZIP: lo que el alumno ve, lo puede descargar.
+- **`academia_minima`**, opcional en `curso.json` (24 de noviembre de 2026), para que un curso que necesita la academia 1.1.0 (por el ZIP del proyecto) no se instale mal en una anterior.
+- **El ZIP del proyecto Maven o Gradle entero** (23 de noviembre de 2026) y la `codigo/` que cuenta, solo la de una fase o de `proyecto/` (24 de noviembre de 2026).
+- **Las partes, tramos de fases seguidas y en orden, sin partes vacías** (23 de noviembre de 2026, pedido por la academia con el orden del autor: primero el kit, después la academia copia las reglas).
+
+### La prueba de fiabilidad
+
+**Commit fijo `cfb14f3e` de `../curso-java/`** (sacado con `git archive`; el repositorio solo se ha leído), 23 y 24 de noviembre de 2026, con `pruebas/fiabilidad_java.py`. Original: su `verificar_codigo.py` en el equipo, con el PATH de SDKMAN; kit: Docker, imagen `kit-java:b7e24586c836`, sin red, con la caché de `--preparar-java`. Las mismas versiones en los dos: Temurin 25.0.4.1+1, Maven 3.10.0 y Gradle 9.8.2.
+
+- **Qué cubre:** los bloques ` ```java ` con su «📁 Código» de las fases 01 (sueltos, Maven y 5 proyectos de Gradle), 02 (266 programas sueltos), 07 (Maven y 39 «Salida de las pruebas»), 08 (JavaFX y Swing, 63 ventanas) y 11 (Spring Boot), y los módulos 12.01, 12.04 y 12.18 (`peticiones.txt` y `servidor.txt`). Aparte, 62 bloques del 12.18 que necesitan una base de datos (fuera del alcance). No cubre las fases 03 a 06, 09, 10 y 13 a 20, el proyecto ni el resto de la 12 (falta de tiempo; varias necesitan bases de datos, navegador o IA, que el kit no hace).
+- **Resultado: 2172 de 2244 bloques coinciden (96,8 %)** antes de los arreglos. Ninguno falla en las dos; 71 desacuerdos son errores solo del kit y 1 solo del original.
+- **Las causas, y quién las arregla:**
+
+  | # | Bloques | Causa | Quién | Estado |
+  |---|---|---|---|---|
+  | 1 | 62 (fase 08) | Las ventanas del curso se hicieron con Noto Sans (el equipo); la imagen del kit tiene DejaVu | El curso | Decisión del autor: DejaVu; el curso regenera las imágenes |
+  | 2 | 4 (01.03 ×3, 01.04) | Programas sueltos con `package` bajo `src/`: el kit copiaba solo la carpeta enlazada | El kit | **Arreglado** (`3cdfa6d`): fase 01, 46 de 46 |
+  | 3 | 2 (01.06) | Gradle con demonio en Docker: bloqueo de la caché compartida | El kit | **Arreglado** (`3cdfa6d`): sin demonio |
+  | 4 | 1 (07.09, `OrdersTest`) | La «Salida de las pruebas» lleva la ruta de la caché de Maven del autor | El curso | El kit admite el `salida-variable.txt` del `pom.xml` (`c06fc47`); el curso tiene que ajustar su expresión |
+  | 5 | 2 (11.05 ej08) | Testcontainers: necesita Docker dentro de la terminal | Fuera del alcance | «Sin pruebas:» en `solo-compilar.txt` (`c06fc47`); Docker en la terminal, más adelante |
+  | 6 | 1 (11.06, `ActuatorApplication`) | El orden de las claves de `/actuator` cambia entre ejecuciones (falló el original) | El curso | Pendiente del curso |
+
+- **Fuera de los bloques de Java:** los 11 bloques del 12.18 que enseñan `peticiones.txt` daban error en el kit: **resuelto** (`c573010`, el bloque puede enseñar un fichero de verificación). Los dos scripts del 01.04 (`build.sh` necesita `javac`, que la terminal de bash no tiene; `release.sh` necesita un argumento): los decide el curso.
+- **`--preparar-java`:** en la fase 11 fallaban 2 de 105 proyectos (el *repackage* de Spring Boot sin clase con `main`): **arreglado** (`3cdfa6d`), 11.07, 41 de 41. Los 5 proyectos de Gradle del curso no tienen pruebas que fallen a propósito: el arreglo de esas pruebas (`580b429`) no le afecta.
+- **`RUTA-MINIMA.md`** (`--ruta-minima`): los 104 módulos, sus enlaces, las tablas por fase y las 26 consultas puntuales salen iguales; 12 líneas cambian, de tres clases, todas del curso: las horas de 01.01 y 01.06 (su lista frente a la cabecera del módulo), los títulos de las etapas en su `curso.json` (llevan «◆ Etapa N · ») y la columna «Tras» del proyecto (que puede ir en su plantilla).
+- Unos 95 minutos de ejecuciones. El informe completo y los resultados por bloque se quedaron en la carpeta de trabajo local `odd/fiabilidad/`, fuera de Git.
+
+### Notas para la academia
+
+- **Partes** (`FORMATO.md` 3.2): una parte sin fases es error; cada parte, un tramo de fases seguidas y en el orden del curso, y las partes, una tras otra; cada fase en una sola parte y ninguna fuera, si hay partes. La academia ya aplicó las reglas en su importador con los mismos casos (24 de noviembre de 2026).
+- **ZIP del proyecto** (`FORMATO.md` 7): con el destino de un «📁 Código» dentro de un proyecto de Maven o Gradle, el ZIP es el del proyecto más exterior dentro de `codigo/` (el `pom.xml` sin otro encima, o la carpeta con `settings.gradle` o `settings.gradle.kts`; si se mezclan, el más exterior de todos). Solo cuenta la `codigo/` de una fase (`fase-NN-*/codigo/`) o de `proyecto/` (`proyecto/codigo/`); `codigo/` misma no es un proyecto y nunca se sale de ella. Una academia 1.0.0 da el ZIP de la carpeta enlazada. La academia aplicó la regla el 24 de noviembre de 2026 y preguntó tres dudas: (a) y (b) se contestan con lo de arriba, y la (c), la `codigo/` que cuenta, la resolvió el autor (T15): le toca a la academia copiarla.
+- **`academia_minima`** (`FORMATO.md` 3.2): opcional, `MAYOR.MENOR.PARCHE`; la academia rechaza el curso si pide una versión mayor que la suya, comparando los tres números como números y en orden (`1.10.0` es mayor que `1.9.0`). Sin el campo, vale para cualquiera. La 1.0.0 lo ignora. Le toca a la academia aplicarlo.
+- Los ficheros de verificación (también `peticiones.txt`) ya iban en el ZIP: lo que enseña un bloque se puede descargar. No cambia nada en la academia.
+
+## Dependencias con el curso de Java
+
+Se trabaja a la vez que `../curso-java/` (la segunda edición, que se adapta al kit). Su `ESTADO.md` se lee, nunca se toca.
+
+| El kit espera del curso de Java | Para | Estado |
+|---|---|---|
+| Regenerar las **62 imágenes de ventanas de la fase 08** con Docker (la imagen de Java, con DejaVu), en su paso 4b, junto con las que llevan correo | Que «**La ventana:**» coincida (desacuerdo 1) | Pendiente del curso (decisión del autor, 24 de noviembre de 2026). Las nuevas quedan en `.verificacion/ventanas/` al verificar |
+| 07.09, `OrdersTest`: en su `salida-variable.txt` del `pom.xml`, la expresión con **`\.?m2`** (por ejemplo, `/[^ ()]*/\.?m2/repository`) | Quitar la ruta de la caché de Maven: en el kit es `/opt/kit-java/cache/m2/repository`, sin punto, y `\.m2` no la encaja | Pendiente del curso. El kit ya lee ese fichero en la «Salida de las pruebas» (`c06fc47`) |
+| 11.05, ej08: «**Sin pruebas:**» al principio de su `solo-compilar.txt` | Construir sin ejecutar su prueba de Testcontainers | Pendiente del curso. El kit lo admite desde `c06fc47` |
+| 11.06, `ActuatorApplication`: una salida determinista (ordenar o filtrar `_links`, o no mostrar `/actuator` entero) | Que no falle por azar (desacuerdo 6) | Pendiente del curso |
+| 01.04, `build.sh` y `release.sh`: decidir si llevan `args.txt` y qué hacer con un script que usa `javac` (la terminal de bash no lo tiene) | Que el ejecutor de bash no dé un fallo falso | Pendiente del curso |
+| Los **20 avisos de «📁»** del 01.05 y el 01.06: el texto del enlace, la misma carpeta que su destino | `formato_academia.py` sin avisos | Pendiente del curso |
+| `ruta_minima` en su `curso.json` con los ids de sus módulos y etapas (104 y 7 en `cfb14f3e`), su plantilla, los títulos de las etapas sin «◆ Etapa N · », las horas de 01.01 y 01.06 y, si quiere, la columna «Tras» en la plantilla | Generar su `RUTA-MINIMA.md` con el kit | Pendiente del curso |
+| 12.18:4124 (`LibraryApplication`, con `base-de-datos.txt`): necesita PostgreSQL | — | **Fuera del alcance** del kit 1.1.0 (no hay ejecutor de SQL) |
+
+| El curso de Java espera del kit | Para | Estado |
+|---|---|---|
+| Un ejecutor de Java: programas, Maven, Gradle, JUnit, JavaFX y Swing sin pantalla, Spring Boot con `curl` | Verificar su código con el kit | **Hecho**: `a417eba`, `580b429`, `3cdfa6d` |
+| Red solo en `--preparar-java`; versiones de SDKMAN fechadas | Igual en cualquier máquina | **Hecho**: `a417eba` |
+| `RUTA-MINIMA.md` desde `curso.json` | Dejar la lista `RUTA_MINIMA` de su `generar_indice.py` | **Hecho**: `db706a0` (`ruta_minima` en `FORMATO.md`) y `878482e` |
+| La prueba de fiabilidad | Saber que el kit da lo mismo que sus herramientas | **Hecho**: `7b429a7` (arriba) |
+| Bloques que enseñan `peticiones.txt` (12.18) | Sus 11 bloques ` ```text ` con enlace | **Hecho**: `c573010` |
+| `salida-variable.txt` del `pom.xml` en la «Salida de las pruebas» y «Sin pruebas:» en `solo-compilar.txt` (su petición del 24 de noviembre de 2026) | 07.09 y 11.05 | **Hecho**: `c06fc47` |
+| La versión 1.1.0 etiquetada | Anotar sus verificaciones (solo cuentan con una versión etiquetada del kit) | Pendiente del autor («Siguiente paso») |
+| Docker dentro de la terminal (Testcontainers, fase 15) | Ejecutar esas pruebas | Para más adelante, sin prisa (su petición del 24 de noviembre de 2026) |
 
 ## Dependencias con el curso inicial
 
@@ -96,6 +169,20 @@ Si algo bloquea, dilo al autor: él pasa la información de una sesión a otra.
 
 | Fecha | Qué |
 |---|---|
+| 2026-11-24 | **Kit 1.1.0, la `codigo/` que cuenta** (T15, decisión del autor a una duda de la academia): para el ZIP del proyecto, solo la `codigo/` de una fase o de `proyecto/`; una carpeta llamada `codigo` más abajo es un nombre cualquiera. Y, si se mezclan `pom.xml` y `settings.gradle*`, gana el más exterior. `FORMATO.md` 7, con su prueba (6203da6). |
+| 2026-11-24 | **Kit 1.1.0, documentación** (T8): `herramientas/README.md` (el ejecutor de Java, la imagen de Java con su tamaño y sus versiones, `--preparar-java`, `generar_ruta_minima.py` y lo nuevo de `formato_academia.py`), `CHANGELOG.md` (1.1.0, sin publicar), `PLAN.md` (estructura y «Después») y este `ESTADO.md`. |
+| 2026-11-24 | **Kit 1.1.0, lo que pidió el curso de Java tras la prueba** (`c06fc47`): el `salida-variable.txt` del `pom.xml` vale también para la «Salida de las pruebas», y un `solo-compilar.txt` que empieza por «Sin pruebas:» construye el proyecto sin ejecutar sus pruebas (también en `--preparar-java`). `FORMATO.md` 7.1. 520 pruebas, OK. |
+| 2026-11-24 | **Kit 1.1.0, decisiones del autor tras la prueba** (`c573010`): un bloque puede enseñar un fichero de verificación y se compara con él (resuelve los 11 errores del 12.18), y `academia_minima` en `curso.json`, comprobado por `formato_academia.py` (`MAYOR.MENOR.PARCHE`). `FORMATO.md` 3.2 y 7.1. 504 pruebas, OK. |
+| 2026-11-24 | **Kit 1.1.0, arreglos que sacó la prueba** (`3cdfa6d`): programas sueltos con `package` bajo `src/` (se copia desde la raíz de las fuentes), Gradle sin demonio también en Docker y `--preparar-java` sin el *repackage* de Spring Boot. Fase 01 del curso de Java, 46 de 46; 11.07, 41 de 41. 492 pruebas, OK. |
+| 2026-11-24 | **Kit 1.1.0, prueba de fiabilidad** con el curso de Java (`7b429a7`, `pruebas/fiabilidad_java.py`): 2172 de 2244 bloques coinciden («Kit 1.1.0», arriba). |
+| 2026-11-24 | **Kit 1.1.0, ZIP del proyecto** (`774aeaa`, decisión del autor): el ZIP de un «📁 Código» dentro de un proyecto de Maven o Gradle es el del proyecto más exterior dentro de `codigo/`; aviso si el texto del enlace y su destino son carpetas distintas (20 en el curso de Java, los esperados); la raíz de Gradle, también con `settings.gradle` de Groovy. `FORMATO.md` 7 y 13. 482 pruebas, OK. |
+| 2026-11-23 | **Kit 1.1.0, Spring Boot y ventanas** (`580b429`): aplicaciones de Spring Boot probadas con `curl` (`peticiones.txt`, `servidor.txt` y API simuladas), JavaFX con `acciones.txt` y Swing sin pantalla, con «**La ventana:**» byte a byte; `--preparar-java` con un proyecto de Gradle cuyas pruebas fallan a propósito. 476 pruebas, OK. |
+| 2026-11-23 | **Kit 1.1.0, partes** (`44a8e32`, pedido por la academia con el orden del autor): una parte sin fases es error; cada parte, un tramo de fases seguidas y en orden, y las partes, una tras otra. Los casos de una fase sin parte y una fase en dos partes ya los cubría; ahora con prueba. `FORMATO.md` 3.2. |
+| 2026-11-23 | **Kit 1.1.0, el ejecutor de Java** (`a417eba`): `lenguajes/java.py` con la imagen de Java sin red (Temurin 25.0.4.1+1, Maven 3.10.0 y Gradle 9.8.2) y `--preparar-java`, la única vez con red: programas sueltos, `entrada.txt`, `args.txt`, `opciones-java.txt`, `termina-con-error.txt`, Maven, Gradle, JUnit y `solo-compilar.txt`. Curso de ejemplo `pruebas/cursos/java/`. 448 pruebas, OK. |
+| 2026-11-23 | **Kit 1.1.0, ruta mínima** (`878482e`): `nucleo/generar_ruta_minima.py` desde `ruta_minima` de `curso.json`, con plantilla y huecos, y 🧭 en el índice. |
+| 2026-11-23 | **Kit 1.1.0, el `<template>` del 13.02 de Java** (`afcf745`, pedido por la academia: el kit y ella, el mismo resultado). Fallaba el kit: el código en línea se lee ahora como en CommonMark. En el curso de Java solo desaparece ese error; en el curso inicial, nada cambia. |
+| 2026-11-23 | **Kit 1.1.0, ejecutores y 8080** (`b6dcb40`): `verificar_codigo.py` con una lista de ejecutores, y las pruebas del servidor HTTP local en un puerto libre que elige el sistema, no en el 8080. |
+| 2026-11-23 | **Kit 1.1.0, `FORMATO.md` revisión 1.1** (`db706a0`): `ruta_minima` en `curso.json` (3.2) y los ficheros de verificación de Java (7.1); `formato_academia.py` comprueba `ruta_minima` y los huecos de su plantilla. Antes, comprobado que la academia 1.0.0 instala un curso con `ruta_minima` y lo ignora sin error (solo importa `RUTA-MINIMA.md` como documento; la plantilla no se instala). |
 | 2026-11-23 | **Curso inicial publicado** (aviso de su sesión, su `ESTADO.md` en `2e5dd15`): <https://github.com/myopenacademy/curso-inicial>, etiqueta `v1.0.0` sobre `2928b0a` (sin mover) y *release* «Fundamentos para programar 1.0.0 (16 de noviembre de 2026)». Su enlace a `FORMATO.md` del kit devuelve 200. Comprobado desde aquí: la etiqueta remota apunta a `2928b0a` y la *release* está publicada. |
 | 2026-11-23 | **Publicada la 1.0.0** (orden del autor): fecha en `CHANGELOG.md` (`f041ccb`); gitleaks 8.30.1 sobre los 43 commits, sin hallazgos (en el disco, solo los secretos inventados de la prueba de `.env.example` dentro de un `.pyc` ignorado); 358 pruebas, OK (1 saltada), con el 8080 libre (con la academia en local fallaban 37, ver «Para más adelante»). Repositorio `myopenacademy/kit-cursos` público, `main` y etiqueta `v1.0.0` sobre `f041ccb`, *release* «Kit de cursos 1.0.0» marcada como la última. |
 | 2026-11-08 | Repositorio creado; `FORMATO.md` versión 1 movido desde la raíz. |
@@ -140,9 +227,9 @@ Si algo bloquea, dilo al autor: él pasa la información de una sesión a otra.
 
 ## Para más adelante
 
-- **Pruebas que no dependan del puerto 8080** (pedido del autor, 23 de noviembre de 2026; no bloqueaba la 1.0): las de `verificar_codigo.py` sin Docker arrancan el servidor HTTP local en el 8080 del equipo, y fallan (37) si otro programa lo ocupa, como la academia en local. Por ejemplo, que las pruebas usen un puerto libre que elija el sistema. La herramienta ya avisa bien de «puerto en uso»; lo frágil son las pruebas.
-
-- **Prueba de fiabilidad con el curso de Java:** cuando se adapte ese curso, después del pack base 1.0 (decisión del autor).
+- **Docker dentro de la terminal** (pedido por el curso de Java el 24 de noviembre de 2026, sin prisa): para las pruebas con Testcontainers (su 11.05 y más módulos de la fase 15) y un `compose.yaml` en `servidor.txt`. Hasta entonces, «Sin pruebas:» en `solo-compilar.txt`.
+- **Aviso de `formato_academia.py` por un `./algo` del texto del módulo cuyo fichero no es ejecutable en Git**, y al revés (un `mvnw` sin permiso de ejecución). Idea de la sesión de la academia, para después de la 1.1.0. Hoy solo avisa de los que lanza un `sesion*.txt`.
+- **Los demás ejecutores del curso de Java** (SQL, Node, páginas, Compose, Linux, IA…), cuando el curso los pida (`PLAN.md`, «Después»). Con ellos, la prueba de fiabilidad de las fases que no se cubrieron en la 1.1.0.
 
 ## Avisos de los cursos
 

@@ -10,7 +10,7 @@ El formato y las herramientas para crear cursos para **MyOpenAcademy**, una acad
 |---|---|
 | [`FORMATO.md`](FORMATO.md) | **El contrato**: cómo tiene que ser un curso para que la academia lo pueda instalar. Es lo primero que hay que leer. |
 | [`plantillas/`](plantillas/) | Los ficheros que se copian al crear un curso, con huecos `[RELLENAR: …]`. |
-| [`herramientas/`](herramientas/) | Las herramientas: [`formato_academia.py`](herramientas/README.md#formato_academiapy) (¿cumple el curso el formato?), las que verifican el código, generan el índice y la chuleta global y comprueban los diagramas, y dos cursos de ejemplo pequeños (`herramientas/pruebas/cursos/`). Empieza por [«Por dónde empezar»](herramientas/README.md#por-dónde-empezar). |
+| [`herramientas/`](herramientas/) | Las herramientas: [`formato_academia.py`](herramientas/README.md#formato_academiapy) (¿cumple el curso el formato?), las que verifican el código (también el de Java, desde la 1.1.0), generan el índice, la ruta mínima y la chuleta global y comprueban los diagramas, y dos cursos de ejemplo pequeños (`herramientas/pruebas/cursos/`). Empieza por [«Por dónde empezar»](herramientas/README.md#por-dónde-empezar). |
 
 Para crear un curso basta con `FORMATO.md`, las plantillas y `formato_academia.py`, que solo necesita Python 3.11 o posterior, **sin Docker ni nada más**. Las demás herramientas son opcionales y cada una dice qué necesita: solo la **verificación completa del código** (`verificar_codigo.py`) pide Docker, y sin él verifica igualmente, de forma parcial y avisando.
 
@@ -82,3 +82,4 @@ Lo que usan las herramientas, y no va en el kit (a 16 de noviembre de 2026):
 - **PyYAML** (MIT), para comprobar YAML.
 - **Mermaid** y **mermaid-cli** (MIT), que `npx` descarga en su caché para `comprobar_mermaid.py`.
 - **La terminal del kit**: su `Dockerfile` descarga y compila en tu máquina Ubuntu, Git, bash y las coreutils de GNU (licencias GPL). El kit no publica la imagen: solo el `Dockerfile`.
+- **La imagen de Java** (desde la 1.1.0, a 24 de noviembre de 2026): su `Dockerfile` descarga en tu máquina Eclipse Temurin (GPL 2 con la excepción *Classpath*), Maven y Gradle (Apache 2.0), y de Ubuntu las letras DejaVu (su licencia libre, la de Bitstream Vera), fontconfig (de tipo MIT) y Pango (LGPL). Tampoco se publica la imagen.
