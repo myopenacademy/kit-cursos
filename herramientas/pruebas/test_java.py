@@ -52,6 +52,11 @@ PANEL = "fase-01-java/codigo/04-ventanas/ejemplos/2.2-panel"
 PRECIOS = "fase-01-java/codigo/05-spring/ejemplos/2.1-precios"
 PAQUETES = f"{EJEMPLOS}/2.7-paquetes"
 
+FALLA = "es/tienda/FallaTest.java"
+FALLA_TEST = ("package es.{paquete};\n\nimport static org.junit.jupiter.api.Assertions.assertEquals;\n\n"
+              "import org.junit.jupiter.api.Test;\n\nclass FallaTest {{\n    @Test\n    void necesitaDocker() {{\n"
+              "        assertEquals(1, 2);\n    }}\n}}\n")
+
 PREPARADOS = {}         # modo (sin_docker) -> salida de --preparar-java, una vez por ejecución de las pruebas
 
 
@@ -184,6 +189,23 @@ class Unidad(unittest.TestCase):
         otro = tmp / "fase-01/codigo/01-x/ejemplos/2.1-a/otro/Main.java"
         otro.write_text("package es.app;\n", encoding="utf-8")
         self.assertEqual(lenguaje_java.raiz_de_fuentes(otro), otro.parent)
+
+    def test_preparar_sin_pruebas(self):
+        # L14.2: con «Sin pruebas:» en solo-compilar.txt, --preparar-java compila las pruebas pero no las ejecuta
+        self.assertIn("-DskipTests", lenguaje_java.metas_de_preparar("maven", sin_pruebas=True))
+        self.assertNotIn("-DskipTests", lenguaje_java.metas_de_preparar("maven"))
+        gradle = lenguaje_java.metas_de_preparar("gradle", sin_pruebas=True)
+        self.assertIn(["-x", "test"], [gradle[i:i + 2] for i in range(len(gradle))])
+        self.assertNotIn("-x", lenguaje_java.metas_de_preparar("gradle"))
+
+    def test_sin_pruebas_solo_con_el_prefijo_junto_a_un_pom(self):
+        p = "fase-01/codigo/01-x/ejercicios/ej08-docker"
+        tmp = self.arbol(f"{p}/pom.xml", f"{p}/modelo/pom.xml")
+        self.assertFalse(lenguaje_java.sin_pruebas(tmp / p))
+        (tmp / p / "solo-compilar.txt").write_text("Se queda escuchando.\n", encoding="utf-8")
+        self.assertFalse(lenguaje_java.sin_pruebas(tmp / p))
+        (tmp / p / "modelo/solo-compilar.txt").write_text("Sin pruebas: usa Testcontainers.\n", encoding="utf-8")
+        self.assertTrue(lenguaje_java.sin_pruebas(tmp / p))
 
     def test_preparar_maven_sin_repackage(self):
         # Un proyecto de Spring Boot sin clase con main (una autoconfiguración): el repackage fallaría
@@ -393,6 +415,51 @@ class MavenSinDocker(Base):
         self.assertError(MAVEN, self.enlace(MAVEN, "codigo/02-maven/ejemplos/2.1-tienda/src/main", 2),
                          "mvn package falla en 2.1-tienda", "Precio.java:[5,55] ';' expected")
 
+    def test_salida_variable_junto_al_pom_en_las_pruebas(self):
+        # L14.1: el salida-variable.txt del pom.xml también vale para la «Salida de las pruebas» (la hora de PrecioTest)
+        (self.raiz / TIENDA / "salida-variable.txt").unlink()
+        self.assertError(MAVEN, self.linea(MAVEN, "**Salida de las pruebas:**", "Sus pruebas"),
+                         "la salida de las pruebas de PrecioTest.java no es la del texto", "'Probado a las 10:30:00'")
+
+    def test_salida_variable_de_la_carpeta_de_las_pruebas_va_primero(self):
+        # Como con los programas: primero el de la carpeta de la clase y, si no hay, el del pom.xml
+        clase = self.raiz / TIENDA / "src/test/java/es/tienda"
+        shutil.copy(self.raiz / TIENDA / "salida-variable.txt", clase / "salida-variable.txt")
+        (self.raiz / TIENDA / "salida-variable.txt").write_text("esto-no-sale\n", encoding="utf-8")
+        self.assertEqual(self.ejecutar(MAVEN), 0, self.salida)
+        (clase / "salida-variable.txt").write_text("esto-tampoco\n", encoding="utf-8")
+        self.assertError(MAVEN, self.linea(MAVEN, "**Salida de las pruebas:**", "Sus pruebas"),
+                         "la salida de las pruebas de PrecioTest.java no es la del texto")
+
+    def prueba_que_falla(self, carpeta):
+        prueba = self.raiz / carpeta / "src/test/java" / FALLA
+        prueba.parent.mkdir(parents=True, exist_ok=True)
+        prueba.write_text(FALLA_TEST.format(paquete=prueba.parent.name), encoding="utf-8")
+
+    def test_solo_compilar_sin_pruebas(self):
+        # L14.2: «Sin pruebas:» al principio de solo-compilar.txt: se construye sin ejecutar las pruebas
+        self.prueba_que_falla(TIENDA)
+        (self.raiz / TIENDA / "solo-compilar.txt").write_text(
+            "Sin pruebas: su prueba usa Testcontainers, que necesita Docker.\n", encoding="utf-8")
+        self.assertEqual(self.ejecutar(MAVEN), 0, self.salida)
+        self.assertNotIn("necesitaDocker", self.salida)          # la prueba no se ha ejecutado
+
+    def test_solo_compilar_con_pruebas(self):
+        # Sin el prefijo, como siempre: se construye con las pruebas, y la que falla para la construcción
+        self.prueba_que_falla(TIENDA)
+        (self.raiz / TIENDA / "solo-compilar.txt").write_text(
+            "Una aplicación que se queda escuchando. Sin pruebas: no vale a mitad del texto.\n", encoding="utf-8")
+        self.assertError(MAVEN, self.enlace(MAVEN, "codigo/02-maven/ejemplos/2.1-tienda/src/main", 2),
+                         "mvn package falla en 2.1-tienda", "FallaTest")
+
+    def test_sin_pruebas_no_compila_las_pruebas_mal_escritas(self):
+        # Las pruebas se compilan aunque no se ejecuten
+        self.prueba_que_falla(TIENDA)
+        self.cambiar(f"{TIENDA}/src/test/java/{FALLA}", "assertEquals(1, 2);", "assertEquals(1, 2)")
+        (self.raiz / TIENDA / "solo-compilar.txt").write_text("Sin pruebas: necesita Docker.\n", encoding="utf-8")
+        self.assertError(MAVEN, self.enlace(MAVEN, "codigo/02-maven/ejemplos/2.1-tienda/src/main", 2),
+                         "mvn package falla en 2.1-tienda", "FallaTest.java")
+
     def test_dependencia_que_no_esta_en_la_cache(self):
         # Sin red, lo que no ha preparado --preparar-java no se puede descargar
         dependencia = ("        <dependency>\n            <groupId>org.apache.commons</groupId>\n"
@@ -430,6 +497,18 @@ class GradleSinDocker(Base):
     def test_no_compila(self):
         for rel in (f"{INVENTARIO}/src/main/java/es/inventario/Main.java", GRADLE):
             self.cambiar(rel, 'List.of("Lápiz", "Cuaderno", "Goma");', 'List.of("Lápiz", "Cuaderno", "Goma")')
+        self.assertError(GRADLE, self.enlace(GRADLE, "codigo/03-gradle/ejemplos/2.1-inventario/src/main"),
+                         "gradle build falla en 2.1-inventario")
+
+    def test_solo_compilar_sin_pruebas(self):
+        # L14.2: con Gradle, «build -x test»; sin el prefijo, la prueba que falla para la construcción
+        prueba = self.raiz / INVENTARIO / "src/test/java" / FALLA.replace("tienda", "inventario")
+        prueba.parent.mkdir(parents=True)
+        prueba.write_text(FALLA_TEST.format(paquete="inventario"), encoding="utf-8")
+        solo = self.raiz / INVENTARIO / "solo-compilar.txt"
+        solo.write_text("Sin pruebas: su prueba usa Testcontainers, que necesita Docker.\n", encoding="utf-8")
+        self.assertEqual(self.ejecutar(GRADLE), 0, self.salida)
+        solo.write_text("Se queda escuchando.\n", encoding="utf-8")
         self.assertError(GRADLE, self.enlace(GRADLE, "codigo/03-gradle/ejemplos/2.1-inventario/src/main"),
                          "gradle build falla en 2.1-inventario")
 
@@ -601,6 +680,30 @@ class PrepararGradleConPruebasQueFallanSinDocker(Base):
 
 @unittest.skipUnless(HAY_DOCKER, "sin Docker")
 class PrepararGradleConPruebasQueFallanConDocker(PrepararGradleConPruebasQueFallanSinDocker):
+    sin_docker = False
+
+
+@unittest.skipUnless(HAY_JAVA_LOCAL, "sin java, javac, mvn o gradle en el PATH")
+class PrepararSinPruebasSinDocker(Base):
+    """L14.2: con «Sin pruebas:» en solo-compilar.txt, --preparar-java tampoco ejecuta las pruebas (una que termina la
+    máquina virtual, como una que no encuentra Docker y se queda colgada, pararía la preparación)."""
+
+    def test_prepara_sin_ejecutar_las_pruebas(self):
+        prueba = self.raiz / TIENDA / "src/test/java" / FALLA
+        prueba.parent.mkdir(parents=True, exist_ok=True)
+        prueba.write_text(FALLA_TEST.format(paquete="tienda").replace("assertEquals(1, 2);", "System.exit(3);"),
+                          encoding="utf-8")
+        solo = self.raiz / TIENDA / "solo-compilar.txt"
+        solo.write_text("Se queda escuchando.\n", encoding="utf-8")
+        self.assertEqual(self.ejecutar("--preparar-java", MAVEN), 1, self.salida)
+        self.assertIn(f"{TIENDA}/: ERROR: no se ha podido preparar (Maven)", self.salida)
+        solo.write_text("Sin pruebas: necesita Docker.\n", encoding="utf-8")
+        self.assertEqual(self.ejecutar("--preparar-java", MAVEN), 0, self.salida)
+        self.assertIn(f"✅ Preparado (Maven): {TIENDA}/", self.salida)
+
+
+@unittest.skipUnless(HAY_DOCKER, "sin Docker")
+class PrepararSinPruebasConDocker(PrepararSinPruebasSinDocker):
     sin_docker = False
 
 

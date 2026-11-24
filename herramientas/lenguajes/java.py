@@ -29,9 +29,13 @@ comparaciones (FORMATO.md, apartado 7.1, «Los de Java»), para que el kit dé e
   (opcional) viene «**Salida de error:**» con su System.err. Si no, debe terminar con 0.
 - «**Salida de las pruebas:**» tras una clase de pruebas de un proyecto de Maven: se ejecutan solo esas pruebas
   («mvn test -Dtest=paquete.Clase») y se compara el resumen de Surefire: desde «Running» hasta «Results:», más el
-  «Tests run:» del total, sin tiempos, trazas ni líneas vacías (resumen_pruebas()).
-- solo-compilar.txt junto al programa: solo se compila con javac. Junto al pom.xml: el proyecto solo se construye
-  (pruebas incluidas) y sus programas no se ejecutan.
+  «Tests run:» del total, sin tiempos, trazas ni líneas vacías (resumen_pruebas()). salida-variable.txt, como con
+  los programas: el de la carpeta de la clase o, si no hay, el del pom.xml de su módulo.
+- solo-compilar.txt junto al programa: solo se compila con javac. Junto al pom.xml (o al build.gradle.kts): el
+  proyecto solo se construye (pruebas incluidas) y sus programas no se ejecutan. Si su texto empieza por «Sin
+  pruebas:» (una prueba con Testcontainers, que necesita Docker), el proyecto entero se construye sin ejecutar sus
+  pruebas, que sí se compilan («mvn package -DskipTests», «gradle build -x test»), también con --preparar-java
+  (sin_pruebas()).
 - Los programas se ejecutan sin pantalla, con la salida en UTF-8 y en español (OPCIONES_JVM y LC_ALL=C.UTF-8,
   como el original), y tienen TIEMPO_MAXIMO segundos.
 
@@ -95,6 +99,7 @@ OPCIONES_JVM = ["-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-Duser.la
 ENTORNO = {"LC_ALL": "C.UTF-8"}
 OPCIONES_EXTRA = "opciones-java.txt"
 SOLO_COMPILAR = "solo-compilar.txt"
+SIN_PRUEBAS = "Sin pruebas:"            # al principio de un solo-compilar.txt de un proyecto: sin ejecutar las pruebas
 SALIDA, SALIDA_DE_ERROR = "**Salida:**", "**Salida de error:**"
 SESION, PRUEBAS = "**Sesión en la terminal:**", "**Salida de las pruebas:**"
 LA_VENTANA, ARRANCADA = "**La ventana:**", "**Con la aplicación arrancada:**"
@@ -168,6 +173,19 @@ def raiz_gradle(carpeta):
         if any((c / n).exists() for n in SETTINGS_GRADLE):
             raiz = c
     return (raiz or modulo, modulo) if modulo else None
+
+
+def sin_pruebas(raiz):
+    """¿Se construye el proyecto de raiz sin ejecutar sus pruebas? Sí, si junto a alguno de sus pom.xml o
+    build.gradle(.kts) hay un solo-compilar.txt cuyo texto empieza por «Sin pruebas:»."""
+    for nombre in ("pom.xml", *BUILD_GRADLE):
+        for fichero in Path(raiz).rglob(nombre):
+            if NO_COPIAR.union({"target", "build"}) & set(fichero.relative_to(raiz).parts):
+                continue
+            solo = fichero.parent / SOLO_COMPILAR
+            if solo.is_file() and solo.read_text(encoding="utf-8").lstrip().startswith(SIN_PRUEBAS):
+                return True
+    return False
 
 
 def raiz_de_fuentes(fichero):
@@ -317,12 +335,14 @@ class Proyecto:
             return
         try:
             t = self.terminal()
+            saltar = sin_pruebas(self.raiz)
             if self.tipo == "maven":
                 codigo, out, err = self.ejecutar(orden_maven(t, "-q", "package", "dependency:build-classpath",
-                                                             "-Dmdep.outputFile=${project.build.directory}/classpath.txt"))
+                                                             "-Dmdep.outputFile=${project.build.directory}/classpath.txt",
+                                                             *(["-DskipTests"] if saltar else [])))
                 que = "mvn package"
             else:
-                codigo, out, err = self.ejecutar(orden_gradle(t, "build"))
+                codigo, out, err = self.ejecutar(orden_gradle(t, "build", *(["-x", "test"] if saltar else [])))
                 que = "gradle build"
         except (OSError, terminal.ErrorDeTerminal) as e:
             self.error = f"no se puede construir {self.raiz.name}: {e}"
@@ -756,7 +776,7 @@ class Java:
         return (out + err).strip() if codigo != 0 else None
 
     def verificar_pruebas(self, md, i, fichero, linea, esperado):
-        proyecto, _ = self.proyecto(fichero.parent)
+        proyecto, modulo = self.proyecto(fichero.parent)
         if proyecto is None or proyecto.tipo != "maven":
             self.v.informe.error(md.rel, i + 1, f"{fichero.name} no está en un proyecto Maven")
             return
@@ -773,7 +793,10 @@ class Java:
             self.v.informe.error(md.rel, i + 1, str(falta) if falta else
                                  f"Maven no ha ejecutado las pruebas de {clase}:\n{sangrar(salida.strip()[-2000:])}")
             return
-        self.v.comparar(md, linea, esperado, real, fichero.parent, f"la salida de las pruebas de {fichero.name}")
+        # salida-variable.txt: el de la carpeta de la clase o, si no hay, el del pom.xml de su módulo (como los programas)
+        variable = _primero([fichero.parent, modulo], "salida-variable.txt")
+        mascara = variable.parent if variable else fichero.parent
+        self.v.comparar(md, linea, esperado, real, mascara, f"la salida de las pruebas de {fichero.name}")
 
 
 def python_de(t):
@@ -876,21 +899,23 @@ def proyectos_de(carpetas):
     return sorted((tipo, raiz) for raiz, tipo in vistos.items())
 
 
-def metas_de_preparar(tipo):
+def metas_de_preparar(tipo, sin_pruebas=False):
     """Lo que construye --preparar-java: lo mismo que la verificación, más sus pruebas (sin parar si alguna falla a
-    propósito). Con Maven, sin el repackage de Spring Boot, que falla en un proyecto sin clase con main (una
-    autoconfiguración): lo que se quiere es la caché, no el .jar."""
+    propósito; con sin_pruebas, «Sin pruebas:» en un solo-compilar.txt, se compilan pero no se ejecutan). Con Maven,
+    sin el repackage de Spring Boot, que falla en un proyecto sin clase con main (una autoconfiguración): lo que se
+    quiere es la caché, no el .jar."""
     if tipo == "maven":
         return ["package", "dependency:build-classpath", "-Dmdep.outputFile=${project.build.directory}/classpath.txt",
-                "-Dmaven.test.failure.ignore=true", "-Dspring-boot.repackage.skip=true"]
+                "-Dmaven.test.failure.ignore=true", "-Dspring-boot.repackage.skip=true",
+                *(["-DskipTests"] if sin_pruebas else [])]
     # -PkitPreparar: las pruebas que fallan a propósito no paran la construcción (classpath.init.gradle.kts)
-    return ["build", "printRuntimeClasspath", "--continue", "-PkitPreparar"]
+    return ["build", *(["-x", "test"] if sin_pruebas else []), "printRuntimeClasspath", "--continue", "-PkitPreparar"]
 
 
 def preparar(tipo, raiz, con_docker):
     """Construye el proyecto CON RED para llenar la caché (el volumen de Docker o las del equipo), con
     metas_de_preparar(). None si va bien, o el error."""
-    metas = metas_de_preparar(tipo)
+    metas = metas_de_preparar(tipo, sin_pruebas(raiz))
     if con_docker:
         try:
             with abrir_terminal(raiz, True, red=True) as t:

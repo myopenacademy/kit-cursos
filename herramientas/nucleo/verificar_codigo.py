@@ -48,10 +48,12 @@ tiene package bajo src/; uno de un proyecto de Maven o Gradle, con su classpath,
 vez) con entrada.txt, args.txt y opciones-java.txt, y su «**Salida:**», «**Salida de error:**» (con
 termina-con-error.txt) o «**Sesión en la terminal:**» debe ser la del texto; tras una clase de pruebas de Maven,
 «**Salida de las pruebas:**» es el resumen de Surefire; con solo-compilar.txt, solo se compila (o, junto al
-pom.xml, solo se construye). Con Docker, en la imagen de Java del kit (Temurin, Maven y Gradle fijados), sin red:
+pom.xml, solo se construye; y si su texto empieza por «Sin pruebas:», sin ejecutar las pruebas del proyecto, que sí
+se compilan: «mvn package -DskipTests», «gradle build -x test»). Con Docker, en la imagen de Java del kit (Temurin, Maven y Gradle fijados), sin red:
 Maven y Gradle sin conexión (Gradle, sin demonio), con la caché que llena --preparar-java.
 Antes de comparar, lo que encaja con cada expresión regular del salida-variable.txt de la carpeta se sustituye
-por «…», en la salida real y en la del texto.
+por «…», en la salida real y en la del texto (en Java, si no hay uno en la carpeta, el del pom.xml de su módulo,
+también para la «**Salida de las pruebas:**»).
 Además: error por cada fichero enlazado que Git ignora (.gitignore: no llegaría a un clon del curso), y aviso por
 cada carpeta de codigo/ que ningún módulo enlaza y por cada script que ningún bloque muestra.
 
@@ -67,7 +69,8 @@ Dónde se ejecuta (servicios/terminal.py):
 LA RED, SOLO CON --preparar-java [carpeta]: es la única vez que hay red. Construye, con internet, cada proyecto de
 Maven o Gradle de las carpetas enlazadas por los módulos (de todo el curso o de la carpeta o el módulo que se diga)
 para descargar sus dependencias y plugins a la caché (sin el repackage de Spring Boot, que falla sin clase con
-main): con Docker, al volumen kit-java-cache (o el de la variable de entorno KIT_JAVA_CACHE), que la verificación
+main; las pruebas de un proyecto con «Sin pruebas:» en su solo-compilar.txt se compilan, pero no se ejecutan):
+con Docker, al volumen kit-java-cache (o el de la variable de entorno KIT_JAVA_CACHE), que la verificación
 monta en la imagen de Java; sin Docker, a las cachés del equipo (~/.m2/repository, o la de KIT_JAVA_M2, y
 ~/.gradle, o la de GRADLE_USER_HOME). Después, la verificación ya no necesita red; si falta una dependencia, el
 error dice que hay que volver a prepararla. Hazlo la primera vez y cada vez que cambie una dependencia. No

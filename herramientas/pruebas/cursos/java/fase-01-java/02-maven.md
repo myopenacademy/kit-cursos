@@ -54,18 +54,22 @@ public class App {
 Un libro de 20,00 € cuesta 24,20 € con IVA.
 ```
 
-Sus pruebas:
+Sus pruebas (la primera dice a qué hora se ha probado, que cambia en cada ejecución):
 
 ```java
 package es.tienda;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+
 import org.junit.jupiter.api.Test;
 
 class PrecioTest {
     @Test
     void sumaElIva() {
+        System.out.println("Probado a las " + LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
         assertEquals(24.2, Precio.conIva(20.0));
     }
 
@@ -82,6 +86,7 @@ class PrecioTest {
 
 ```text
 [INFO] Running es.tienda.PrecioTest
+Probado a las 10:30:00
 [INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0 -- in es.tienda.PrecioTest
 [INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0
 ```
