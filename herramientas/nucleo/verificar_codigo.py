@@ -49,7 +49,7 @@ vez) con entrada.txt, args.txt y opciones-java.txt, y su «**Salida:**», «**Sa
 termina-con-error.txt) o «**Sesión en la terminal:**» debe ser la del texto; tras una clase de pruebas de Maven,
 «**Salida de las pruebas:**» es el resumen de Surefire; con solo-compilar.txt, solo se compila (o, junto al
 pom.xml, solo se construye; y si su texto empieza por «Sin pruebas:», sin ejecutar las pruebas del proyecto, que sí
-se compilan: «mvn package -DskipTests», «gradle build -x test»). Con Docker, en la imagen de Java del kit (Temurin, Maven y Gradle fijados), sin red:
+se compilan: «mvn package -DskipTests», «gradle build testClasses -x test»). Con Docker, en la imagen de Java del kit (Temurin, Maven y Gradle fijados), sin red:
 Maven y Gradle sin conexión (Gradle, sin demonio), con la caché que llena --preparar-java.
 Antes de comparar, lo que encaja con cada expresión regular del salida-variable.txt de la carpeta se sustituye
 por «…», en la salida real y en la del texto (en Java, si no hay uno en la carpeta, el del pom.xml de su módulo,

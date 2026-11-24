@@ -524,6 +524,16 @@ class GradleSinDocker(Base):
         self.assertError(GRADLE, self.enlace(GRADLE, "codigo/03-gradle/ejemplos/2.1-inventario/src/main"),
                          "gradle build falla en 2.1-inventario")
 
+    def test_sin_pruebas_sigue_compilando_las_pruebas(self):
+        # Con Gradle también: «Sin pruebas:» no ejecuta las pruebas, pero las compila (como -DskipTests en Maven)
+        prueba = self.raiz / INVENTARIO / "src/test/java" / FALLA.replace("tienda", "inventario")
+        prueba.parent.mkdir(parents=True)
+        prueba.write_text(FALLA_TEST.format(paquete="inventario").replace("assertEquals(1, 2);", "assertEquals(1, 2)"),
+                          encoding="utf-8")
+        (self.raiz / INVENTARIO / "solo-compilar.txt").write_text("Sin pruebas: necesita Docker.\n", encoding="utf-8")
+        self.assertError(GRADLE, self.enlace(GRADLE, "codigo/03-gradle/ejemplos/2.1-inventario/src/main"),
+                         "gradle build falla en 2.1-inventario")
+
     def test_dos_proyectos_en_la_misma_verificacion(self):
         # Con Docker, el demonio del primero no puede quedarse con el bloqueo de la caché de Gradle (el volumen)
         otro = INVENTARIO.replace("2.1-inventario", "2.2-almacen")

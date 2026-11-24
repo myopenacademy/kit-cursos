@@ -34,7 +34,7 @@ comparaciones (FORMATO.md, apartado 7.1, «Los de Java»), para que el kit dé e
 - solo-compilar.txt junto al programa: solo se compila con javac. Junto al pom.xml (o al build.gradle.kts): el
   proyecto solo se construye (pruebas incluidas) y sus programas no se ejecutan. Si su texto empieza por «Sin
   pruebas:» (una prueba con Testcontainers, que necesita Docker), el proyecto entero se construye sin ejecutar sus
-  pruebas, que sí se compilan («mvn package -DskipTests», «gradle build -x test»), también con --preparar-java
+  pruebas, que sí se compilan («mvn package -DskipTests», «gradle build testClasses -x test»), también con --preparar-java
   (sin_pruebas()).
 - Los programas se ejecutan sin pantalla, con la salida en UTF-8 y en español (OPCIONES_JVM y LC_ALL=C.UTF-8,
   como el original), y tienen TIEMPO_MAXIMO segundos.
@@ -351,7 +351,7 @@ class Proyecto:
                                                              *(["-DskipTests"] if saltar else [])))
                 que = "mvn package"
             else:
-                codigo, out, err = self.ejecutar(orden_gradle(t, "build", *(["-x", "test"] if saltar else [])))
+                codigo, out, err = self.ejecutar(orden_gradle(t, "build", *(["testClasses", "-x", "test"] if saltar else [])))
                 que = "gradle build"
         except (OSError, terminal.ErrorDeTerminal) as e:
             self.error = f"no se puede construir {self.raiz.name}: {e}"
@@ -918,7 +918,7 @@ def metas_de_preparar(tipo, sin_pruebas=False):
                 "-Dmaven.test.failure.ignore=true", "-Dspring-boot.repackage.skip=true",
                 *(["-DskipTests"] if sin_pruebas else [])]
     # -PkitPreparar: las pruebas que fallan a propósito no paran la construcción (classpath.init.gradle.kts)
-    return ["build", *(["-x", "test"] if sin_pruebas else []), "printRuntimeClasspath", "--continue", "-PkitPreparar"]
+    return ["build", *(["testClasses", "-x", "test"] if sin_pruebas else []), "printRuntimeClasspath", "--continue", "-PkitPreparar"]
 
 
 def preparar(tipo, raiz, con_docker):
