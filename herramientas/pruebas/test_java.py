@@ -295,6 +295,15 @@ class ProgramasSinDocker(Base):
         self.assertError(PROGRAMAS, self.linea(PROGRAMAS, "**Salida:**", "2.3. Una opción"),
                          "la salida de Propiedad.java no es la del texto", "'Tienda: null'")
 
+    def test_bloque_que_ensena_un_fichero_de_verificacion(self):
+        # L13: el bloque es igual a opciones-java.txt: cuenta como mostrado y no se ejecuta (siguen 8 programas)
+        carpeta = "codigo/01-programas/ejemplos/2.3-opciones/"
+        self.cambiar(PROGRAMAS, "### 2.4.", f"Las opciones, en opciones-java.txt:\n\n```text\n"
+                     f"-Dtienda.nombre=\"La Librería\"\n```\n\n📁 **Código:** [`{carpeta}`]({carpeta})\n\n### 2.4.")
+        self.assertEqual(self.ejecutar(PROGRAMAS), 0, self.salida)
+        self.assertIn("8 programas de Java", self.salida)
+        self.assertNotIn("AVISO", self.salida)
+
     def test_termina_con_error_sin_su_fichero(self):
         (self.raiz / EJEMPLOS / "2.4-error/termina-con-error.txt").unlink()
         self.assertError(PROGRAMAS, self.enlace(PROGRAMAS, "codigo/01-programas/ejemplos/2.4-error/"),

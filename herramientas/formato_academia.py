@@ -75,7 +75,8 @@ FICHEROS_DE_TRABAJO = {"CLAUDE.md", "PLAN-CURSO.md", "ESTADO.md"}
 
 CAMPOS = {
     "curso": {"formato", "tipo", "id", "titulo", "descripcion", "version", "idioma", "repositorio",
-              "conviene_saber_antes", "partes", "fases", "proyecto", "equivalencias", "transicion", "ruta_minima"},
+              "conviene_saber_antes", "partes", "fases", "proyecto", "equivalencias", "transicion", "ruta_minima",
+              "academia_minima"},
     "parte": {"id", "titulo", "fases"},
     "fase": {"id", "carpeta", "titulo", "retos", "retos_disponibles", "modulos"},
     "módulo": {"id", "fichero", "titulo", "disponible", "ejercicios"},
@@ -505,6 +506,13 @@ class Curso:
         version = self.texto(d, "version", "el curso", self.linea_json('"version"'))
         if version and not SEMVER.match(version):
             self.error_json(self.linea_json('"version"'), f"«version» ({version}) debe ser MAYOR.MENOR.PARCHE, por ejemplo 1.0.0")
+        # Opcional (revisión 1.1): la versión mínima de la academia que necesita el curso
+        if "academia_minima" in d:
+            minima = d["academia_minima"]
+            if not isinstance(minima, str) or not SEMVER.match(minima):
+                valor = minima if isinstance(minima, str) else json.dumps(minima, ensure_ascii=False)
+                self.error_json(self.linea_json('"academia_minima"'),
+                                f"«academia_minima» ({valor}) debe ser MAYOR.MENOR.PARCHE, por ejemplo 1.1.0")
         self.texto(d, "idioma", "el curso", self.linea_json('"idioma"'))
         repositorio = self.texto(d, "repositorio", "el curso", self.linea_json('"repositorio"'))
         if repositorio and not re.match(r"^https://github\.com/[^/]+/[^/]+/?$", repositorio):

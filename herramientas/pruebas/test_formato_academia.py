@@ -126,6 +126,33 @@ class CursoJson(Base):
         d = self.json(); d["version"] = "1.0"; self.guardar_json(d)
         self.assertError("MAYOR.MENOR.PARCHE")
 
+    def linea_de(self, clave):
+        lineas = (self.raiz / "curso.json").read_text(encoding="utf-8").split("\n")
+        return next(n for n, l in enumerate(lineas, 1) if f'"{clave}"' in l)
+
+    def test_academia_minima_valida(self):
+        # L13.3: campo opcional de la revisión 1.1; no es un campo desconocido
+        d = self.json(); d["academia_minima"] = "1.10.0"; self.guardar_json(d)
+        self.comprobar()
+        self.assertEqual(self.errores, [])
+        self.assertFalse(self.hay(self.avisos, "academia_minima"), self.avisos)
+
+    def test_academia_minima_sin_parche(self):
+        d = self.json(); d["academia_minima"] = "1.1"; self.guardar_json(d)
+        self.assertError(f"curso.json:{self.linea_de('academia_minima')}: «academia_minima» (1.1) debe ser "
+                         "MAYOR.MENOR.PARCHE, por ejemplo 1.1.0")
+
+    def test_academia_minima_que_es_un_numero(self):
+        d = self.json(); d["academia_minima"] = 1; self.guardar_json(d)
+        self.assertError(f"curso.json:{self.linea_de('academia_minima')}: «academia_minima» (1) debe ser "
+                         "MAYOR.MENOR.PARCHE, por ejemplo 1.1.0")
+
+    def test_sin_academia_minima_nada(self):
+        d = self.json(); d.pop("academia_minima", None); self.guardar_json(d)
+        self.comprobar()
+        self.assertEqual(self.errores, [])
+        self.assertFalse(self.hay(self.errores + self.avisos, "academia_minima"))
+
     def test_campo_desconocido_es_aviso(self):
         d = self.json(); d["fases"][0]["retos_disponible"] = False; self.guardar_json(d)
         self.assertAviso("campo desconocido «retos_disponible»")

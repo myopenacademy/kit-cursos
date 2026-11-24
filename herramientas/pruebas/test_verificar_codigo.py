@@ -138,6 +138,30 @@ class SinDocker(Base):
         self.cambiar(MODULO, 'echo "Clientes de $ciudad: $total"', 'echo "Clientes: $total"')
         self.assertError(MODULO, "no es igual a ningún fichero", "contar.sh")
 
+    def mostrar_args(self, texto):
+        """Añade al módulo un bloque con `texto` y su enlace a la carpeta de contar.sh, que tiene args.txt."""
+        carpeta = "codigo/01-ficheros-json/ejemplos/2.2-contar-clientes/"
+        self.cambiar(MODULO, "## 3. Errores típicos", f"El argumento, en args.txt:\n\n```text\n{texto}\n```\n\n"
+                     f"📁 **Código:** [`{carpeta}`]({carpeta})\n\n## 3. Errores típicos")
+
+    def test_bloque_igual_a_un_fichero_de_verificacion(self):
+        # L13: un bloque puede enseñar un fichero de verificación; cuenta como mostrado y no se ejecuta
+        self.mostrar_args("Madrid")
+        self.assertEqual(self.ejecutar(), 0, self.salida)
+        self.assertIn("1 scripts ejecutados, 2 sesiones", self.salida)
+        self.assertNotIn("AVISO", self.salida)
+
+    def test_si_tambien_es_igual_a_uno_de_verificacion_gana_el_otro(self):
+        # Un fichero de verificación con el mismo texto que contar.sh no impide que el bloque ejecute contar.sh
+        contar = self.raiz / CONTAR
+        (contar.parent / "separador.txt").write_text(contar.read_text(encoding="utf-8"), encoding="utf-8")
+        self.cambiar(MODULO, "Clientes de Madrid: 2", "Clientes de Madrid: 3")
+        self.assertError(MODULO, "la salida de contar.sh no es la del texto")
+
+    def test_bloque_distinto_de_un_fichero_de_verificacion(self):
+        self.mostrar_args("Madrir")
+        self.assertError(MODULO, "no es igual a ningún fichero", "el más parecido, args.txt", "'Madrir'", "'Madrid'")
+
     def test_salida_distinta(self):
         self.cambiar(MODULO, "Clientes de Madrid: 2", "Clientes de Madrid: 3")
         self.assertError(MODULO, "la salida de contar.sh no es la del texto")

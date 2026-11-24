@@ -8,7 +8,8 @@ JSON, YAML, XML, CSV, TOML, INI, SVG y Markdown.
 
 Para cada bloque de código de un módulo seguido de una línea «📁 **Código:**» con el enlace a su carpeta:
   1. El bloque debe ser idéntico a uno de los ficheros de esa carpeta (sin contar los espacios al final de las
-     líneas ni las líneas en blanco del principio y del final).
+     líneas ni las líneas en blanco del principio y del final). También puede ser uno de sus ficheros de
+     verificación (entrada.txt, peticiones.txt…): cuenta como mostrado y no se ejecuta.
   2. Si es un script de bash (.sh), se ejecuta con «bash fichero.sh» en una copia de su carpeta (con los
      argumentos de args.txt y la entrada de entrada.txt) y debe terminar con código 0. Si tras el enlace viene
      «**Salida:**» y un bloque ```text, su salida estándar debe coincidir. Si la carpeta tiene
@@ -253,7 +254,11 @@ class Verificador:
     def verificar_bloque(self, md, i, bloque, carpeta):
         self.cuentas["bloques"] += 1
         texto = normalizar(self.texto_del_bloque(md, bloque))
-        candidatos = [f for f in sorted(carpeta.rglob("*")) if f.is_file() and not es_de_verificacion(f.name)]
+        # También los ficheros de verificación: un bloque puede enseñarlos (FORMATO.md 7.1). Van al final, para que,
+        # si el bloque es igual a uno de ellos y a otro fichero, gane el otro (el que se ejecuta)
+        ficheros = [f for f in sorted(carpeta.rglob("*")) if f.is_file()]
+        candidatos = ([f for f in ficheros if not es_de_verificacion(f.name)]
+                      + [f for f in ficheros if es_de_verificacion(f.name)])
         iguales = []
         for f in candidatos:
             try:
@@ -271,6 +276,8 @@ class Verificador:
             return
         fichero = iguales[0]
         self.mostrados.add(fichero.resolve())
+        if es_de_verificacion(fichero.name):
+            return              # se enseña, pero es para el kit: ningún ejecutor lo ejecuta
         metodo = next((m for ejecutor, m in EJECUTORES if ejecutor.es_mio(fichero)), None)
         if metodo:
             getattr(self, metodo)(md, i, fichero, carpeta)
