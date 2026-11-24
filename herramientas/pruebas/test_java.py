@@ -153,6 +153,18 @@ class Unidad(unittest.TestCase):
         suelto.mkdir(parents=True)
         self.assertIsNone(lenguaje_java.raiz_maven(suelto))
 
+    def test_una_carpeta_codigo_dentro_del_proyecto_es_un_nombre_cualquiera(self):
+        # FORMATO.md 7: solo cuenta la codigo/ de una fase (fase-NN-*/codigo/) o de proyecto/ (proyecto/codigo/)
+        for base in ("fase-01-java/codigo/01-x/ejemplos/2.1-app", "proyecto/codigo/etapa-01"):
+            with self.subTest(base=base):
+                tmp = self.arbol(f"{base}/pom.xml")
+                carpeta = tmp / base / "src/main/java/es/codigo/util"
+                carpeta.mkdir(parents=True)
+                self.assertEqual(lenguaje_java.raiz_maven(carpeta), (tmp / base, tmp / base))
+        tmp = self.arbol("fase-01-java/codigo/01-x/settings.gradle.kts", "fase-01-java/codigo/01-x/codigo/app/build.gradle.kts")
+        app = tmp / "fase-01-java/codigo/01-x/codigo/app"
+        self.assertEqual(lenguaje_java.raiz_gradle(app), (tmp / "fase-01-java/codigo/01-x", app))
+
     def test_servidor_txt_rutas_opciones_puerto_y_copia(self):
         tmp = Path(tempfile.mkdtemp(prefix="test-java-"))
         self.addCleanup(shutil.rmtree, tmp)

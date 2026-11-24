@@ -143,10 +143,19 @@ def clase_de(fichero):
     return (paquete.group(1) + "." if paquete else "") + fichero.stem
 
 
+def es_carpeta_de_codigo(c):
+    """¿Es la codigo/ que marca FORMATO.md (apartado 7)? La de una fase (fase-NN-*/codigo/) o la de proyecto/
+    (proyecto/codigo/), que cuelgan de la raíz del curso. Una carpeta llamada codigo más abajo (un paquete de Java,
+    por ejemplo) es un nombre cualquiera."""
+    return (c.name == "codigo" and (c.parent.name == "proyecto" or re.match(r"fase-\d{2}(-|$)", c.parent.name))
+            and (c.parent.parent / "curso.json").exists())
+
+
 def _arriba(carpeta):
-    """La carpeta y las superiores, hasta codigo/ o la raíz del curso (la que tiene curso.json), sin incluirlas."""
+    """La carpeta y las superiores, hasta la codigo/ de su fase o de proyecto/ (o la raíz del curso, la que tiene
+    curso.json), sin incluirlas."""
     for c in [carpeta, *carpeta.parents]:
-        if c.name == "codigo" or (c / "curso.json").exists():
+        if es_carpeta_de_codigo(c) or (c / "curso.json").exists():
             return
         yield c
 
@@ -844,7 +853,7 @@ def copia_con_servidores(raiz, modulo):
         programa = (Path(modulo) / ruta).resolve()
         rutas.append(programa if programa.is_dir() else programa.parent)
     comun = Path(os.path.commonpath([str(r) for r in rutas]))
-    return comun if comun.name != "codigo" and any(p.name == "codigo" for p in comun.parents) else raiz
+    return comun if not es_carpeta_de_codigo(comun) and any(es_carpeta_de_codigo(p) for p in comun.parents) else raiz
 
 
 def puerto_de(proyecto, opciones=()):
