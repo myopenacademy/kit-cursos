@@ -147,6 +147,32 @@ class CursoJson(Base):
         self.assertError(f"curso.json:{self.linea_de('academia_minima')}: «academia_minima» (1) debe ser "
                          "MAYOR.MENOR.PARCHE, por ejemplo 1.1.0")
 
+    def test_academia_minima_validas_con_la_regla_estricta(self):
+        # Revisión 1.1: tres números de 0 a 9, sin ceros a la izquierda (salvo el 0) y nada más
+        for valor in ("1.1.0", "0.9.0", "1.10.0", "10.0.0", "1.0.10"):
+            with self.subTest(valor=valor):
+                d = self.json(); d["academia_minima"] = valor; self.guardar_json(d)
+                self.comprobar()
+                self.assertFalse(self.hay(self.errores, "academia_minima"), self.errores)
+
+    def test_academia_minima_no_validas_con_la_regla_estricta(self):
+        # Lo que no se ve (espacios, saltos de línea, vacío) sale entre comillas, como en JSON
+        casos = {"01.1.0": "01.1.0", "1.01.0": "1.01.0", "1.1.00": "1.1.00", "1.1.0-beta": "1.1.0-beta",
+                 "v1.1.0": "v1.1.0", "1.1.0.0": "1.1.0.0", "١.١.٠": "١.١.٠",
+                 " 1.1.0": '" 1.1.0"', "1.1.0\n": '"1.1.0\\n"', "": '""'}
+        for valor, como_sale in casos.items():
+            with self.subTest(valor=valor):
+                d = self.json(); d["academia_minima"] = valor; self.guardar_json(d)
+                self.assertError(f"curso.json:{self.linea_de('academia_minima')}: «academia_minima» ({como_sale}) debe ser "
+                                 "MAYOR.MENOR.PARCHE, por ejemplo 1.1.0")
+
+    def test_version_con_la_regla_estricta(self):
+        for valor, como_sale in {"01.0.0": "01.0.0", "1.0.0\n": '"1.0.0\\n"', "١.0.0": "١.0.0"}.items():
+            with self.subTest(valor=valor):
+                d = self.json(); d["version"] = valor; self.guardar_json(d)
+                self.assertError(f"curso.json:{self.linea_de('version')}: «version» ({como_sale}) debe ser "
+                                 "MAYOR.MENOR.PARCHE, por ejemplo 1.0.0")
+
     def test_sin_academia_minima_nada(self):
         d = self.json(); d.pop("academia_minima", None); self.guardar_json(d)
         self.comprobar()

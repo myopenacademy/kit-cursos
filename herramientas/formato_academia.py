@@ -93,7 +93,10 @@ HUECOS_RUTA_MINIMA = {"resumen", "modulos", "proyecto", "consultas"}
 HUECO = re.compile(r"\{\{([^{}]*)\}\}")
 
 ID_CURSO = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
-SEMVER = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
+# MAYOR.MENOR.PARCHE: tres números con cifras de 0 a 9, sin ceros a la izquierda (salvo el propio 0) y nada más,
+# ni delante ni detrás (\Z, no $, que deja pasar un salto de línea final; [0-9], no \d, que admite cifras de
+# otras escrituras). Vale para «version», «academia_minima» y «desde» (FORMATO.md 3.2 y 11.1).
+SEMVER = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\Z")
 CARPETA_FASE = re.compile(r"^fase-(\d{2})-[a-z0-9]+(-[a-z0-9]+)*$")
 FICHERO_NUMERADO = re.compile(r"^(\d{2})-[a-z0-9]+(-[a-z0-9]+)*\.md$")
 GITHUB = re.compile(r"^https://github\.com/([^/]+)/([^/#?]+)(?:/(blob|tree)/([^/]+)(/[^#?]*)?)?(?:#(.*))?$")
@@ -256,6 +259,14 @@ URL_CON_CLAVE = re.compile(r"^[a-z][a-z0-9+.-]*://[^/:@\s]+:([^@\s]+)@", re.IGNO
 VARIABLE_SECRETA = re.compile(r"SECRET|TOKEN|PASSWORD|PASSWD|PASS\b|PWD|API_?KEY|PRIVATE|CREDENTIAL|_KEY\b|^KEY\b|"
                               r"CONTRASE[ÑN]A|CLAVE|SECRETO|PRIVAD",
                               re.IGNORECASE)
+
+
+def valor_visible(valor):
+    """El valor tal cual en un mensaje; entre comillas, como en JSON, si no es un texto o no se vería entero
+    (vacío, con espacios delante o detrás, o con saltos de línea u otros caracteres de control)."""
+    if isinstance(valor, str) and valor and valor.isprintable() and valor == valor.strip():
+        return valor
+    return json.dumps(valor, ensure_ascii=False)
 
 
 def secreto_real(variable, valor):
@@ -505,14 +516,13 @@ class Curso:
         self.texto(d, "descripcion", "el curso", self.linea_json('"descripcion"'))
         version = self.texto(d, "version", "el curso", self.linea_json('"version"'))
         if version and not SEMVER.match(version):
-            self.error_json(self.linea_json('"version"'), f"«version» ({version}) debe ser MAYOR.MENOR.PARCHE, por ejemplo 1.0.0")
+            self.error_json(self.linea_json('"version"'), f"«version» ({valor_visible(version)}) debe ser MAYOR.MENOR.PARCHE, por ejemplo 1.0.0")
         # Opcional (revisión 1.1): la versión mínima de la academia que necesita el curso
         if "academia_minima" in d:
             minima = d["academia_minima"]
             if not isinstance(minima, str) or not SEMVER.match(minima):
-                valor = minima if isinstance(minima, str) else json.dumps(minima, ensure_ascii=False)
                 self.error_json(self.linea_json('"academia_minima"'),
-                                f"«academia_minima» ({valor}) debe ser MAYOR.MENOR.PARCHE, por ejemplo 1.1.0")
+                                f"«academia_minima» ({valor_visible(minima)}) debe ser MAYOR.MENOR.PARCHE, por ejemplo 1.1.0")
         self.texto(d, "idioma", "el curso", self.linea_json('"idioma"'))
         repositorio = self.texto(d, "repositorio", "el curso", self.linea_json('"repositorio"'))
         if repositorio and not re.match(r"^https://github\.com/[^/]+/[^/]+/?$", repositorio):
@@ -844,7 +854,7 @@ class Curso:
             self.campos_desconocidos(eq, "equivalencia", donde, lin)
             desde = self.texto(eq, "desde", donde, lin)
             if desde and not SEMVER.match(desde):
-                self.error_json(lin, f"{donde}: «desde» ({desde}) debe ser una versión MAYOR.MENOR.PARCHE")
+                self.error_json(lin, f"{donde}: «desde» ({valor_visible(desde)}) debe ser una versión MAYOR.MENOR.PARCHE")
             if not isinstance(antes, str):
                 self.error_json(lin, "una equivalencia sin «antes» (el identificador que ya no existe)")
             elif antes in self.ids:

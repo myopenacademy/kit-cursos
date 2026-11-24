@@ -19,6 +19,7 @@ Pedida por el curso de Java (23 de noviembre de 2026) para adaptarse al kit, con
 
 ### Cambiado
 
+- **`MAYOR.MENOR.PARCHE`, estricto** (`FORMATO.md` 11.1, decisión del autor del 24 de noviembre de 2026): `formato_academia.py` ya no acepta en `version`, `academia_minima` ni en el `desde` de las equivalencias ceros a la izquierda (`01.0.0`), cifras que no son ASCII ni un salto de línea al final, que antes dejaba pasar. Lo que no se vería en el mensaje sale entre comillas, como en JSON (`("1.0.0\n")`).
 - `verificar_codigo.py` tiene una lista de **ejecutores** (bash y Java): para cada fichero manda el primero que diga que es suyo.
 - Un bloque igual a un fichero de verificación (`peticiones.txt`, `entrada.txt`…) cuenta como mostrado y no se ejecuta; antes era un error («el bloque no es igual a ningún fichero»).
 - **Al verificar, la caché de Java es de solo lectura**: el volumen se monta con `:ro` (solo `--preparar-java` escribe en él), para que un programa o una construcción no cambien lo que usan los demás. Maven escribe en un repositorio local de cada contenedor con el del volumen detrás (`-Dmaven.repo.local.tail`), y Gradle, en un `GRADLE_USER_HOME` de cada contenedor con el volumen como caché de solo lectura (`GRADLE_RO_DEP_CACHE`).
